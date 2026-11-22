@@ -191,6 +191,14 @@ namespace RaceMode
             try { using (var p = Process.GetProcessById(pid)) p.WaitForExit(20000); } catch { }
         }
 
+        // A normal start (no --after-update) of the installed copy that finds RaceMode.exe.old next to it: an update
+        // was installed while Race Mode was on and starts only now. Treat this start like the restart after an update,
+        // so a new version that can't start still rolls back, and the old exe goes once this one is up.
+        public static void NoticeEarlierUpdate()
+        {
+            if (File.Exists(ExePath + ".old") && Installer.IsInstalledCopy) _fresh = true;
+        }
+
         // New copy, once its window is up: the update worked, so the old exe can go.
         public static bool ConfirmSwap()
         {
