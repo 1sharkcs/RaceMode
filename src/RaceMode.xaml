@@ -1057,7 +1057,7 @@
                   </Border>
                 </Border>
                 <TextBlock Style="{StaticResource Sub}" Margin="16,0,16,12"
-                           Text="Apps get 5 seconds to close. Anything still running is then closed for them, unless it's showing a window, which may be asking you to save. iRacing and your Launch apps are never closed."/>
+                           Text="Each app gets 5 seconds to close on its own. Anything still running is then closed, unless it has a window open (it may be asking you to save). iRacing and your Launch apps are never closed."/>
               </StackPanel>
               <ListBox x:Name="CloseList" Grid.Row="1">
                 <ListBox.ItemTemplate>
@@ -1117,7 +1117,7 @@
                   <CheckBox x:Name="OptStream" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Streaming"/><TextBlock Style="{StaticResource Sub}" Text="Adds your streaming apps to Race Mode. They start with it and are never closed or slowed down."/></StackPanel></CheckBox>
                 </Border>
                 <Border Style="{StaticResource Row}">
-                  <CheckBox x:Name="OptStreamBoost" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Put OBS ahead of other apps"/><TextBlock Style="{StaticResource Sub}" Text="Keeps your stream smooth when the game is busy. Back to normal when Race Mode turns off."/></StackPanel></CheckBox>
+                  <CheckBox x:Name="OptStreamBoost" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Put OBS first"/><TextBlock Style="{StaticResource Sub}" Text="Keeps your stream smooth when the game is busy. Back to normal when Race Mode turns off."/></StackPanel></CheckBox>
                 </Border>
                 <Border Style="{StaticResource LastRow}">
                   <CheckBox x:Name="OptVram" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Warn me if video memory is nearly full"/><TextBlock Style="{StaticResource Sub}" Text="Checked when Race Mode turns on (NVIDIA cards only). OBS needs room on the graphics card too."/></StackPanel></CheckBox>
@@ -1180,7 +1180,7 @@
                       <TextBlock Text="Race Mode inside OBS" Foreground="{StaticResource Ink}"/>
                       <TextBlock Style="{StaticResource Sub}" TextWrapping="Wrap" Text="A small panel with FPS, temperatures, stream health and the on/off switch.&#x0a;1. Click Copy Dock Link.&#x0a;2. In OBS: Docks &gt; Custom Browser Docks.&#x0a;3. Name it Race Mode, paste the link, Apply."/>
                     </StackPanel>
-                    <Button x:Name="DockLinkBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Copy Dock Link" Margin="12,0,0,0" IsEnabled="False"
+                    <Button x:Name="DockLinkBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Copy Dock Link" Margin="12,0,0,0" IsEnabled="False" ToolTipService.ShowOnDisabled="True"
                             ToolTip="Works while Streaming is on. The link has a private key in it: don't share it."/>
                   </Grid>
                 </Border>
@@ -1206,7 +1206,6 @@
             <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="720"/></Grid.ColumnDefinitions>
             <StackPanel Margin="0,0,4,0">
-              <TextBlock Style="{StaticResource SectionHeader}" Text="Race graphics"/>
               <Border Style="{StaticResource Group}">
                 <Border Style="{StaticResource LastRow}" Padding="16,12,16,14">
                   <StackPanel>

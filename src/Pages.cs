@@ -42,7 +42,7 @@ namespace RaceMode
             if (main != null && side != null && hdr != null && opts != null)
             {
                 main.MaxWidth = two ? double.PositiveInfinity : 720;
-                side.Width = two ? new GridLength(320) : new GridLength(0);
+                side.Width = two ? new GridLength(380) : new GridLength(0);
                 Grid.SetColumn(hdr, two ? 1 : 0); Grid.SetRow(hdr, two ? 0 : 2);
                 Grid.SetColumn(opts, two ? 1 : 0); Grid.SetRow(opts, two ? 1 : 3);
                 hdr.VerticalAlignment = two ? VerticalAlignment.Center : VerticalAlignment.Top;

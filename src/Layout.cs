@@ -26,7 +26,7 @@ namespace RaceMode
     {
         const double SmallW = 500, SmallH = 460;
         const double NavNamesAt = 760;
-        const double WideAt = 1440;
+        const double WideAt = 1360;
         const double NavWide = 208, NavNarrow = 60;
         const double SectionCol = 764;        // a list section's column beside the dashboard: its 720 of content and its margins
         const double PanelW = 460, PanelH = 262;   // what the Small panel button shrinks to
@@ -52,6 +52,7 @@ namespace RaceMode
                 if (nav.SelectedIndex != tabs.SelectedIndex) nav.SelectedIndex = tabs.SelectedIndex;
                 var open = tabs.SelectedItem as TabItem;
                 if (open != null) AutomationProperties.SetName(tabs, (open.Tag ?? open.Header) as string ?? "");
+                NavPhase(_phase ?? "off");
                 // Screen readers: the hidden tab strip never lays out, so Windows was never told that the open
                 // section's content changed. Coming back to a section left its page invisible to them (found by
                 // driving the real window through UI Automation). Tell it once the new page is in place.
@@ -66,6 +67,17 @@ namespace RaceMode
             var heroHome = heroChecks == null ? null : heroChecks.Parent as Panel;
             if (heroHome != null) heroHome.Children.Remove(heroChecks);
             NavPhase(_phase ?? "off");
+            // Streaming's two dependents only matter while Streaming is on: dimmed (not disabled) while it's off
+            var stream = Get<CheckBox>("OptStream");
+            if (stream != null)
+            {
+                RoutedEventHandler dim = (s, e) =>
+                {
+                    foreach (var name in new[] { "OptStreamBoost", "OptVram" })
+                    { var box = Get<CheckBox>(name); var row = box == null ? null : box.Parent as UIElement; if (row != null) row.Opacity = stream.IsChecked == true ? 1 : 0.55; }
+                };
+                stream.Checked += dim; stream.Unchecked += dim; stream.Loaded += dim; dim(null, null);
+            }
             Window.Loaded += (s, e) => { _layoutReady = true; ApplyLayout(); };
         }
 
@@ -133,7 +145,9 @@ namespace RaceMode
             var block = Get<Border>("NavStatus");
             if (block != null)
             {
-                bool on = phase != "off";
+                // on the Overview the page's own switch card is the red thing; two reds saying the same words competed
+                var openTabs = Get<TabControl>("Tabs");
+                bool on = phase != "off" && !(openTabs != null && openTabs.SelectedIndex == 0);
                 block.Background = on ? new SolidColorBrush(Color.FromRgb(0x2A, 0x1A, 0x1A)) : (Brush)Window.Resources["Card"];
                 block.BorderBrush = on ? new SolidColorBrush(Color.FromRgb(0x5A, 0x24, 0x20)) : (Brush)Window.Resources["Hairline"];
             }
@@ -254,6 +268,16 @@ namespace RaceMode
             if (body == null || host == null || body.Parent == host) return;
             var old = body.Parent as Border; if (old != null) old.Child = null;
             host.Child = body;
+            // beside a section, what Race Mode does comes first (it is the result of the page you are on), then
+            // the live readings; on the Overview the steps have their own place and this block follows the readings
+            var bottom = Get<UniformGrid>("DashBottom");
+            if (bottom != null && bottom.Parent == body)
+            {
+                bool side = host.Name == "DashSide";
+                body.Children.Remove(bottom);
+                if (side) body.Children.Insert(0, bottom); else body.Children.Add(bottom);
+                bottom.Margin = side ? new Thickness(-7, 0, -7, 6) : new Thickness(-7, 7, -7, 0);
+            }
         }
 
         // compact: short windows (a 1080p laptop at 150% scaling has about 690 px) get a tighter switch card and

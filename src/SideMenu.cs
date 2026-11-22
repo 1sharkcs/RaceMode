@@ -81,7 +81,7 @@ namespace RaceMode
 
                 // the value: Faint, regular weight even on the current row, so the name stays the loudest thing
                 var dot = new Ellipse { Width = 6, Height = 6, Margin = new Thickness(0, 1, 6, 0), VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
-                var value = new TextBlock { FontSize = 12, FontWeight = FontWeights.Normal, Foreground = (Brush)Window.Resources["Faint"], VerticalAlignment = VerticalAlignment.Center };
+                var value = new TextBlock { FontSize = 12, FontWeight = FontWeights.Normal, Foreground = (Brush)Window.Resources["Dim"], VerticalAlignment = VerticalAlignment.Center };
                 var valueBox = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
                 valueBox.Children.Add(dot); valueBox.Children.Add(value);
                 Grid.SetColumn(valueBox, 2); row.Children.Add(valueBox);
@@ -158,10 +158,10 @@ namespace RaceMode
                         issues ? NeedsALook() : null);
             // Launch: how many apps start; Close: how many apps are closed (or Off when Settings turns that step off)
             int launch = _launch.Count(a => a.Enabled);
-            SetNavValue(1, !_cfg.LaunchApps ? "Off" : launch > 0 ? launch.ToString(CultureInfo.InvariantCulture) : null, null, false,
+            SetNavValue(1, !_cfg.LaunchApps ? "Off" : launch > 0 ? launch + (launch == 1 ? " app" : " apps") : null, null, false,
                         !_cfg.LaunchApps ? "Starting apps is switched off" : launch > 0 ? launch + " app" + (launch == 1 ? "" : "s") + " start when Race Mode turns on" : "No apps to start");
             int close = _close.Count;
-            SetNavValue(2, !_cfg.CloseApps ? "Off" : close > 0 ? close.ToString(CultureInfo.InvariantCulture) : null, null, false,
+            SetNavValue(2, !_cfg.CloseApps ? "Off" : close > 0 ? close + (close == 1 ? " app" : " apps") : null, null, false,
                         !_cfg.CloseApps ? "Closing apps is switched off" : close > 0 ? close + " app" + (close == 1 ? "" : "s") + " closed when Race Mode turns on" : "No apps to close");
             // Stream: on (an Ink dot, like the update: in the menu, red means only that Race Mode is on)
             SetNavValue(3, _cfg.Streaming ? "On" : null, _cfg.Streaming ? "Ink" : null, true, _cfg.Streaming ? "Streaming is on" : null);
@@ -183,7 +183,7 @@ namespace RaceMode
         void SetNavValue(int i, string value, string dotKey, bool pip, string tip)
         {
             _navValue[i].Text = value ?? "";
-            _navValue[i].Foreground = (Brush)Window.Resources[dotKey == "Warn" ? "Warn" : "Faint"];
+            _navValue[i].Foreground = (Brush)Window.Resources[dotKey == "Warn" ? "Warn" : "Dim"];   // Dim: Faint fell to 4.3:1 on the current row
             // 12 px Segoe like a caption: these are read at rest, not glanced at mid-race (Bahnschrift sat high on the row)
             _navValue[i].Visibility = value == null ? Visibility.Collapsed : Visibility.Visible;
             var brush = dotKey == null ? null : (Brush)Window.Resources[dotKey];

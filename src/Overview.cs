@@ -61,49 +61,53 @@ namespace RaceMode
             HookOverview();
             // very wide windows: the page stops growing at OverMax (the same cap is on its column in the XAML)
             page = Math.Min(page, OverMax);
-            bool on = SwitchOn();
-            var head = Get<TextBlock>("CheckHead"); if (head != null) head.Text = on ? "Race Mode checklist" : "Before you race";
+            // one name in both states: while off the rows say what will happen, while on what did
+            var head = Get<TextBlock>("CheckHead"); if (head != null) head.Text = "What Race Mode does";
 
             bool page2 = overview && !small;
             bool beside = page2 && page >= AsideAt;
-            FrameworkElement lead = page2 ? (on ? check : last) : null;
-            string key = (lead == null ? "-" : lead.Name);
+            // The steps always lead: beside the switch card when there's room, under it otherwise. The last session
+            // goes under the switch card when the steps are beside it (that corner would otherwise be empty), and
+            // under the live band everywhere else. With no session yet there is nothing to show, so it isn't shown.
+            string key = !page2 ? "-" : beside ? "beside" : "stack";
             if (key != _overKey)
             {
                 _overKey = key;
                 Detach(check); Detach(last);
                 var bottomEdge = new Thickness(7, 0, 7, 14);
-                if (lead != null)
-                {
-                    var rest = lead == check ? last : check;
-                    aside.Child = lead; lead.Margin = new Thickness(0);
-                    rest.Margin = bottomEdge; bottom.Children.Add(rest);
-                }
-                else
+                if (!page2)
                 {
                     check.Margin = bottomEdge; last.Margin = bottomEdge;
                     bottom.Children.Add(check); bottom.Children.Add(last);
                 }
+                else
+                {
+                    aside.Child = check; check.Margin = new Thickness(0);
+                    if (beside) { last.Margin = new Thickness(0, 18, 0, 0); Grid.SetRow(last, 1); Grid.SetColumn(last, 0); top.Children.Add(last); }
+                    else { last.Margin = bottomEdge; bottom.Children.Add(last); }
+                }
             }
+            last.Visibility = string.IsNullOrEmpty(_lastSummary) ? Visibility.Collapsed : Visibility.Visible;
             aside.Visibility = page2 ? Visibility.Visible : Visibility.Collapsed;
 
-            // beside: the switch card a little wider than the list; it stretches to the list's height
             top.ColumnDefinitions[0].Width = new GridLength(1, GridUnitType.Star);
             Get<ColumnDefinition>("StatsCol").Width = beside ? new GridLength(1.1, GridUnitType.Star) : new GridLength(0);
-            Grid.SetRow(aside, beside ? 0 : 1); Grid.SetColumn(aside, beside ? 1 : 0);
+            Grid.SetRow(aside, beside ? 0 : 1); Grid.SetColumn(aside, beside ? 1 : 0); Grid.SetRowSpan(aside, beside ? 2 : 1);
             aside.Margin = beside ? new Thickness(20, 0, 0, 0) : new Thickness(0, 20, 0, 0);
-            // beside, the switch card starts level with the list's card, under the list's heading
-            var hero = Get<Border>("Hero"); if (hero != null) hero.Margin = new Thickness(0, beside ? 23 : 0, 0, 0);
+            // beside, the switch card starts level with the list's card (under the list's heading) and keeps its own
+            // height: stretched to the list's height it was the biggest red surface on the page and said the least
+            var hero = Get<Border>("Hero");
+            if (hero != null) { hero.Margin = new Thickness(0, beside ? 23 : 0, 0, 0); hero.VerticalAlignment = beside ? VerticalAlignment.Top : VerticalAlignment.Stretch; }
 
             // the steps run in two columns wherever they have the room (under the live band, ArrangeLive decides)
-            if (lead == check) SetStepColumns((beside ? page * 1.1 / 2.1 : page) >= 500 ? 2 : 1);
+            if (page2) SetStepColumns((beside ? page * 1.1 / 2.1 : page) >= 500 ? 2 : 1);
         }
 
         // How much taller the steps make the top of the page than the old checklist the plot heights were tuned to
         // (about 130 px): the plots give that height back so the band still fits the window.
         double StepsExtra(double dashW)
         {
-            if (_overKey != "CheckBlock" || _stepRows == null) return 0;
+            if (_overKey == "-" || _overKey == "" || _stepRows == null) return 0;
             double a = _stepRows.Where(r => r.Btn.Parent == _stepColA).Sum(r => r.Weight);
             double b = _stepRows.Where(r => r.Btn.Parent == _stepColB).Sum(r => r.Weight);
             return Math.Max(0, Math.Max(a, b) * (_compact ? 40 : 46) + 16 - 130);
@@ -133,7 +137,7 @@ namespace RaceMode
 
             // the steps under the live band (Overview off, or beside another section): two columns when there's room
             var bottom = Get<UniformGrid>("DashBottom");
-            if (_overKey != "CheckBlock" && bottom != null) SetStepColumns(dashW / Math.Max(1, bottom.Columns) >= 560 ? 2 : 1);
+            if ((_overKey == "-" || _overKey == "") && bottom != null) SetStepColumns(dashW / Math.Max(1, bottom.Columns) >= 560 ? 2 : 1);
 
             double smallW = side ? (dashW - 12) * 2.1 / 3.1 : dashW;
             int cols = smallW >= 600 ? 3 : smallW >= 340 ? 2 : 1;

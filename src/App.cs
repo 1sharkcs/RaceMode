@@ -1148,12 +1148,12 @@ namespace RaceMode
             var hc = Get<System.Windows.Controls.Primitives.UniformGrid>("HeroChecks");
             if (hc == null) return;
             hc.Children.Clear(); hc.Visibility = Visibility.Visible;
-            hc.Children.Add(MiniCheck("Apps", "3 of 3 running", "Live"));
+            hc.Children.Add(MiniCheck("Launch apps", "3 of 3 running", "Live"));
             hc.Children.Add(MiniCheck("Close list", "all closed", "Live"));
             hc.Children.Add(MiniCheck("iRacing", "racing, put first", "Live"));
-            hc.Children.Add(MiniCheck("Screen", "OK", "Live"));
+            hc.Children.Add(MiniCheck("Screen check", "OK", "Live"));
             hc.Children.Add(MiniCheck("Race graphics", "set", "Live"));
-            hc.Children.Add(MiniCheck("Background", "5 slowed down", "Live"));
+            hc.Children.Add(MiniCheck("Background apps", "5 slowed down", "Live"));
             _previewOn = true;
             UpdateChecklist();
         }
@@ -2024,6 +2024,9 @@ namespace RaceMode
         // The last session's key lines from summary.txt, as label / value rows.
         void ShowLastSession()
         {
+            // with no session yet there is nothing to show: the block appears with the first one
+            var lastBlock = Get<FrameworkElement>("LastBlock");
+            if (lastBlock != null) lastBlock.Visibility = string.IsNullOrEmpty(_lastSummary) ? Visibility.Collapsed : Visibility.Visible;
             var box = Get<StackPanel>("LastSession");
             if (box == null || !_dashOn) return;
             box.Children.Clear();
@@ -2627,7 +2630,7 @@ namespace RaceMode
             if (expected.Count > 0)
             {
                 int running = expected.Count(i => IsRunning(i.ProcessName));
-                hc.Children.Add(MiniCheck("Apps", running + " of " + expected.Count + " running", running == expected.Count ? "Live" : turning ? "Dim" : "Warn"));
+                hc.Children.Add(MiniCheck("Launch apps", running + " of " + expected.Count + " running", running == expected.Count ? "Live" : turning ? "Dim" : "Warn"));
             }
             if (_cfg.CloseApps && _close.Count > 0)
             {
@@ -2636,9 +2639,9 @@ namespace RaceMode
             }
             bool simNow = IsRunning(Monitor.SimName);
             hc.Children.Add(MiniCheck("iRacing", simNow ? (_simBoosted && _cfg.SimHighPriority ? "racing, put first" : "racing") : _simSeen ? "between sessions" : "not in a session yet", simNow ? "Live" : "Off"));
-            if (_displayLine.Length > 0) hc.Children.Add(MiniCheck("Screen", _displayLine == "screen OK" ? "OK" : "needs a look", _displayLine == "screen OK" ? "Live" : "Warn"));
+            if (_displayLine.Length > 0) hc.Children.Add(MiniCheck("Screen check", _displayLine == "screen OK" ? "OK" : "needs a look", _displayLine == "screen OK" ? "Live" : "Warn"));
             hc.Children.Add(MiniCheck(_cfg.GraphicsMode + " graphics", _graphicsPending ? "after iRacing closes" : _graphicsOk ? "set" : "see Graphics", _graphicsPending ? "Dim" : _graphicsOk ? "Live" : "Warn"));
-            if (_lowered.Count > 0) hc.Children.Add(MiniCheck("Background", _lowered.Count + " slowed down", "Live"));
+            if (_lowered.Count > 0) hc.Children.Add(MiniCheck("Background apps", _lowered.Count + " slowed down", "Live"));
             if (_cfg.Streaming) hc.Children.Add(MiniCheck("OBS", IsRunning("obs64") ? "running" : "not running", IsRunning("obs64") ? "Live" : "Warn"));
             if (_mon.IsLogging) hc.Children.Add(MiniCheck("Log", "recording", "Live"));
         }
