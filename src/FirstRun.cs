@@ -178,7 +178,8 @@ namespace RaceMode
 
         static string SafeFileName(string p) { try { return System.IO.Path.GetFileNameWithoutExtension(p ?? ""); } catch { return ""; } }
 
-        static string Cap(string s) { return string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1); }
+        // "dashboards" -> "Dashboards", but names that start lower-case stay as they are ("iRacing overlays").
+        static string Cap(string s) { return string.IsNullOrEmpty(s) || (s.Length > 1 && char.IsUpper(s[1])) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1); }
 
         void MaybeStartFirstRun()
         {
