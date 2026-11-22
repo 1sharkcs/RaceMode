@@ -297,6 +297,15 @@ namespace RaceMode
                     t1.Start();
                 };
             }
+            if (args.Length >= 3 && args[1] == "--uitest")
+            {
+                // Uses the window as a keyboard and screen-reader user would, off-screen, and writes what fails (UiTest.cs).
+                shell.Window.WindowStartupLocation = WindowStartupLocation.Manual; shell.Window.Left = -30000; shell.Window.Top = -30000;
+                shell.Window.ShowActivated = false; shell.Window.ShowInTaskbar = false;
+                var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                t.Tick += (s, e) => { t.Stop(); shell.RunUiTest(args[2]); shell.Window.Close(); };
+                shell.Window.Loaded += (s, e) => t.Start();
+            }
             if (args.Length >= 3 && args[1] == "--layouttest")
             {
                 // Lays the window out at a few hundred sizes, off-screen, and writes what breaks (LayoutTest.cs).

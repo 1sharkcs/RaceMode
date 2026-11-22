@@ -759,28 +759,6 @@
       <RowDefinition Height="Auto"/>
     </Grid.RowDefinitions>
 
-    <!-- title bar -->
-    <Grid x:Name="TitleBar" Background="Transparent">
-      <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
-        <Image x:Name="AppIcon" Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Race Mode icon"/>
-        <TextBlock Text="Race Mode" FontSize="12" Foreground="{StaticResource Dim}" VerticalAlignment="Center"/>
-      </StackPanel>
-      <!-- small panel and back (Layout.cs ToggleSmall) -->
-      <Button x:Name="SmallBtn" Grid.Column="1" Style="{StaticResource CaptionBtn}" ToolTip="Small panel: the switch, FPS and the live numbers" AutomationProperties.Name="Small panel">
-        <Path x:Name="SmallIcon" Data="M0.5,0.5 H11.5 V9.5 H0.5 Z M5.5,5.5 H11.5 M5.5,5.5 V9.5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="12" Height="10"/>
-      </Button>
-      <Button x:Name="MinBtn" Grid.Column="2" Style="{StaticResource CaptionBtn}" ToolTip="Minimize" AutomationProperties.Name="Minimize">
-        <Path Data="M0,0.5 L10,0.5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="10" Height="1"/>
-      </Button>
-      <Button x:Name="MaxBtn" Grid.Column="3" Style="{StaticResource CaptionBtn}" ToolTip="Maximize" AutomationProperties.Name="Maximize">
-        <Path x:Name="MaxIcon" Data="M0.5,0.5 H9.5 V9.5 H0.5 Z" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="10" Height="10"/>
-      </Button>
-      <Button x:Name="CloseBtn" Grid.Column="4" Style="{StaticResource CloseCaptionBtn}" ToolTip="Close" AutomationProperties.Name="Close window">
-        <Path Data="M0,0 L10,10 M10,0 L0,10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="10" Height="10"/>
-      </Button>
-    </Grid>
-
     <!-- everything between the title bar and the activity line. Layout.cs fits it to the window:
          small panel (switch and numbers only) · icon menu · menu with names · and, from 1280 px, the dashboard
          beside whichever section is open. -->
@@ -792,10 +770,13 @@
       </Grid.ColumnDefinitions>
 
       <!-- side menu; under it, the Race Mode switch whenever the Overview (which has the big one) isn't showing -->
-      <DockPanel x:Name="NavRail" Width="208" Margin="12,6,0,0" KeyboardNavigation.TabNavigation="Local">
+      <Grid x:Name="NavRail" Width="208" Margin="12,6,0,0">
+        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <!-- the menu comes first in the markup so Tab reaches it before its switch row -->
+        <ListBox x:Name="Nav" Style="{StaticResource NavList}" ItemContainerStyle="{StaticResource NavItem}" VerticalAlignment="Top"/>
         <!-- the switch block: the menu's last row, under a hairline. The status light sits in the icon column and the
              words line up with the section names; icon-only, the switch is centred with the light under it. -->
-        <Border x:Name="NavStatus" DockPanel.Dock="Bottom" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0"
+        <Border x:Name="NavStatus" Grid.Row="1" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0"
                 Padding="12,12,12,14" Visibility="Collapsed">
           <Grid x:Name="NavStatusGrid">
             <Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -806,12 +787,11 @@
               <TextBlock x:Name="NavState" FontSize="12" Margin="0,1,0,0" Foreground="{StaticResource Dim}" Text="Off" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
             <ToggleButton x:Name="NavSwitch" Grid.Column="2" Style="{StaticResource SmallSwitch}" VerticalAlignment="Center"
-                          IsChecked="{Binding IsChecked, ElementName=Switch, Mode=TwoWay}" KeyboardNavigation.TabIndex="1"
+                          IsChecked="{Binding IsChecked, ElementName=Switch, Mode=TwoWay}"
                           AutomationProperties.Name="Race Mode" ToolTip="Turn Race Mode on or off"/>
           </Grid>
         </Border>
-        <ListBox x:Name="Nav" Style="{StaticResource NavList}" ItemContainerStyle="{StaticResource NavItem}" VerticalAlignment="Top" KeyboardNavigation.TabIndex="0"/>
-      </DockPanel>
+      </Grid>
 
       <!-- sections -->
       <TabControl x:Name="Tabs" Grid.Column="1" Margin="20,6,20,0" Background="Transparent" BorderThickness="0" KeyboardNavigation.TabNavigation="Local">
@@ -1511,6 +1491,36 @@
           </Button>
         </Grid>
       </Border>
+    </Grid>
+
+    <!-- title bar (declared after the body so Tab reaches the menu and the section before its buttons) -->
+    <Grid x:Name="TitleBar" Background="Transparent">
+      <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
+        <Image x:Name="AppIcon" Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Race Mode icon"/>
+        <TextBlock Text="Race Mode" FontSize="12" Foreground="{StaticResource Dim}" VerticalAlignment="Center"/>
+      </StackPanel>
+      <!-- small panel and back (Layout.cs ToggleSmall) -->
+      <Button x:Name="SmallBtn" Grid.Column="1" ToolTip="Small panel: the switch, FPS and the live numbers" AutomationProperties.Name="Small panel">
+        <Button.Style>
+          <!-- not offered while setup is asking its questions -->
+          <Style TargetType="Button" BasedOn="{StaticResource CaptionBtn}">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding Visibility, ElementName=SetupOverlay}" Value="Visible"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Button.Style>
+        <Path x:Name="SmallIcon" Data="M0.5,0.5 H11.5 V9.5 H0.5 Z M5.5,5.5 H11.5 M5.5,5.5 V9.5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="12" Height="10"/>
+      </Button>
+      <Button x:Name="MinBtn" Grid.Column="2" Style="{StaticResource CaptionBtn}" ToolTip="Minimize" AutomationProperties.Name="Minimize">
+        <Path Data="M0,0.5 L10,0.5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="10" Height="1"/>
+      </Button>
+      <Button x:Name="MaxBtn" Grid.Column="3" Style="{StaticResource CaptionBtn}" ToolTip="Maximize" AutomationProperties.Name="Maximize">
+        <Path x:Name="MaxIcon" Data="M0.5,0.5 H9.5 V9.5 H0.5 Z" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="10" Height="10"/>
+      </Button>
+      <Button x:Name="CloseBtn" Grid.Column="4" Style="{StaticResource CloseCaptionBtn}" ToolTip="Close" AutomationProperties.Name="Close window">
+        <Path Data="M0,0 L10,10 M10,0 L0,10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="10" Height="10"/>
+      </Button>
     </Grid>
 
     <!-- setup (install and first-run questions, Setup.cs): covers everything below the title bar; pages are built in code -->

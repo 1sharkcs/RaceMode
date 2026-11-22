@@ -109,7 +109,7 @@ namespace RaceMode
             pages.Add(new SetupPage
             {
                 Title = "Which screen do you race on?",
-                Intro = "Before each race, Race Mode makes sure iRacing opens on this screen and fills it (as a borderless window), and fixes that while iRacing is closed. Your FPS cap stays as it is.",
+                Intro = "Before each race, Race Mode checks that iRacing will open on this screen and fill it, as a borderless window. Any fix is made while iRacing is closed. Your FPS cap is left alone.",
                 Build = () =>
                 {
                     FillMonitorPick();

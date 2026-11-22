@@ -55,8 +55,36 @@ namespace RaceMode
                 ApplyLayout();
             };
             var small = Get<Button>("SmallBtn"); if (small != null) small.Click += (s, e) => ToggleSmall();
+            NameControls();
             NavPhase(_phase ?? "off");
             Window.Loaded += (s, e) => { _layoutReady = true; ApplyLayout(); };
+        }
+
+        // Screen readers: a switch row's label is two text blocks, not a string, so the switch had no name. Its title
+        // becomes the name and its description the help text. The app lists get names too.
+        void NameControls()
+        {
+            var tabs = Get<TabControl>("Tabs"); if (tabs == null) return;
+            var stack = new System.Collections.Generic.Stack<DependencyObject>(); stack.Push(tabs);
+            while (stack.Count > 0)
+            {
+                var o = stack.Pop();
+                var box = o as CheckBox;
+                if (box != null && string.IsNullOrEmpty(AutomationProperties.GetName(box)))
+                {
+                    var panel = box.Content as Panel;
+                    var lines = panel == null ? null : panel.Children.OfType<TextBlock>().ToList();
+                    if (lines != null && lines.Count > 0)
+                    {
+                        AutomationProperties.SetName(box, lines[0].Text);
+                        if (lines.Count > 1 && string.IsNullOrEmpty(AutomationProperties.GetHelpText(box))) AutomationProperties.SetHelpText(box, lines[1].Text);
+                    }
+                }
+                foreach (var child in LogicalTreeHelper.GetChildren(o)) { var d = child as DependencyObject; if (d != null) stack.Push(d); }
+            }
+            var names = new[] { "LaunchList", "Apps that start with Race Mode", "CloseList", "Apps that are closed", "StreamList", "Streaming apps", "RunningList", "Apps that are open now" };
+            for (int i = 0; i < names.Length; i += 2)
+            { var list = Get<ListBox>(names[i]); if (list != null && string.IsNullOrEmpty(AutomationProperties.GetName(list))) AutomationProperties.SetName(list, names[i + 1]); }
         }
 
         // Ctrl+1..7 and anything else that wants a section by number. The small panel has no sections.
