@@ -6,8 +6,9 @@ using Microsoft.Win32;
 namespace RaceMode
 {
     // Finds where an app is actually installed instead of assuming the default folder.
-    // Order: (1) Uninstall entries in HKLM, HKLM\WOW6432Node and HKCU (InstallLocation, DisplayIcon),
-    // (2) App Paths\<exe> in HKLM and HKCU, (3) the usual default folders. The first path that exists wins.
+    // Order: (1) the whole-PC registry (HKLM): Uninstall entries, 64- and 32-bit (DisplayIcon, InstallLocation), then
+    // App Paths\<exe>; (2) the same for this user (HKCU), unless the lookup is machine-only; (3) the usual default
+    // folders. The first path that exists on a local disk wins (network paths are never touched).
     // The registry is only read, never written. Reader and SubKeys can be swapped out (tests use a fake registry).
     public static class InstallFinder
     {
@@ -15,6 +16,9 @@ namespace RaceMode
         public static Func<string, string, string> Reader = ReadRegistry;
         // SubKeys(key) -> names of the key's subkeys (empty if the key is missing).
         public static Func<string, string[]> SubKeys = ListSubKeys;
+
+        // At most this many Uninstall entries are read under each Uninstall key.
+        public const int MaxUninstallKeys = 4000;
 
         const string Uninstall = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
         const string UninstallWow = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall";
@@ -25,46 +29,86 @@ namespace RaceMode
         // tried too). defaults: today's default paths, tried last. Returns null if none of them exists.
         public static string Find(string exeName, string displayPrefix, string[] relPaths, string[] defaults)
         {
+            return Find(exeName, displayPrefix, relPaths, defaults, false);
+        }
+
+        // machineOnly: read only HKLM, never HKCU. For an exe that's started elevated (through a UAC prompt), whose path
+        // must not come from a place the signed-in user can write to.
+        public static string Find(string exeName, string displayPrefix, string[] relPaths, string[] defaults, bool machineOnly)
+        {
             var read = Reader; var subs = SubKeys;
             try
             {
-                foreach (var root in new[] { @"HKLM\" + Uninstall, @"HKLM\" + UninstallWow, @"HKCU\" + Uninstall })
+                foreach (var hive in machineOnly ? new[] { "HKLM" } : new[] { "HKLM", "HKCU" })
                 {
-                    string[] names;
-                    try { names = subs(root) ?? new string[0]; } catch { continue; }
-                    foreach (var name in names)
+                    var roots = hive == "HKLM" ? new[] { @"HKLM\" + Uninstall, @"HKLM\" + UninstallWow } : new[] { hive + @"\" + Uninstall };
+                    foreach (var root in roots)
                     {
-                        var key = root + @"\" + name;
-                        if (displayPrefix != null)
-                        {
-                            var dn = Safe(read, key, "DisplayName");
-                            if (dn == null || !dn.TrimStart().StartsWith(displayPrefix, StringComparison.OrdinalIgnoreCase)) continue;
-                        }
-                        var icon = CleanPath(Safe(read, key, "DisplayIcon"));
-                        if (icon != null && string.Equals(Path.GetFileName(icon), exeName, StringComparison.OrdinalIgnoreCase) && File.Exists(icon)) return Full(icon);
-                        var loc = CleanPath(Safe(read, key, "InstallLocation"));
-                        if (loc != null)
-                        {
-                            var rels = new List<string>(relPaths ?? new string[0]); rels.Add(exeName);
-                            foreach (var rel in rels)
-                            {
-                                string p; try { p = Path.Combine(loc, rel); } catch { continue; }
-                                if (File.Exists(p)) return Full(p);
-                            }
-                        }
+                        var hit = FromUninstall(read, subs, root, exeName, displayPrefix, relPaths);
+                        if (hit != null) return hit;
                     }
-                }
-                foreach (var hive in new[] { "HKLM", "HKCU" })
-                {
                     var p = CleanPath(Safe(read, hive + @"\" + AppPaths + @"\" + exeName, ""));
-                    if (p != null && File.Exists(p)) return Full(p);
+                    if (LocalFileExists(p)) return Full(p);
                 }
             }
             catch { }
             foreach (var d in defaults ?? new string[0])
-                if (!string.IsNullOrEmpty(d) && File.Exists(d)) return d;
+                if (LocalFileExists(d)) return d;
             return null;
         }
+
+        static string FromUninstall(Func<string, string, string> read, Func<string, string[]> subs, string root, string exeName, string displayPrefix, string[] relPaths)
+        {
+            string[] names;
+            try { names = subs(root) ?? new string[0]; } catch { return null; }
+            int n = 0;
+            foreach (var name in names)
+            {
+                if (++n > MaxUninstallKeys) break;
+                var key = root + @"\" + name;
+                if (displayPrefix != null)
+                {
+                    var dn = Safe(read, key, "DisplayName");
+                    if (dn == null || !dn.TrimStart().StartsWith(displayPrefix, StringComparison.OrdinalIgnoreCase)) continue;
+                }
+                var icon = CleanPath(Safe(read, key, "DisplayIcon"));
+                if (icon != null && string.Equals(SafeFileName(icon), exeName, StringComparison.OrdinalIgnoreCase) && LocalFileExists(icon)) return Full(icon);
+                var loc = CleanPath(Safe(read, key, "InstallLocation"));
+                if (loc == null || IsNetworkPath(loc)) continue;
+                var rels = new List<string>(relPaths ?? new string[0]); rels.Add(exeName);
+                foreach (var rel in rels)
+                {
+                    string p; try { p = Path.Combine(loc, rel); } catch { continue; }
+                    if (LocalFileExists(p)) return Full(p);
+                }
+            }
+            return null;
+        }
+
+        // A UNC or other network path ("\\server\share\x.exe", "//server/x.exe"), or one on a mapped network drive.
+        // Checked before File.Exists, so a lookup never reaches out to another machine.
+        public static bool IsNetworkPath(string p)
+        {
+            if (string.IsNullOrEmpty(p)) return false;
+            var s = p.TrimStart();
+            if (s.StartsWith(@"\\") || s.StartsWith("//") || s.StartsWith(@"\/") || s.StartsWith(@"/\")) return true;
+            try
+            {
+                if (s.Length >= 2 && s[1] == ':' && char.IsLetter(s[0]))
+                    return new DriveInfo(s.Substring(0, 1)).DriveType == DriveType.Network;
+            }
+            catch { }
+            return false;
+        }
+
+        // File.Exists for a path on this PC's own disks; false for network paths, without touching them.
+        public static bool LocalFileExists(string p)
+        {
+            if (string.IsNullOrEmpty(p) || IsNetworkPath(p)) return false;
+            try { return File.Exists(p); } catch { return false; }
+        }
+
+        static string SafeFileName(string p) { try { return Path.GetFileName(p); } catch { return null; } }
 
         // ---- The apps Race Mode looks for. Each falls back to today's default path (even if it isn't there) where noted.
 
@@ -83,21 +127,24 @@ namespace RaceMode
         }
         public const string DefaultObs = @"C:\Program Files\obs-studio\bin\64bit\obs64.exe";
 
+        // HWiNFO is started through a UAC prompt (as administrator), so its path comes only from places that need
+        // admin rights to change: HKLM Uninstall (64- and 32-bit), HKLM App Paths and the Program Files folders.
         public static string HwinfoExe()
         {
             return Cached("hwinfo", () => Find("HWiNFO64.EXE", "HWiNFO", new[] { "HWiNFO64.EXE" }, new[] {
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"HWiNFO64\HWiNFO64.EXE"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"HWiNFO64\HWiNFO64.EXE") }) ?? DefaultHwinfo);
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"HWiNFO64\HWiNFO64.EXE") }, true) ?? DefaultHwinfo);
         }
         public const string DefaultHwinfo = @"C:\Program Files\HWiNFO64\HWiNFO64.EXE";
 
-        // Steam writes its own exe path (with forward slashes) to HKCU\Software\Valve\Steam\SteamExe.
+        // Steam writes its own exe path (with forward slashes) to HKCU\Software\Valve\Steam\SteamExe. Only a path to a
+        // steam.exe is taken from there.
         public static string SteamExe()
         {
             return Cached("steam", () =>
             {
                 var p = CleanPath(Safe(Reader, @"HKCU\Software\Valve\Steam", "SteamExe"));
-                if (p != null && File.Exists(p)) return Full(p);
+                if (p != null && string.Equals(SafeFileName(p), "steam.exe", StringComparison.OrdinalIgnoreCase) && LocalFileExists(p)) return Full(p);
                 return Find("steam.exe", "Steam", new[] { "steam.exe" }, new[] { DefaultSteam }) ?? DefaultSteam;
             });
         }
