@@ -60,6 +60,12 @@ namespace RaceMode
                 mmi.MaxPosition.Y = work.Top - mi.Monitor.Top;
                 mmi.MaxSize.X = work.Right - work.Left;
                 mmi.MaxSize.Y = work.Bottom - work.Top;
+                // On a monitor bigger than the primary one, Windows takes a maximised size larger than the primary
+                // screen to be meant for the primary screen and adds the difference: 2560 wide became 3200, spilling
+                // onto the next monitor. The most the window may be dragged or maximised to caps that: no smaller
+                // than this monitor's free area (so it can still fill it), no bigger than the size just asked for.
+                mmi.MaxTrackSize.X = mmi.MaxSize.X;
+                mmi.MaxTrackSize.Y = mmi.MaxSize.Y;
                 Marshal.StructureToPtr(mmi, lParam, false);
             }
             catch { }
