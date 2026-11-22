@@ -257,8 +257,9 @@ namespace RaceMode
                         var shown = Convert.ToString(k.GetValue("Value" + i)) ?? "";
                         if (shown.IndexOf("°C", StringComparison.Ordinal) < 0 && shown.IndexOf("°F", StringComparison.Ordinal) < 0) continue;
                         var l = label.ToLowerInvariant(); int rank = 99;
-                        if (l.Contains("cpu package")) rank = 0;
-                        else if (l.Contains("core max")) rank = 1;
+                        // Intel: "CPU Package", "Core Max". AMD Ryzen: "CPU (Tctl/Tdie)", "CPU Die (average)".
+                        if (l.Contains("cpu package") || l.Contains("tctl") || l.Contains("tdie")) rank = 0;
+                        else if (l.Contains("core max") || l.Contains("cpu die")) rank = 1;
                         else if (l.Contains("cpu") && l.Contains("temp")) rank = 2;
                         if (rank >= bestRank) continue;
                         double d;

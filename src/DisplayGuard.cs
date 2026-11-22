@@ -204,7 +204,7 @@ namespace RaceMode
             else if (row3.Any(m => m.Width != cfg.Width || m.Height != cfg.Height))
                 r.Warning = "Windows has your racing screens at a different size than when you picked them (" + cfg.Width + "×" + cfg.Height + " each). Change it in Settings > Display";
             // Not Race Mode's to change: iRacing's own monitor settings decide how the picture is split.
-            string note = IniNumMonitors(path) == 1 ? "iRacing itself is set up for one screen, so the side screens look stretched: in iRacing, open Settings > Display > Monitor and set it up for 3 screens" : null;
+            string note = IniNumMonitors(path) == 1 ? "iRacing itself is set up for one screen, so the side screens look stretched: in the iRacing sim (not Windows), open its monitor settings and set it up for 3 screens" : null;
             var desc = "your three racing screens (" + width + "×" + row3[0].Height + ")";
             return Write(r, cfg, path, want, apply, desc, "across " + desc, "back across " + desc, note);
         }

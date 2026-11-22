@@ -31,7 +31,9 @@ class TripleTests
     static string Ini(string name, int numMonitors)
     {
         var p = Path.Combine(Root, name + ".ini");
-        var text = File.ReadAllText(Fixture, Encoding.Default).Replace("NumMonitors=1 ", "NumMonitors=" + numMonitors + " ");
+        var src = File.ReadAllText(Fixture, Encoding.Default);
+        if (!src.Contains("NumMonitors=1 ")) throw new Exception("fixture no longer has 'NumMonitors=1 ': the iRacing-on-3 tests would silently test 1 screen");
+        var text = src.Replace("NumMonitors=1 ", "NumMonitors=" + numMonitors + " ");
         File.WriteAllText(p, text, Encoding.Default);
         return p;
     }
