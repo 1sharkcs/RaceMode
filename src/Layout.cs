@@ -52,6 +52,10 @@ namespace RaceMode
                 if (nav.SelectedIndex != tabs.SelectedIndex) nav.SelectedIndex = tabs.SelectedIndex;
                 var open = tabs.SelectedItem as TabItem;
                 if (open != null) AutomationProperties.SetName(tabs, (open.Tag ?? open.Header) as string ?? "");
+                // Screen readers: the hidden tab strip never lays out, so Windows was never told that the open
+                // section's content changed. Coming back to a section left its page invisible to them (found by
+                // driving the real window through UI Automation). Tell it once the new page is in place.
+                Window.Dispatcher.BeginInvoke(new Action(RefreshAutomationTree), System.Windows.Threading.DispatcherPriority.Loaded);
                 ApplyLayout();
             };
             var small = Get<Button>("SmallBtn"); if (small != null) small.Click += (s, e) => ToggleSmall();
@@ -85,6 +89,20 @@ namespace RaceMode
             var names = new[] { "LaunchList", "Apps that start with Race Mode", "CloseList", "Apps that are closed", "StreamList", "Streaming apps", "RunningList", "Apps that are open now" };
             for (int i = 0; i < names.Length; i += 2)
             { var list = Get<ListBox>(names[i]); if (list != null && string.IsNullOrEmpty(AutomationProperties.GetName(list))) AutomationProperties.SetName(list, names[i + 1]); }
+        }
+
+        void RefreshAutomationTree()
+        {
+            var tabs = Get<TabControl>("Tabs"); if (tabs == null) return;
+            // FromElement: only when something is listening (a screen reader, UI Automation); otherwise there is no tree to refresh
+            var top = System.Windows.Automation.Peers.UIElementAutomationPeer.FromElement(tabs);
+            if (top == null) return;
+            top.ResetChildrenCache();
+            // each section's entry keeps its own list of what is on its page: the one just left must drop its
+            // page, and the one just opened must pick its page up
+            var sections = top.GetChildren();
+            if (sections != null) foreach (var section in sections) section.ResetChildrenCache();
+            top.InvalidatePeer();
         }
 
         // Ctrl+1..7 and anything else that wants a section by number. The small panel has no sections.
