@@ -95,21 +95,38 @@ namespace RaceMode
             // counts follow the lists as they change (adding, removing, undo); ticking an app saves the config, which refreshes too
             _launch.CollectionChanged += (s, e) => RefreshNav();
             _close.CollectionChanged += (s, e) => RefreshNav();
-            // when something needs a look, the words under the menu open the Overview, where the checklist is
+            // when something needs a look, the words at the top of the menu open the Overview, where the checklist is
             var words = Get<FrameworkElement>("NavStatusWords");
             if (words != null) words.MouseLeftButtonUp += (s, e) => { if (_phase == "issues") GoToSection(0); };
+            // names or icons only by hand, remembered between runs (the window's width still rules under 760 px)
+            var fold = Get<Button>("NavCollapse");
+            if (fold != null) fold.Click += (s, e) => { _cfg.NavCollapsed = !_cfg.NavCollapsed; SaveConfig(); ApplyLayout(); };
             RefreshNav();
         }
 
-        // Names or icons only, and the switch block to match.
-        void LayoutNav(bool names)
+        // Names or icons only, and the switch block and the collapse button to match.
+        // canFold: the window is wide enough for names, so the button can fold or unfold them.
+        void LayoutNav(bool names, bool canFold)
         {
+            var fold = Get<Button>("NavCollapse"); var chevron = Get<Path>("NavCollapseIcon");
+            if (fold != null)
+            {
+                fold.Visibility = canFold ? Visibility.Visible : Visibility.Collapsed;
+                // with names it sits under the icon column; icon-only, centred like the icons
+                fold.HorizontalAlignment = names ? HorizontalAlignment.Left : HorizontalAlignment.Center;
+                fold.Margin = names ? new Thickness(5, 8, 0, 0) : new Thickness(0, 8, 0, 0);
+                string what = names ? "Collapse menu" : "Expand menu";
+                AutomationProperties.SetName(fold, what);
+                fold.ToolTip = names ? "Collapse menu: icons only" : "Expand menu: show the names";
+                if (chevron != null) chevron.Data = Geometry.Parse(names ? "M12,6 L8,10 L12,14" : "M8,6 L12,10 L8,14");
+            }
             _navWithNames = names;
             if (_navRows != null)
                 for (int i = 0; i < _navRows.Length; i++)
                 {
-                    // icon-only rows centre the icon in the 60 px menu
-                    _navRows[i].Padding = names ? new Thickness(12, 8, 12, 8) : new Thickness(20, 8, 20, 8);
+                    // icon-only rows centre the icon in the 60 px menu: 1 + 19 + 20 + 19 + 1. (20 a side left 18 px for
+                    // the 20 px icon, so WPF clipped the row and the attention dot on the icon's corner never showed.)
+                    _navRows[i].Padding = names ? new Thickness(12, 8, 12, 8) : new Thickness(19, 8, 19, 8);
                     _navName[i].Visibility = names ? Visibility.Visible : Visibility.Collapsed;
                     ((FrameworkElement)_navValue[i].Parent).Visibility = names ? Visibility.Visible : Visibility.Collapsed;
                 }
@@ -118,7 +135,7 @@ namespace RaceMode
             if (status == null || words == null || dot == null || sw == null) return;
             // with names: light, words, switch on one row, lined up with the icons and names above.
             // icon-only: the switch centred, its light under it.
-            status.Padding = names ? new Thickness(12, 12, 12, 14) : new Thickness(0, 12, 0, 14);
+            status.Padding = names ? new Thickness(12, 9, 9, 9) : new Thickness(0, 10, 0, 10);
             words.Visibility = names ? Visibility.Visible : Visibility.Collapsed;
             Grid.SetRow(dot, names ? 0 : 1); Grid.SetColumn(dot, 0); Grid.SetColumnSpan(dot, names ? 1 : 3);
             dot.Margin = names ? new Thickness(0) : new Thickness(0, 8, 0, 0);
@@ -146,8 +163,8 @@ namespace RaceMode
             int close = _close.Count;
             SetNavValue(2, !_cfg.CloseApps ? "Off" : close > 0 ? close.ToString(CultureInfo.InvariantCulture) : null, null, false,
                         !_cfg.CloseApps ? "Closing apps is switched off" : close > 0 ? close + " app" + (close == 1 ? "" : "s") + " closed when Race Mode turns on" : "No apps to close");
-            // Stream: on (red: on is what red means)
-            SetNavValue(3, _cfg.Streaming ? "On" : null, _cfg.Streaming ? "Red" : null, true, _cfg.Streaming ? "Streaming is on" : null);
+            // Stream: on (an Ink dot, like the update: in the menu, red means only that Race Mode is on)
+            SetNavValue(3, _cfg.Streaming ? "On" : null, _cfg.Streaming ? "Ink" : null, true, _cfg.Streaming ? "Streaming is on" : null);
             // Graphics: the quality Race Mode applies
             string gfx = null, gfxTip = null;
             if (_cfg.GraphicsMode == "Photo") { gfx = "Photo"; gfxTip = "Photo mode is on"; }

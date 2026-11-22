@@ -68,6 +68,8 @@ namespace RaceMode
         // The size to go back to from the small panel (Layout.cs ToggleSmall).
         public double FullWidth, FullHeight;
         public bool WindowMaximized;
+        // The side menu folded to icons by its own button (Layout.cs); under 760 px wide it is icons only anyway.
+        public bool NavCollapsed;
         // Updates (Updater.cs): check every 12 hours; test versions = GitHub pre-releases from the dev branch.
         public bool UpdateCheck = true, UpdateTestVersions = false;
         public bool TrayOnClose = true, TrayHintShown = false;
@@ -1923,6 +1925,7 @@ namespace RaceMode
                                         Ref = cap > 0 ? cap : double.NaN, RefLabel = cap > 0 ? "cap " + cap : "",
                                         IsHot = v => cap > 0 && v < cap - 5, HotWord = v => "below " + (cap - 5),
                                         Idle = () => "Shows up once you're in iRacing", Note = () => _mon.Live.SimContext == "replay" ? "replay" : "",
+                                        StripWords = "Waiting for iRacing",
                                         ValueSize = 28, PlotHeight = 120 };
             // the CPU column: the busiest core is what iRacing runs out of first; the all-cores figure rides along in its note
             _coreChart = new ChartTile { Label = "Busiest CPU core", Unit = "%", Ref = 95, RefLabel = "95%", IsHot = v => v >= 95, HotWord = v => "maxed",
@@ -1956,6 +1959,8 @@ namespace RaceMode
 
         // Called every second from RefreshStats: always records, only draws while the dashboard is on screen.
         int _chartCap = -1;
+        const int FpsIdleAfter = 5;                 // seconds without an FPS reading before the FPS chart folds to a strip
+        int _fpsGap = FpsIdleAfter; bool _fpsIdle = true;   // starts folded: there is no FPS until iRacing sends some
         void FeedDashboard(LiveStats s)
         {
             if (_charts == null) CreateCharts();
@@ -1976,6 +1981,11 @@ namespace RaceMode
                 _fpsChart.IsHot = v => cap > 0 && v < cap - 5; _fpsChart.HotWord = v => "below " + (cap - 5);
             }
             _fpsChart.Push(s.Fps);
+            // No FPS for a few seconds (iRacing closed): the lead chart becomes a short strip and the other readings
+            // take the width (Overview.cs). The first frame brings the chart back; a single missed reading doesn't.
+            if (double.IsNaN(s.Fps)) { if (_fpsGap < FpsIdleAfter) _fpsGap++; } else _fpsGap = 0;
+            bool idle = _fpsGap >= FpsIdleAfter;
+            if (idle != _fpsIdle) { _fpsIdle = idle; ApplyLayout(); }
             _coreChart.Push(s.CpuMaxCore);
             _cpuChart.Push(s.Cpu);
             _gpuChart.Push(s.GpuUtil);
@@ -2001,63 +2011,14 @@ namespace RaceMode
             foreach (var c in _charts) c.Render();
         }
 
-        // One checklist row: a dot plus words, so the state never depends on colour alone.
-        FrameworkElement CheckRow(string name, string state, string brushKey)
-        {
-            // right margin = the gutter when the list runs in two columns (the list's own -24 margin cancels it at the edge)
-            var g = new Grid { Margin = new Thickness(0, 5, 24, 5) };
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            g.ColumnDefinitions.Add(new ColumnDefinition());
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            System.Windows.Automation.AutomationProperties.SetName(g, name + ": " + state);
-            var dot = new Ellipse { Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 1, 10, 0),
-                                    Fill = brushKey == "Off" ? new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x60)) : (Brush)Window.Resources[brushKey] };
-            var n = new TextBlock { Text = name, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
-            var st = new TextBlock { Text = state, Style = (Style)Window.Resources["Sub"], TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0),
-                                     Foreground = brushKey == "Warn" ? (Brush)Window.Resources["Warn"] : (Brush)Window.Resources["Dim"] };
-            Grid.SetColumn(n, 1); Grid.SetColumn(st, 2);
-            g.Children.Add(dot); g.Children.Add(n); g.Children.Add(st);
-            return g;
-        }
-
+        // The checklist is the steps view: what Race Mode does, in order (Steps.cs). It is refreshed every 3 s and
+        // when the switch moves; the rows are updated in place, so the keyboard stays where it was.
         void UpdateChecklist()
         {
-            var list = Get<Panel>("Checklist");
+            var list = Get<UniformGrid>("Checklist");
             if (list == null || !_dashOn) return;
-            list.Children.Clear();
-            bool on = _on;
             // (Race Mode's own state isn't a row: the switch card or the menu's switch is always beside this list)
-            if (_previewOn) { PreviewChecklist(list); return; }
-            foreach (var item in _launch.Where(i => i.Enabled && !string.IsNullOrEmpty(i.ProcessName)))
-            {
-                bool run = IsRunning(item.ProcessName);
-                list.Children.Add(CheckRow(item.Name, !item.Installed ? "not installed" : run ? "running" : "not running", run ? "Live" : on ? "Warn" : "Off"));
-            }
-            if (_cfg.Streaming)
-                foreach (var item in _stream.Where(i => i.Enabled && !string.IsNullOrEmpty(i.ProcessName)))
-                {
-                    bool run = IsRunning(item.ProcessName);
-                    list.Children.Add(CheckRow(item.Name, !item.Installed ? "not installed" : run ? "running" : "not running", run ? "Live" : on && item.Installed ? "Warn" : "Off"));
-                }
-            bool sim = IsRunning(Monitor.SimName), ui = IsRunning("iRacingUI");
-            list.Children.Add(CheckRow("iRacing", sim ? "racing" + (_simBoosted ? ", put first" : "") : ui ? "app open" : "closed", sim || ui ? "Live" : "Off"));
-            if (on)
-            {
-                int open = _close.Count(n => !ProtectedFromClose(n) && IsRunning(n));
-                list.Children.Add(CheckRow("Close list", open == 0 ? "all closed" : open + " still running", open == 0 ? "Live" : "Warn"));
-            }
-            list.Children.Add(CheckRow("Screen", string.IsNullOrEmpty(_displayLine) ? (_cfg.DisplayGuard != null && _cfg.DisplayGuard.Enabled ? "checked when Race Mode turns on" : "check is off") : _displayLine.Replace("screen ", ""),
-                                       _displayLine == "screen OK" ? "Live" : _displayLine == "screen needs a look" ? "Warn" : "Off"));
-            list.Children.Add(CheckRow(_cfg.GraphicsMode + " graphics", _graphicsPending ? "waiting for iRacing to close" : _graphicsOk ? "set" : "see Graphics",
-                                       _graphicsPending ? "Dim" : _graphicsOk ? "Live" : "Warn"));
-            if (on && _lowered.Count > 0) list.Children.Add(CheckRow("Background apps", _lowered.Count + " slowed down", "Live"));
-            if (on && _mon.IsLogging) list.Children.Add(CheckRow("Log", "recording", "Live"));
-            if (_cfg.Streaming)
-            {
-                var o = Obs.Latest;
-                list.Children.Add(CheckRow("OBS", !o.Connected ? (o.Status.StartsWith("OBS isn't open") ? "not open" : o.Status.Contains("remote control is off") ? "remote control is off" : "not connected") :!o.Streaming ? "connected" : (double.IsNaN(o.Kbps) ? "streaming" : "streaming " + N0(o.Kbps) + " kbps") + (o.Reconnecting ? ", reconnecting" : ""),
-                                           !o.Connected ? "Off" : o.Reconnecting ? "Warn" : "Live"));
-            }
+            UpdateSteps(list);
         }
 
         // The last session's key lines from summary.txt, as label / value rows.

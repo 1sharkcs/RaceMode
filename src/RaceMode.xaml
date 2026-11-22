@@ -488,9 +488,14 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ListBoxItem">
-            <Border x:Name="B" CornerRadius="8" Padding="{TemplateBinding Padding}" MinHeight="36" Background="Transparent" BorderBrush="Transparent" BorderThickness="1">
-              <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
-            </Border>
+            <Grid>
+              <Border x:Name="B" CornerRadius="8" Padding="{TemplateBinding Padding}" MinHeight="36" Background="Transparent" BorderBrush="Transparent" BorderThickness="1">
+                <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+              </Border>
+              <!-- the current row's marker: a short Ink bar inside its left edge (the fill alone was about 1.3:1) -->
+              <Border x:Name="Bar" Width="3" Height="16" CornerRadius="1.5" Background="{StaticResource Ink}" HorizontalAlignment="Left"
+                      VerticalAlignment="Center" Margin="4,0,0,0" Visibility="Collapsed" IsHitTestVisible="False"/>
+            </Grid>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
                 <Setter TargetName="B" Property="Background" Value="{StaticResource Card}"/>
@@ -499,6 +504,7 @@
               <Trigger Property="IsSelected" Value="True">
                 <Setter TargetName="B" Property="Background" Value="#34343A"/>
                 <Setter TargetName="B" Property="BorderBrush" Value="#4A4A52"/>
+                <Setter TargetName="Bar" Property="Visibility" Value="Visible"/>
                 <Setter Property="Foreground" Value="{StaticResource Ink}"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
               </Trigger>
@@ -769,33 +775,79 @@
         <ColumnDefinition x:Name="DashCol" Width="0"/>
       </Grid.ColumnDefinitions>
 
-      <!-- side menu; under it, the Race Mode switch whenever the Overview (which has the big one) isn't showing -->
+      <!-- side menu: the Race Mode switch block first, on every section, so the rows never move; then the sections;
+           then, at the foot, the button that folds the menu to icons (markup order is Tab order) -->
       <Grid x:Name="NavRail" Width="208" Margin="12,6,0,0">
-        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <!-- the menu comes first in the markup so Tab reaches it before its switch row -->
-        <ListBox x:Name="Nav" Style="{StaticResource NavList}" ItemContainerStyle="{StaticResource NavItem}" VerticalAlignment="Top"/>
-        <!-- the switch block: the menu's last row, under a hairline. The status light sits in the icon column and the
-             words line up with the section names; icon-only, the switch is centred with the light under it. -->
-        <Border x:Name="NavStatus" Grid.Row="1" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0"
-                Padding="12,12,12,14" Visibility="Collapsed">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <!-- the switch block reads as status first: the light in the icon column, the state word in Ink under a quiet
+             "Race Mode" label, the switch at the right. Graphite while off, a quiet red tint while on (SideMenu.cs).
+             Icon-only, the switch is centred with the light under it. -->
+        <Border x:Name="NavStatus" Background="{StaticResource Card}" BorderBrush="{StaticResource Hairline}" BorderThickness="1"
+                CornerRadius="8" Padding="12,9,9,9" Margin="0,0,0,14">
           <Grid x:Name="NavStatusGrid">
             <Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <Ellipse x:Name="NavDot" Width="8" Height="8" Fill="#5A5A60" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             <StackPanel x:Name="NavStatusWords" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0" Background="Transparent">
-              <TextBlock Text="Race Mode" Foreground="{StaticResource Ink}" FontSize="13"/>
-              <TextBlock x:Name="NavState" FontSize="12" Margin="0,1,0,0" Foreground="{StaticResource Dim}" Text="Off" TextTrimming="CharacterEllipsis"/>
+              <TextBlock Text="Race Mode" Foreground="{StaticResource Dim}" FontSize="12"/>
+              <TextBlock x:Name="NavState" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,0" Foreground="{StaticResource Ink}" Text="Off" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
             <ToggleButton x:Name="NavSwitch" Grid.Column="2" Style="{StaticResource SmallSwitch}" VerticalAlignment="Center"
                           IsChecked="{Binding IsChecked, ElementName=Switch, Mode=TwoWay}"
                           AutomationProperties.Name="Race Mode" ToolTip="Turn Race Mode on or off"/>
           </Grid>
         </Border>
+        <ListBox x:Name="Nav" Grid.Row="1" Style="{StaticResource NavList}" ItemContainerStyle="{StaticResource NavItem}" VerticalAlignment="Top"/>
+        <!-- names or icons only, by hand (remembered); under 760 px there is no room for names and it hides -->
+        <Button x:Name="NavCollapse" Grid.Row="2" Width="36" Height="28" Margin="5,8,0,0" HorizontalAlignment="Left"
+                Foreground="{StaticResource Dim}" Cursor="Hand" FocusVisualStyle="{StaticResource FocusRing}"
+                AutomationProperties.Name="Collapse menu" ToolTip="Collapse menu">
+          <Button.Template>
+            <ControlTemplate TargetType="Button">
+              <Border x:Name="B" CornerRadius="7" Background="Transparent">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="B" Property="Background" Value="{StaticResource Card}"/>
+                  <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="#26262A"/></Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Button.Template>
+          <Path x:Name="NavCollapseIcon" Width="20" Height="20" Stretch="None" StrokeThickness="1.6" StrokeLineJoin="Round"
+                StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M12,6 L8,10 L12,14"
+                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+        </Button>
       </Grid>
 
       <!-- sections -->
       <TabControl x:Name="Tabs" Grid.Column="1" Margin="20,6,20,0" Background="Transparent" BorderThickness="0" KeyboardNavigation.TabNavigation="Local">
         <TabItem Header="Overview">
+          <TabItem.Resources>
+            <!-- one step in the steps view: read-only, the whole row opens the page where the step is set up.
+                 Hover is a lighter graphite, the focus ring sits inside the row. -->
+            <Style x:Key="StepRow" TargetType="Button">
+              <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+              <Setter Property="Cursor" Value="Hand"/>
+              <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRingInset}"/>
+              <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+              <Setter Property="Template">
+                <Setter.Value>
+                  <ControlTemplate TargetType="Button">
+                    <Border x:Name="B" CornerRadius="7" Padding="8,0" MinHeight="28" Background="Transparent">
+                      <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="{StaticResource Raised}"/></Trigger>
+                      <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="#26262A"/></Trigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </Setter.Value>
+              </Setter>
+            </Style>
+          </TabItem.Resources>
           <ScrollViewer x:Name="OverScroll" VerticalScrollBarVisibility="Auto" Focusable="False">
             <Grid>
               <!-- very wide windows: the page stops growing at 2000 px and stays at the left -->
@@ -925,8 +977,9 @@
                     <!-- DockPanels, so both cards are as tall as the taller one -->
                     <DockPanel x:Name="CheckBlock" Margin="7,0,7,14">
                       <TextBlock x:Name="CheckHead" DockPanel.Dock="Top" Style="{StaticResource SectionHeader}" Text="Race Mode checklist"/>
+                      <!-- the steps Race Mode takes, in order (Steps.cs): two columns of row buttons, each opening its page -->
                       <Border Style="{StaticResource Group}" Padding="16,8">
-                        <UniformGrid x:Name="Checklist" Columns="1" VerticalAlignment="Top" Margin="0,0,-24,0"/>
+                        <UniformGrid x:Name="Checklist" Columns="1" VerticalAlignment="Top" Margin="-8,0,-8,0"/>
                       </Border>
                     </DockPanel>
                     <DockPanel x:Name="LastBlock" Margin="7,0,7,14">

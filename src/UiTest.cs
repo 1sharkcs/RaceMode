@@ -70,11 +70,13 @@ namespace RaceMode
                     var missed = want.Where(x => !names.Contains(x)).ToList();
                     check(twice.Count == 0, "tab order, " + sec + ": nothing is visited twice" + (twice.Count == 0 ? "" : " (" + string.Join(", ", twice) + ")"));
                     check(missed.Count == 0, "tab order, " + sec + ": every visible control is reached" + (missed.Count == 0 ? "" : " (missed: " + string.Join(", ", missed.Take(12)) + ")"));
-                    int nav = names.IndexOf("Nav"), firstBody = names.FindIndex(x => x != "Nav" && x != "NavSwitch" && !x.EndsWith("Btn (title bar)", StringComparison.Ordinal));
-                    check(nav == 0, "tab order, " + sec + ": the menu is the first stop");
-                    int sw = names.IndexOf("NavSwitch");
-                    check(s == 0 ? sw < 0 : sw == nav + 1, "tab order, " + sec + ": the menu's switch comes straight after the menu");
-                    check(nav >= 0 && (firstBody < 0 || nav < firstBody), "tab order, " + sec + ": the menu comes before the section");
+                    // the menu: its switch block at the top, then the sections, then its collapse button; then the page
+                    int nav = names.IndexOf("Nav"), firstBody = names.FindIndex(x => x != "Nav" && x != "NavSwitch" && x != "NavCollapse" && !x.EndsWith("Btn (title bar)", StringComparison.Ordinal));
+                    int sw = names.IndexOf("NavSwitch"), fold = names.IndexOf("NavCollapse");
+                    check(sw == 0, "tab order, " + sec + ": the menu's switch is the first stop");
+                    check(nav >= 0 && nav == sw + 1, "tab order, " + sec + ": the section list comes straight after the menu's switch");
+                    check(fold >= 0 && fold == nav + 1, "tab order, " + sec + ": the collapse button comes straight after the section list");
+                    check(nav >= 0 && (firstBody < 0 || Math.Max(nav, fold) < firstBody), "tab order, " + sec + ": the menu comes before the section");
                     int firstBar = names.FindIndex(x => x.EndsWith("(title bar)", StringComparison.Ordinal));
                     check(firstBar >= 0 && names.Skip(firstBar).All(x => x.EndsWith("(title bar)", StringComparison.Ordinal)), "tab order, " + sec + ": the title bar's buttons come last");
                     orders.AppendLine(sec + ": " + string.Join(" > ", names));
@@ -116,9 +118,24 @@ namespace RaceMode
                 // ---- focus is never left on something hidden ----
                 Window.Width = 960; Window.Height = 720; tabs.SelectedIndex = 1; Pump();
                 var ns = Get<UIElement>("NavSwitch"); if (ns != null) ns.Focus(); Pump();
-                tabs.SelectedIndex = 0; Pump();   // the menu's switch row is hidden on the Overview
+                tabs.SelectedIndex = 0; Pump();   // the menu's switch stays at the top of the menu on the Overview too
                 var f = FocusManager.GetFocusedElement(Window) as UIElement;
-                check(f == null || f.IsVisible, "focus: leaving for the Overview doesn't strand the keyboard on the hidden menu switch (now on " + (f == null ? "nothing" : DescribeStop(f)) + ")");
+                check(ns != null && ns.IsVisible && f == ns, "focus: the menu's switch stays put (and keeps the keyboard) on the Overview (now on " + (f == null ? "nothing" : DescribeStop(f)) + ")");
+                // the collapse button: folds the menu and back, and hides under 760 px without stranding the keyboard
+                var fb = Get<Button>("NavCollapse");
+                bool wasFolded = _cfg.NavCollapsed;
+                if (fb != null) { fb.Focus(); Pump(); fb.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); Pump(); }
+                var rail = Get<FrameworkElement>("NavRail");
+                check(fb != null && rail != null && _cfg.NavCollapsed != wasFolded && Math.Abs(rail.ActualWidth - (_cfg.NavCollapsed ? NavNarrow : NavWide)) < 1
+                      && System.Windows.Automation.AutomationProperties.GetName(fb) == (_cfg.NavCollapsed ? "Expand menu" : "Collapse menu"),
+                      "collapse: the menu's button folds it to icons and renames itself (menu " + (rail == null ? "?" : Math.Round(rail.ActualWidth).ToString()) + " px)");
+                if (fb != null) { fb.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); Pump(); }
+                check(_cfg.NavCollapsed == wasFolded, "collapse: and the same button brings the names back");
+                if (fb != null) { fb.Focus(); Pump(); }
+                Window.Width = 660; Pump();   // icons only by width: the button has nothing to expand into and hides
+                f = FocusManager.GetFocusedElement(Window) as UIElement;
+                check(fb != null && !fb.IsVisible && (f == null || f.IsVisible), "focus: narrowing under 760 px hides the collapse button without stranding the keyboard (now on " + (f == null ? "nothing" : DescribeStop(f)) + ")");
+                Window.Width = 960; Pump();
                 tabs.SelectedIndex = 5; Pump();
                 var first = TabStops().FirstOrDefault(x => Ancestor<TabControl>(x) != null); if (first != null) first.Focus(); Pump();
                 Window.Width = 460; Window.Height = 262; Pump();   // into the small panel: the section is gone

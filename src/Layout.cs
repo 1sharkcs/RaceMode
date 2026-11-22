@@ -127,7 +127,16 @@ namespace RaceMode
             if (t == null || dot == null) return;
             string word = phase == "off" ? "Off" : phase == "turning" ? "Turning on…" : phase == "issues" ? "Needs a look" : "Ready to race";
             t.Text = word;
-            t.Foreground = (Brush)Window.Resources[phase == "issues" ? "Warn" : "Dim"];
+            // the state word is the loud line of the block (status first); amber when something needs a look
+            t.Foreground = (Brush)Window.Resources[phase == "issues" ? "Warn" : "Ink"];
+            // the block itself: graphite while off, a quiet red tint while on (red here means on, nothing else)
+            var block = Get<Border>("NavStatus");
+            if (block != null)
+            {
+                bool on = phase != "off";
+                block.Background = on ? new SolidColorBrush(Color.FromRgb(0x2A, 0x1A, 0x1A)) : (Brush)Window.Resources["Card"];
+                block.BorderBrush = on ? new SolidColorBrush(Color.FromRgb(0x5A, 0x24, 0x20)) : (Brush)Window.Resources["Hairline"];
+            }
             dot.Fill = phase == "off" ? new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x60)) : (Brush)Window.Resources[phase == "turning" ? "Dim" : phase == "issues" ? "Warn" : "Live"];
             // what needs a look is spelled out in the tooltip, and the words open the Overview, where the checklist is
             string detail = phase == "issues" && _issues.Count > 0 ? NeedsALook() + ". Click to see the checklist." : "Race Mode: " + word.ToLowerInvariant() + ".";
@@ -163,7 +172,7 @@ namespace RaceMode
             }
             if (!small && Window.WindowState == WindowState.Normal) { _cfg.FullWidth = Math.Round(w); _cfg.FullHeight = Math.Round(h); }
             bool overview = tabs.SelectedIndex == 0;
-            bool names = w >= NavNamesAt;
+            bool names = w >= NavNamesAt && !_cfg.NavCollapsed;   // the window's width, then the menu's own button
             double navW = small ? 0 : names ? NavWide : NavNarrow;
             // beside the dashboard only for the list sections: Settings and Logs use a wide page themselves (Pages.cs)
             int section = tabs.SelectedIndex;
@@ -174,10 +183,8 @@ namespace RaceMode
             if (!small)
             {
                 rail.Width = navW;
-                LayoutNav(names);
-                // the switch is always one click away: under the menu, unless the Overview's big one is on screen
-                var status = Get<Border>("NavStatus");
-                if (status != null) status.Visibility = overview ? Visibility.Collapsed : Visibility.Visible;
+                // the switch block heads the menu on every section, the Overview too, so the rows never move
+                LayoutNav(names, w >= NavNamesAt);
             }
 
             // ---- columns: section, and the dashboard beside it when wide ----
@@ -228,7 +235,7 @@ namespace RaceMode
             if (hadFocus) Window.Dispatcher.BeginInvoke(new Action(RestoreFocus), System.Windows.Threading.DispatcherPriority.Input);
         }
 
-        // The layout may have hidden the control that had the keyboard (the menu, the switch under it, a section).
+        // The layout may have hidden the control that had the keyboard (the menu, its collapse button, a section).
         // Put it somewhere sensible: the big switch in the small panel, the current menu row otherwise.
         void RestoreFocus()
         {

@@ -90,23 +90,24 @@ namespace RaceMode
             else
             {
                 int rl = _cfg.GraphicsRace != null ? _cfg.GraphicsRace.Level : 0;
-                row("Graphics", rl > 0 && rl < GraphicsCatalog.LevelNames.Length ? "Race, " + rl + " of 10 (" + GraphicsCatalog.LevelNames[rl] + ")" : "Race");
+                row("Graphics", rl > 0 && rl < GraphicsCatalog.LevelNames.Length ? "Race graphics, level " + rl + " of 10 (" + GraphicsCatalog.LevelNames[rl] + ")" : "Race graphics");
             }
             var g = _cfg.DisplayGuard;
             row("Screen check", g != null && g.Enabled ? "on" + (g.EnforcesFpsCap ? ", FPS cap " + g.FpsLimit : "") : "off");
-            row("Apps", (_cfg.LaunchApps ? _launch.Count(l => l.Enabled) + " start" : "none start") + ", " + (_cfg.CloseApps ? _close.Count + " close" : "none close"));
-            row("iRacing first", _cfg.SimHighPriority ? "yes" : "no");
+            row("Launch apps", _cfg.LaunchApps ? _launch.Count(l => l.Enabled).ToString(CultureInfo.InvariantCulture) : "off");
+            row("Close list", _cfg.CloseApps ? _close.Count.ToString(CultureInfo.InvariantCulture) : "off");
+            row("Put iRacing first", _cfg.SimHighPriority ? "on" : "off");
             row("Streaming", _cfg.Streaming ? (_cfg.StreamBoost ? "on, OBS put ahead" : "on") : "off");
             return rows;
         }
 
-        // One line for the dock's folded Setup drawer, e.g. "Race 6/10 · 6 start · 25 close".
+        // One line for the dock's folded Setup drawer, e.g. "Level 6 · 6 launch · 25 close".
         string DockSetupShort()
         {
             string gfx;
             if (_cfg.GraphicsMode == "Photo") gfx = "Photo";
-            else { int rl = _cfg.GraphicsRace != null ? _cfg.GraphicsRace.Level : 0; gfx = rl > 0 && rl < GraphicsCatalog.LevelNames.Length ? "Race " + rl + "/10" : "Race"; }
-            return gfx + " · " + (_cfg.LaunchApps ? _launch.Count(l => l.Enabled) : 0) + " start · " + (_cfg.CloseApps ? _close.Count : 0) + " close";
+            else { int rl = _cfg.GraphicsRace != null ? _cfg.GraphicsRace.Level : 0; gfx = rl > 0 && rl < GraphicsCatalog.LevelNames.Length ? "Level " + rl : "Race"; }
+            return gfx + " · " + (_cfg.LaunchApps ? _launch.Count(l => l.Enabled) : 0) + " launch · " + (_cfg.CloseApps ? _close.Count : 0) + " close";
         }
 
         void StopObsFeatures()

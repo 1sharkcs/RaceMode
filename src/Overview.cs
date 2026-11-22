@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -95,13 +95,18 @@ namespace RaceMode
             // beside, the switch card starts level with the list's card, under the list's heading
             var hero = Get<Border>("Hero"); if (hero != null) hero.Margin = new Thickness(0, beside ? 23 : 0, 0, 0);
 
-            // the checklist runs in two columns wherever it has the room
-            var list = Get<UniformGrid>("Checklist");
-            if (list != null)
-            {
-                double w = lead == check ? (beside ? page * 1.1 / 2.1 : page) : 0;
-                list.Columns = w >= 500 ? 2 : 1;
-            }
+            // the steps run in two columns wherever they have the room (under the live band, ArrangeLive decides)
+            if (lead == check) SetStepColumns((beside ? page * 1.1 / 2.1 : page) >= 500 ? 2 : 1);
+        }
+
+        // How much taller the steps make the top of the page than the old checklist the plot heights were tuned to
+        // (about 130 px): the plots give that height back so the band still fits the window.
+        double StepsExtra(double dashW)
+        {
+            if (_overKey != "CheckBlock" || _stepRows == null) return 0;
+            double a = _stepRows.Where(r => r.Btn.Parent == _stepColA).Sum(r => r.Weight);
+            double b = _stepRows.Where(r => r.Btn.Parent == _stepColB).Sum(r => r.Weight);
+            return Math.Max(0, Math.Max(a, b) * (_compact ? 40 : 46) + 16 - 130);
         }
 
         // The live band: FPS leads in its own card; the small multiples share one card, divided by hairlines.
@@ -114,13 +119,21 @@ namespace RaceMode
             var fpsCol = Get<ColumnDefinition>("FpsCol"); var smallCol = Get<ColumnDefinition>("SmallCol");
             if (grid == null || card == null || fpsCol == null || smallCol == null) return;
 
-            bool side = dashW >= LiveBesideAt;
+            // no FPS for a few seconds (FeedDashboard): FPS is a short strip on top and the other readings take the
+            // full width; the small panel keeps its own FPS chart as it is
+            bool strip = _fpsIdle && !_small;
+            _fpsChart.SetStrip(strip);
+            bool side = !strip && dashW >= LiveBesideAt;
             fpsCol.Width = new GridLength(1, GridUnitType.Star);
             smallCol.Width = side ? new GridLength(2.1, GridUnitType.Star) : new GridLength(0);
             Grid.SetRow(card, side ? 0 : 1); Grid.SetColumn(card, side ? 1 : 0);
-            card.Margin = side ? new Thickness(12, 0, 0, 0) : new Thickness(0, 12, 0, 0);
+            card.Margin = side ? new Thickness(12, 0, 0, 0) : new Thickness(0, strip ? 10 : 12, 0, 0);
             // beside, FPS fills the small multiples' height; stacked, it gets a plot of its own (shorter in short windows)
             _fpsChart.SetPlotHeight(side ? double.NaN : winH < 760 ? 96 : 120);
+
+            // the steps under the live band (Overview off, or beside another section): two columns when there's room
+            var bottom = Get<UniformGrid>("DashBottom");
+            if (_overKey != "CheckBlock" && bottom != null) SetStepColumns(dashW / Math.Max(1, bottom.Columns) >= 560 ? 2 : 1);
 
             double smallW = side ? (dashW - 12) * 2.1 / 3.1 : dashW;
             int cols = smallW >= 600 ? 3 : smallW >= 340 ? 2 : 1;
@@ -133,7 +146,7 @@ namespace RaceMode
             int rows = (tiles.Count + cols - 1) / cols;
             // tall windows: the plots grow into the height instead of leaving it empty under the page
             double chrome = 96;   // a cell's label, number and note around its plot
-            double room = overview ? winH - 420 - (cols == 3 ? 0 : 60) - (dashW < AsideAt ? 150 : 0) : 0;   // less when the list sits under the switch card
+            double room = overview ? winH - 420 - (cols == 3 ? 0 : 60) - (dashW < AsideAt ? 150 : 0) - (strip ? 50 : 0) - StepsExtra(dashW) : 0;   // less when the list sits under the switch card
             double plot = Math.Max(44, Math.Min(240, Math.Floor(room / rows - chrome)));
             for (int i = 0; i < tiles.Count; i++)
             {
@@ -141,18 +154,6 @@ namespace RaceMode
                 int c = i % cols, r = i / cols;
                 tiles[i].Cell.BorderThickness = new Thickness(0, 0, c < cols - 1 ? 1 : 0, r < rows - 1 ? 1 : 0);
             }
-        }
-
-        // --snapshot ... on: the same made-up "all good" state the switch card shows, with the real app names.
-        void PreviewChecklist(Panel list)
-        {
-            foreach (var item in _launch.Where(i => i.Enabled && !string.IsNullOrEmpty(i.ProcessName)).Take(3))
-                list.Children.Add(CheckRow(item.Name, "running", "Live"));
-            list.Children.Add(CheckRow("iRacing", "racing, put first", "Live"));
-            list.Children.Add(CheckRow("Close list", "all closed", "Live"));
-            list.Children.Add(CheckRow("Screen", "OK", "Live"));
-            list.Children.Add(CheckRow("Race graphics", "set", "Live"));
-            list.Children.Add(CheckRow("Background apps", "5 slowed down", "Live"));
         }
     }
 }

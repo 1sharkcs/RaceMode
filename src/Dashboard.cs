@@ -37,9 +37,12 @@ namespace RaceMode
         public double PlotHeight = 84, ValueSize = 24;
         public Func<string> IdleWords;   // words in place of "--" when there is no reading ("Not set up")
         public Action IdleAction;        // what clicking the tile (or Enter) does while there is no reading
+        public string StripWords = "No reading";   // what the folded strip says in place of the chart (SetStrip)
 
         Canvas _canvas; Path _line; Line _ref, _cross; Ellipse _dot;
-        TextBlock _val, _unit, _sub, _refText, _empty;
+        TextBlock _val, _unit, _sub, _refText, _empty, _action, _capNote;
+        Grid _plot;
+        bool _strip;
         bool _hovering;
         int _kbAge = -1;   // keyboard read-out position (seconds back), -1 = none
         public FrameworkElement Element;
@@ -59,7 +62,9 @@ namespace RaceMode
             _val = new TextBlock { FontFamily = (FontFamily)res["Display"], FontSize = ValueSize, Foreground = ink, Text = "--", VerticalAlignment = VerticalAlignment.Bottom };
             _unit = new TextBlock { Text = Unit, FontSize = 12, Foreground = (Brush)res["Dim"], Margin = new Thickness(4, 0, 0, 3), VerticalAlignment = VerticalAlignment.Bottom };
             var vs = new StackPanel { Orientation = Orientation.Horizontal };
-            vs.Children.Add(_val); vs.Children.Add(_unit);
+            // the strip's cap, after its words ("Waiting for iRacing   cap 145"); only shown folded
+            _capNote = new TextBlock { Style = (Style)res["Caption"], Margin = new Thickness(12, 0, 0, 3), VerticalAlignment = VerticalAlignment.Bottom, Visibility = Visibility.Collapsed };
+            vs.Children.Add(_val); vs.Children.Add(_unit); vs.Children.Add(_capNote);
             Grid.SetColumn(vs, 1); head.Children.Add(vs);
 
             _canvas = new Canvas { Height = PlotHeight, Margin = new Thickness(0, 10, 0, 0), Background = Brushes.Transparent, ClipToBounds = true, Cursor = Cursors.Cross };
@@ -72,7 +77,11 @@ namespace RaceMode
             _cross = new Line { Stroke = faint, StrokeThickness = 1, Visibility = Visibility.Collapsed };
             _dot = new Ellipse { Width = 8, Height = 8, Fill = ink, Stroke = (Brush)res["Card"], StrokeThickness = 2, Visibility = Visibility.Collapsed };
             _canvas.Children.Add(_ref); _canvas.Children.Add(_refText); _canvas.Children.Add(_line); _canvas.Children.Add(_cross); _canvas.Children.Add(_dot);
-            var plot = new Grid(); plot.Children.Add(_canvas); plot.Children.Add(baseLine); plot.Children.Add(_empty);
+            // the fix for a reading that isn't set up ("Open HWiNFO"): right under its words in the head, at any plot height
+            _action = new TextBlock { FontSize = 12, Foreground = ink, TextDecorations = TextDecorations.Underline, HorizontalAlignment = HorizontalAlignment.Right,
+                                      VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 1, 0, 0), Visibility = Visibility.Collapsed, Cursor = Cursors.Hand };
+            var plot = new Grid(); plot.Children.Add(_canvas); plot.Children.Add(baseLine); plot.Children.Add(_empty); plot.Children.Add(_action);
+            _plot = plot;
             _canvas.SizeChanged += (s, e) => Render();
             _canvas.MouseMove += (s, e) => Hover(e.GetPosition(_canvas).X);
             _canvas.MouseLeave += (s, e) => { _hovering = false; _cross.Visibility = Visibility.Collapsed; _dot.Visibility = Visibility.Collapsed; UpdateText(); };
@@ -86,7 +95,7 @@ namespace RaceMode
                 : new Border { Background = Brushes.Transparent, BorderBrush = (Brush)res["Hairline"], Padding = new Thickness(16, 12, 16, 12), Child = stack };
             card.Focusable = true; card.FocusVisualStyle = (Style)res[Boxed ? "FocusRing" : "FocusRingInset"];
             Cell = card;
-            System.Windows.Automation.AutomationProperties.SetName(card, Label + " chart, last 60 seconds. Left and right arrows step through it.");
+            System.Windows.Automation.AutomationProperties.SetName(card, ChartName());
             card.MouseLeftButtonUp += (s, e) => { if (IdleAction != null && double.IsNaN(Latest)) IdleAction(); };
             // Keyboard: arrows move the same read-out the mouse gives (Left = further back, Right = nearer now, Home/End).
             card.KeyDown += (s, e) =>
@@ -108,6 +117,22 @@ namespace RaceMode
             return Element;
         }
 
+        string ChartName() { return Label + " chart, last 60 seconds. Left and right arrows step through it."; }
+
+        // Folded: a short strip (label, its words, the reference line's label) in place of the chart, for a reading
+        // that has nothing to show yet (FPS before iRacing). Overview.cs decides when; the data keeps recording.
+        public void SetStrip(bool on)
+        {
+            if (_strip == on || Cell == null) return;
+            _strip = on;
+            _plot.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+            _sub.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+            _val.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+            Cell.Padding = on ? new Thickness(16, 11, 16, 11) : new Thickness(16, 12, 16, 12);
+            if (!on) { _capNote.Visibility = Visibility.Collapsed; System.Windows.Automation.AutomationProperties.SetName(Cell, ChartName()); }
+            UpdateText();
+        }
+
         public void Push(double v)
         {
             _buf[_head] = v; _head = (_head + 1) % N; if (_count < N) _count++;
@@ -127,6 +152,7 @@ namespace RaceMode
         // Redraws the line from the buffer; call once per second while visible.
         public void Render()
         {
+            if (_canvas != null && _strip) { UpdateText(); return; }
             if (_canvas == null || !_canvas.IsVisible) return;
             double w = _canvas.ActualWidth, h = _canvas.ActualHeight;
             if (w < 10 || h < 10) return;
@@ -147,10 +173,12 @@ namespace RaceMode
             // a tall plot with nothing in it says why, where the line would be
             bool any = false;
             for (int age = 0; age < _count && !any; age++) if (!double.IsNaN(At(age))) any = true;
-            bool emptyNote = !any && h >= 100;
+            bool emptyNote = !any && h >= 100 && IdleAction == null;   // a fix sits under the head instead (UpdateText)
             _empty.Text = emptyNote ? Idle() : "";
             _empty.Visibility = emptyNote ? Visibility.Visible : Visibility.Collapsed;
-            if (!double.IsNaN(Ref) && Ref > Min && Ref < Max)
+            // not set up: no reference line either, so the fix under the head has the plot to itself
+            bool fixShown = IdleAction != null && double.IsNaN(Latest) && IdleWords != null && IdleWords().Length > 0;
+            if (!double.IsNaN(Ref) && Ref > Min && Ref < Max && !fixShown)
             {
                 var y = Math.Round(Y(Ref, h)) + 0.5;
                 _ref.X1 = 0; _ref.X2 = w; _ref.Y1 = y; _ref.Y2 = y; _ref.Visibility = Visibility.Visible;
@@ -166,18 +194,31 @@ namespace RaceMode
         void UpdateText()
         {
             var v = Latest;
+            if (_strip)
+            {
+                _unit.Text = StripWords;
+                _capNote.Text = RefLabel; _capNote.Visibility = string.IsNullOrEmpty(RefLabel) ? Visibility.Collapsed : Visibility.Visible;
+                System.Windows.Automation.AutomationProperties.SetName(Cell, Label + ": " + StripWords + (string.IsNullOrEmpty(RefLabel) ? "" : ", " + RefLabel));
+                return;
+            }
             bool fix = IdleAction != null && double.IsNaN(v);
             Cell.Cursor = fix ? Cursors.Hand : null;
-            _sub.TextDecorations = fix ? TextDecorations.Underline : null;
+            _sub.TextDecorations = null;
             if (double.IsNaN(v))
             {
                 var words = IdleWords == null ? "" : IdleWords();
                 _val.Text = words.Length > 0 ? "" : "--"; _val.Foreground = (Brush)_line.Stroke;
                 _unit.Text = words.Length > 0 ? words : Unit;
+                // not set up: the fix sits right under those words; the sub-line keeps its height so the plots line up
+                bool action = fix && words.Length > 0;
+                _action.Text = action ? Idle() : ""; _action.Visibility = action ? Visibility.Visible : Visibility.Collapsed;
+                System.Windows.Automation.AutomationProperties.SetHelpText(Cell, action ? words + ". Press Enter: " + Idle() + "." : "");
                 bool inPlot = _empty.Visibility == Visibility.Visible;
-                _sub.Text = inPlot ? " " : Idle(); _sub.Foreground = fix ? _inkB : DimOf();
+                _sub.Text = inPlot || action ? " " : Idle(); _sub.Foreground = DimOf();
                 return;
             }
+            _action.Visibility = Visibility.Collapsed;
+            System.Windows.Automation.AutomationProperties.SetHelpText(Cell, "");
             _unit.Text = Unit;
             bool hot = IsHot(v);
             _val.Text = Format(Show(v));
