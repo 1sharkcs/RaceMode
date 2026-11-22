@@ -109,7 +109,7 @@ namespace RaceMode
             pages.Add(new SetupPage
             {
                 Title = "Which screen do you race on?",
-                Intro = "Before each race, Race Mode makes sure iRacing opens on this screen and fills it (as a borderless window), and fixes that while iRacing is closed. Your FPS cap stays as it is.",
+                Intro = "Before each race, Race Mode makes sure iRacing opens on this screen, or across your three screens, and fills it as a borderless window. It fixes that while iRacing is closed. Your FPS cap stays as it is.",
                 Build = () =>
                 {
                     FillMonitorPick();
@@ -122,8 +122,13 @@ namespace RaceMode
                     if (src.SelectedIndex > 0) pick.SelectedIndex = src.SelectedIndex - 1;
                     else if (_pickMonitors.Count > 0) { pick.SelectedIndex = SuggestRacingMonitor(); suggested = true; }
                     else pick.SelectedIndex = pick.Items.Count - 1;
+                    // iRacing is already set up for three screens and three sit side by side: those are the pick.
+                    bool tripleSuggested = suggested && _pickTriples.Count == 1 && DisplayGuard.IniNumMonitors(IniPath()) == 3;
+                    if (tripleSuggested) pick.SelectedIndex = _pickMonitors.Count;
+                    string why = !suggested ? "" : tripleSuggested ? "Your three screens are picked, because iRacing is set up for three. "
+                        : _pickMonitors.Count == 1 ? "Your only screen is picked. " : "Your biggest screen is picked. ";
                     return SetupFlow.Group(SetupFlow.Stack(SetupFlow.Text("Racing monitor",
-                        (suggested ? (_pickMonitors.Count == 1 ? "Your only screen is picked. " : "Your biggest screen is picked. ") : "") + "Choose \"Don't check\" to leave iRacing's screen settings alone."), Pad(pick)));
+                        why + (_pickTriples.Count > 0 && !tripleSuggested ? "Racing on three screens? Pick \"Three screens side by side\". " : "") + "Choose \"Don't check\" to leave iRacing's screen settings alone."), Pad(pick)));
                 },
                 OnNext = () =>
                 {

@@ -1480,7 +1480,18 @@ namespace RaceMode
             if (m.Primary) where = " · main screen";
             else if (main != null) where = m.X + m.Width <= main.X ? " · left of main" : m.X >= main.X + main.Width ? " · right of main" : m.Y + m.Height <= main.Y ? " · above main" : m.Y >= main.Y + main.Height ? " · below main" : "";
             bool twin = _pickMonitors != null && _pickMonitors.Count(x => x.Width == m.Width && x.Height == m.Height && x.Hz == m.Hz) > 1;
-            return "Screen " + (m.Index + 1) + " · " + m.Width + " × " + m.Height + " · " + m.Hz + " Hz" + where + (twin && !string.IsNullOrEmpty(m.MonitorId) ? "  (" + m.MonitorId + ")" : "");
+            return "Screen " + (m.Index + 1) + " · " + m.Width + " × " + m.Height + " · " + m.Hz + " Hz" + where
+                + (DisplayGuard.LooksJoined(m) ? " · three screens joined (Surround or Eyefinity)" : "")
+                + (twin && !string.IsNullOrEmpty(m.MonitorId) ? "  (" + m.MonitorId + ")" : "");
+        }
+
+        // Rows of three same-size screens side by side, offered after the single screens.
+        List<List<MonitorInfo>> _pickTriples = new List<List<MonitorInfo>>();
+
+        static string TripleLabel(List<MonitorInfo> row)
+        {
+            return "Three screens side by side · screens " + string.Join(", ", row.Select(m => (m.Index + 1).ToString()).ToArray())
+                + " · 3 × " + row[0].Width + " × " + row[0].Height + " · " + row.Min(m => m.Hz) + " Hz";
         }
 
         void FillMonitorPick()
@@ -1490,19 +1501,26 @@ namespace RaceMode
             try
             {
                 try { _pickMonitors = DisplayGuard.ListMonitors(); } catch { _pickMonitors = new List<MonitorInfo>(); }
+                try { _pickTriples = DisplayGuard.TripleRows(_pickMonitors); } catch { _pickTriples = new List<List<MonitorInfo>>(); }
                 box.Items.Clear();
                 box.Items.Add("Don't check (leave iRacing's screen settings alone)");
                 int sel = 0;
                 var g = _cfg.DisplayGuard;
+                bool triple = g != null && g.Enabled && g.IsTriple;
                 foreach (var m in _pickMonitors)
                 {
                     box.Items.Add(MonitorLabel(m));
-                    if (sel == 0 && g != null && g.Enabled && !string.IsNullOrEmpty(g.MonitorId) && (m.MonitorId ?? "").IndexOf(g.MonitorId, StringComparison.OrdinalIgnoreCase) >= 0) sel = box.Items.Count - 1;
+                    if (sel == 0 && !triple && g != null && g.Enabled && !string.IsNullOrEmpty(g.MonitorId) && (m.MonitorId ?? "").IndexOf(g.MonitorId, StringComparison.OrdinalIgnoreCase) >= 0) sel = box.Items.Count - 1;
+                }
+                foreach (var row in _pickTriples)
+                {
+                    box.Items.Add(TripleLabel(row));
+                    if (sel == 0 && triple && Enumerable.Range(0, 3).All(k => (row[k].MonitorId ?? "").IndexOf(g.Triple[k], StringComparison.OrdinalIgnoreCase) >= 0)) sel = box.Items.Count - 1;
                 }
                 // The picked monitor is switched off right now: keep the choice and say so.
                 if (sel == 0 && g != null && g.Enabled && !string.IsNullOrEmpty(g.MonitorId))
                 {
-                    box.Items.Add("Your racing monitor (" + g.MonitorId + ") · not connected right now");
+                    box.Items.Add(triple ? "Your three racing screens · not all connected side by side right now" : "Your racing monitor (" + g.MonitorId + ") · not connected right now");
                     sel = box.Items.Count - 1;
                 }
                 box.SelectedIndex = sel;
@@ -1517,14 +1535,28 @@ namespace RaceMode
             int i = box.SelectedIndex;
             var g = _cfg.DisplayGuard ?? (_cfg.DisplayGuard = new DisplayGuardConfig());
             if (i <= 0) { g.Enabled = false; SaveConfig(); _guardSig = null; Tick("Screen check off: iRacing's screen settings are left alone"); UpdateStatus(); return; }
-            if (i > _pickMonitors.Count) return;   // the "not connected" entry: nothing changes
-            var m = _pickMonitors[i - 1];
-            if (string.IsNullOrEmpty(m.MonitorId) || m.Width <= 0 || m.Height <= 0 || m.Hz <= 0) { Tick("Couldn't read that screen's details, so nothing changed"); FillMonitorPick(); return; }
-            g.MonitorId = m.MonitorId; g.Width = m.Width; g.Height = m.Height; g.RefreshRate = m.Hz;
+            if (i > _pickMonitors.Count + _pickTriples.Count) return;   // the "not connected" entry: nothing changes
+            string label;
+            if (i > _pickMonitors.Count)
+            {
+                var row = _pickTriples[i - 1 - _pickMonitors.Count];
+                if (row.Any(x => string.IsNullOrEmpty(x.MonitorId) || x.Hz <= 0)) { Tick("Couldn't read those screens' details, so nothing changed"); FillMonitorPick(); return; }
+                g.Triple = row.Select(x => x.MonitorId).ToList();
+                g.MonitorId = row[1].MonitorId; g.Width = row[0].Width; g.Height = row[0].Height; g.RefreshRate = row.Min(x => x.Hz);
+                label = TripleLabel(row);
+            }
+            else
+            {
+                var m = _pickMonitors[i - 1];
+                if (string.IsNullOrEmpty(m.MonitorId) || m.Width <= 0 || m.Height <= 0 || m.Hz <= 0) { Tick("Couldn't read that screen's details, so nothing changed"); FillMonitorPick(); return; }
+                g.Triple = null;
+                g.MonitorId = m.MonitorId; g.Width = m.Width; g.Height = m.Height; g.RefreshRate = m.Hz;
+                label = MonitorLabel(m);
+            }
             g.Enabled = true;
             SaveConfig();
             _guardSig = null;
-            Tick("Racing monitor set to " + MonitorLabel(m) + (g.EnforcesFpsCap ? ", FPS cap kept at " + g.FpsLimit : ""));
+            Tick("Racing monitor set to " + label + (g.EnforcesFpsCap ? ", FPS cap kept at " + g.FpsLimit : ""));
             CheckDisplay("monitor picked", true);
             UpdateStatus();
         }
@@ -1655,7 +1687,7 @@ namespace RaceMode
                     // Once per new problem: iRacing can't fix a monitor Windows is running at the wrong mode.
                     MessageBox.Show(Window, r.Warning + ".\n\niRacing runs in a window that fills the screen, so it uses whatever size and refresh rate Windows has set for that monitor. Change it in Windows display settings.", "Race Mode", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
-                else if (r.Changed) Tick("Put iRacing back on the right screen (" + r.Changes.Count + " setting" + (r.Changes.Count == 1 ? "" : "s") + " fixed)");
+                else if (r.Changed) Tick("Put iRacing back " + (_cfg.DisplayGuard.IsTriple ? "across your three screens" : "on the right screen") + " (" + r.Changes.Count + " setting" + (r.Changes.Count == 1 ? "" : "s") + " fixed)");
                 else if (newSkip || (force && r.Skipped)) Tick(r.Message);
             }
             finally { _guardBusy = false; }

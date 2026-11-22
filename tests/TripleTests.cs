@@ -1,0 +1,186 @@
+// Triple-screen tests for RaceMode.DisplayGuard. Every write goes to a temp copy of the public fixture ini;
+// the real iRacing file is never opened. Screens are made up (no real monitor ids).
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Web.Script.Serialization;
+using RaceMode;
+
+class TripleTests
+{
+    static int pass, fail;
+    static string Root, Fixture;
+
+    static void Check(string name, bool ok, string detail)
+    {
+        if (ok) pass++; else fail++;
+        Console.WriteLine((ok ? "PASS " : "FAIL ") + name + (ok || detail == null ? "" : "  -> " + detail));
+    }
+
+    static MonitorInfo M(int idx, string id, int x, int y, int w, int h, int hz, bool primary)
+    {
+        return new MonitorInfo { Index = idx, MonitorId = id, DeviceName = "DISPLAY" + (idx + 1), X = x, Y = y, Width = w, Height = h, Hz = hz, Primary = primary };
+    }
+    // Three identical 1080p screens, the centre one is the main screen (left one at negative X), deviceIdx order shuffled.
+    static List<MonitorInfo> Row() { return new List<MonitorInfo> { M(0, "TST0001", 0, 0, 1920, 1080, 144, true), M(1, "TST0001", 1920, 0, 1920, 1080, 144, false), M(2, "TST0001", -1920, 0, 1920, 1080, 144, false) }; }
+    // A desk like many people have: three screens of different sizes, not a triple rig.
+    static List<MonitorInfo> Mixed() { return new List<MonitorInfo> { M(0, "TSTA", 0, 0, 1920, 1080, 360, true), M(1, "TSTB", -4480, 0, 2560, 1440, 144, false), M(2, "TSTC", -1920, 0, 1920, 1080, 144, false) }; }
+
+    static string Ini(string name, int numMonitors)
+    {
+        var p = Path.Combine(Root, name + ".ini");
+        var text = File.ReadAllText(Fixture, Encoding.Default).Replace("NumMonitors=1 ", "NumMonitors=" + numMonitors + " ");
+        File.WriteAllText(p, text, Encoding.Default);
+        return p;
+    }
+    static DisplayGuardConfig Triple(string ini) { return new DisplayGuardConfig { Enabled = true, MonitorId = "TST0001", Width = 1920, Height = 1080, RefreshRate = 144, KeepFpsCap = false, IniPath = ini, Triple = new List<string> { "TST0001", "TST0001", "TST0001" } }; }
+
+    static string Val(string path, string section, string key)
+    {
+        string sec = "";
+        foreach (var raw in File.ReadAllLines(path, Encoding.Default))
+        {
+            var t = raw.Trim();
+            if (t.StartsWith("[") && t.EndsWith("]")) { sec = t.Substring(1, t.Length - 2); continue; }
+            if (!string.Equals(sec, section, StringComparison.OrdinalIgnoreCase)) continue;
+            var eq = raw.IndexOf('='); if (eq < 0) continue;
+            if (!string.Equals(raw.Substring(0, eq).Trim(), key, StringComparison.OrdinalIgnoreCase)) continue;
+            var v = raw.Substring(eq + 1); var sc = v.IndexOf(';'); if (sc >= 0) v = v.Substring(0, sc);
+            return v.Trim();
+        }
+        return null;
+    }
+    static string Section(string path, string section)
+    {
+        var lines = File.ReadAllLines(path, Encoding.Default); var sb = new StringBuilder(); bool inSec = false;
+        foreach (var l in lines)
+        {
+            var t = l.Trim();
+            if (t.StartsWith("[")) inSec = string.Equals(t, "[" + section + "]", StringComparison.OrdinalIgnoreCase);
+            else if (inSec) sb.AppendLine(l);
+        }
+        return sb.ToString();
+    }
+
+    static int Main()
+    {
+        Fixture = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"fixtures\live-before-race-preset.ini");
+        Root = Path.Combine(Path.GetTempPath(), "racemode-triple-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+        Directory.CreateDirectory(Root);
+        try
+        {
+            // ---- finding rows of three
+            var rows = DisplayGuard.TripleRows(Row());
+            Check("three screens in a row are found", rows.Count == 1, rows.Count + " rows");
+            Check("the row runs left to right", rows.Count == 1 && rows[0][0].X == -1920 && rows[0][1].X == 0 && rows[0][2].X == 1920, null);
+            Check("a mixed desk is not a triple", DisplayGuard.TripleRows(Mixed()).Count == 0, null);
+            var four = Row(); four.Add(M(3, "TST0001", 3840, 0, 1920, 1080, 144, false));
+            Check("four in a row give two possible rows", DisplayGuard.TripleRows(four).Count == 2, null);
+            var gap = Row(); gap[1].X = 1930;
+            Check("a gap between screens is not a row", DisplayGuard.TripleRows(gap).Count == 0, null);
+            var tall = Row(); tall[1].Y = 50;
+            Check("screens at different heights are not a row", DisplayGuard.TripleRows(tall).Count == 0, null);
+            Check("5760x1080 looks like joined screens", DisplayGuard.LooksJoined(M(0, "X", 0, 0, 5760, 1080, 144, true)), null);
+            Check("a 32:9 ultrawide is not joined screens", !DisplayGuard.LooksJoined(M(0, "X", 0, 0, 5120, 1440, 240, true)), null);
+
+            // ---- triple run
+            var ini = Ini("triple", 3);
+            var setupBefore = Section(ini, "MonitorSetup");
+            var devBefore = Val(ini, "Display", "deviceIdx");
+            var r = DisplayGuard.Run(Triple(ini), true, Row(), false);
+            Check("triple: changed", r.Changed && !r.Skipped, r.Message);
+            Check("triple: window starts at the left screen", Val(ini, "Display", "windowedXPos") == "-1920", Val(ini, "Display", "windowedXPos"));
+            Check("triple: window spans all three", Val(ini, "Display", "windowedWidth") == "5760" && Val(ini, "Display", "windowedHeight") == "1080", Val(ini, "Display", "windowedWidth"));
+            Check("triple: borderless window, not full screen", Val(ini, "Display", "fullScreen") == "0" && Val(ini, "Display", "border") == "0" && Val(ini, "Display", "windowedMaximized") == "0", null);
+            Check("triple: deviceIdx left as it was", Val(ini, "Display", "deviceIdx") == devBefore, Val(ini, "Display", "deviceIdx"));
+            Check("triple: iRacing's monitor geometry untouched", Section(ini, "MonitorSetup") == setupBefore, null);
+            Check("triple: backup made", r.Backup != null && File.Exists(r.Backup), r.Backup);
+            Check("triple: message names three screens", r.Message.Contains("three racing screens"), r.Message);
+            var again = DisplayGuard.Run(Triple(ini), true, Row(), false);
+            Check("triple: second run has nothing to fix", !again.Changed && again.Changes.Count == 0 && again.Message.StartsWith("Screen settings OK"), again.Message);
+
+            // ---- iRacing itself set up for one screen: still guarded, with a pointer to iRacing's settings
+            var ini1 = Ini("triple-num1", 1);
+            var r1 = DisplayGuard.Run(Triple(ini1), true, Row(), false);
+            Check("triple, iRacing on 1 screen: window still fixed", r1.Changed && Val(ini1, "Display", "windowedWidth") == "5760", r1.Message);
+            Check("triple, iRacing on 1 screen: says how to fix it in iRacing", r1.Message.Contains("set up for one screen") && Val(ini1, "MonitorSetup", "NumMonitors") == "1", r1.Message);
+
+            // ---- a screen missing / switched off
+            var iniMiss = Ini("triple-missing", 3);
+            var textMiss = File.ReadAllText(iniMiss);
+            var r2 = DisplayGuard.Run(Triple(iniMiss), true, Row().Take(2).ToList(), false);
+            Check("triple, a screen off: skipped", r2.Skipped && !r2.Changed, r2.Message);
+            Check("triple, a screen off: file unchanged", File.ReadAllText(iniMiss) == textMiss, null);
+
+            // ---- the order matters: different models must sit left, centre, right as picked
+            var mixedRow = new List<MonitorInfo> { M(0, "TSTL", -1920, 0, 1920, 1080, 144, false), M(1, "TSTC", 0, 0, 1920, 1080, 144, true), M(2, "TSTR", 1920, 0, 1920, 1080, 144, false) };
+            var cfgLcr = Triple(Ini("triple-order", 3)); cfgLcr.Triple = new List<string> { "TSTL", "TSTC", "TSTR" };
+            Check("triple, picked order matches: fixed", DisplayGuard.Run(cfgLcr, true, mixedRow, false).Changed, null);
+            var iniSwap = Ini("triple-swapped", 3); var cfgSwap = Triple(iniSwap); cfgSwap.Triple = new List<string> { "TSTR", "TSTC", "TSTL" };
+            var r3 = DisplayGuard.Run(cfgSwap, true, mixedRow, false);
+            Check("triple, screens moved around: skipped", r3.Skipped && !r3.Changed, r3.Message);
+
+            // ---- slow screen warning
+            var slow = Row(); slow[1].Hz = 60;
+            var r4 = DisplayGuard.Run(Triple(Ini("triple-slow", 3)), true, slow, false);
+            Check("triple, one screen at 60 Hz: warns", r4.Warning != null && r4.Warning.Contains("60 Hz"), r4.Warning);
+
+            // ---- iRacing running: waits
+            var iniRun = Ini("triple-running", 3); var textRun = File.ReadAllText(iniRun);
+            var r5 = DisplayGuard.Run(Triple(iniRun), true, Row(), true);
+            Check("triple, iRacing running: waits", r5.Skipped && File.ReadAllText(iniRun) == textRun, r5.Message);
+
+            // ---- one-screen check on a triple iRacing setup leaves it alone
+            var iniOne = Ini("single-on-triple", 3); var textOne = File.ReadAllText(iniOne);
+            var single = new DisplayGuardConfig { Enabled = true, MonitorId = "TST0001", Width = 1920, Height = 1080, RefreshRate = 144, KeepFpsCap = false, IniPath = iniOne };
+            var oneRow = new List<MonitorInfo> { M(0, "TSTA", -1920, 0, 1920, 1080, 144, false), M(1, "TST0001", 0, 0, 1920, 1080, 144, true), M(2, "TSTB", 1920, 0, 1920, 1080, 144, false) };
+            var r6 = DisplayGuard.Run(single, true, oneRow, false);
+            Check("one screen picked, iRacing on 3: left alone", r6.Skipped && File.ReadAllText(iniOne) == textOne, r6.Message);
+            Check("one screen picked, iRacing on 3: says why", r6.Message.Contains("set up for three screens"), r6.Message);
+            // Surround / Eyefinity: one joined display is still guarded as one screen.
+            var iniSur = Ini("surround", 3);
+            var sur = new DisplayGuardConfig { Enabled = true, MonitorId = "TSTSUR", Width = 5760, Height = 1080, RefreshRate = 144, KeepFpsCap = false, IniPath = iniSur };
+            var r7 = DisplayGuard.Run(sur, true, new List<MonitorInfo> { M(0, "TSTSUR", 0, 0, 5760, 1080, 144, true) }, false);
+            Check("Surround display, iRacing on 3: guarded", r7.Changed && Val(iniSur, "Display", "windowedWidth") == "5760", r7.Message);
+            // One screen on a one-screen iRacing setup behaves as before.
+            var iniPlain = Ini("single", 1);
+            var r8 = DisplayGuard.Run(single.With(iniPlain), true, oneRow, false);
+            Check("one screen, iRacing on 1: guarded as before", !r8.Skipped && Val(iniPlain, "Display", "windowedWidth") == "1920", r8.Message);
+
+            // ---- saved settings
+            var js = new JavaScriptSerializer();
+            var back = js.Deserialize<DisplayGuardConfig>(js.Serialize(Triple("x")));
+            Check("config: three screens survive a save", back.IsTriple && back.Triple[2] == "TST0001", null);
+            var old = js.Deserialize<DisplayGuardConfig>("{\"Enabled\":true,\"MonitorId\":\"TSTA\",\"Width\":1920,\"Height\":1080,\"RefreshRate\":144}");
+            Check("config: an older config is one screen", !old.IsTriple, null);
+            var bad = Triple("x"); bad.Triple = new List<string> { "A", "", "C" };
+            Check("config: a blank id is not a triple", !bad.IsTriple, null);
+            Check("signature: picking three screens counts as a change", DisplayGuard.Signature(Triple("x")) != DisplayGuard.Signature(single.With("x")), null);
+
+            // ---- trial stand-in screens only under the test root
+            var oldRoot = Environment.GetEnvironmentVariable("RACEMODE_TEST_ROOT");
+            Environment.SetEnvironmentVariable("RACEMODE_TEST_MONITORS", "TSTL,-1920,0,1920,1080,144;TSTC,0,0,1920,1080,165,primary;TSTR,1920,0,1920,1080,144");
+            Environment.SetEnvironmentVariable("RACEMODE_TEST_ROOT", null);
+            Check("stand-in screens ignored outside a test root", !DisplayGuard.ListMonitors().Any(m => m.MonitorId == "TSTC"), null);
+            Environment.SetEnvironmentVariable("RACEMODE_TEST_ROOT", Root);
+            var fake = DisplayGuard.ListMonitors();
+            Check("stand-in screens used under a test root", fake.Count == 3 && fake[1].Primary && fake[1].Hz == 165 && DisplayGuard.TripleRows(fake).Count == 1, string.Join(" | ", fake.Select(m => m.ToString()).ToArray()));
+            Environment.SetEnvironmentVariable("RACEMODE_TEST_MONITORS", null);
+            Environment.SetEnvironmentVariable("RACEMODE_TEST_ROOT", oldRoot);
+        }
+        catch (Exception ex) { Check("no crash", false, ex.ToString()); }
+        finally { try { Directory.Delete(Root, true); } catch { } }
+        Console.WriteLine(pass + " passed, " + fail + " failed");
+        return fail == 0 ? 0 : 1;
+    }
+}
+
+static class CfgExt
+{
+    public static DisplayGuardConfig With(this DisplayGuardConfig c, string ini)
+    {
+        return new DisplayGuardConfig { Enabled = c.Enabled, MonitorId = c.MonitorId, Width = c.Width, Height = c.Height, RefreshRate = c.RefreshRate, KeepFpsCap = c.KeepFpsCap, IniPath = ini };
+    }
+}

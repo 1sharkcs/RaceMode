@@ -1036,7 +1036,7 @@
               <Border Style="{StaticResource LastRow}">
                 <StackPanel>
                   <TextBlock Text="Keep iRacing on this screen" Foreground="{StaticResource Ink}"/>
-                  <TextBlock x:Name="MonitorSub" Style="{StaticResource Sub}" Text="Before each race, Race Mode makes sure iRacing opens on this screen and fills it (as a borderless window), and fixes that while iRacing is closed. Your FPS cap stays as it is."/>
+                  <TextBlock x:Name="MonitorSub" Style="{StaticResource Sub}" Text="Before each race, Race Mode makes sure iRacing opens on this screen, or across your three screens, and fills it as a borderless window. It fixes that while iRacing is closed. Your FPS cap stays as it is."/>
                   <ComboBox x:Name="MonitorPick" Margin="0,10,0,0" AutomationProperties.Name="Racing monitor"/>
                 </StackPanel>
               </Border>
