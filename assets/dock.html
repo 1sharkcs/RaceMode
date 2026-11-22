@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en" data-w="s" data-mode="full">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Race Mode</title>
+<style>
+  /* Race Mode tokens (dark only, like the app): red means "on" and nothing else; amber = needs a look; green = good. */
+  :root { --bg:#121214; --card:#1D1D20; --raised:#2A2A2E; --hair:#2C2C30; --ink:#F5F5F7; --dim:#A1A1A6; --faint:#98989E; --line:#7C7C82; --red:#FF453A; --amber:#FF9F0A; --green:#30D158; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; background:var(--bg); color:var(--ink); font:13px/1.35 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif; }
+  body { padding:10px; }
+  html[data-w="xs"] body { padding:6px; }
+  [hidden] { display:none !important; }
+  .card { background:var(--card); border:1px solid var(--hair); border-radius:10px; }
+  .num { font:600 19px "Bahnschrift","Segoe UI",sans-serif; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .unit { font:12px "Segoe UI",sans-serif; color:var(--dim); margin-left:2px; }
+  .lbl { color:var(--dim); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hot { color:var(--amber); }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#5A5A60; margin-right:6px; flex:none; }
+  .dot.on { background:var(--red); } .dot.ok { background:var(--green); } .dot.warn { background:var(--amber); }
+  button { font:600 12px "Segoe UI",sans-serif; border:0; border-radius:7px; padding:7px 12px; cursor:pointer; min-height:30px; background:#2E2E33; color:var(--ink); white-space:nowrap; }
+  button:hover:not(:disabled) { background:#3A3A40; }
+  button:focus-visible, summary:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+  button:disabled { opacity:.45; cursor:default; }
+  .primary { background:var(--ink); color:#121214; }
+  .primary:hover:not(:disabled) { background:#fff; }
+
+  /* ---------- full layout: one column, or two when the dock is wide ---------- */
+  #full { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; }
+  html[data-w="l"] #full { grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:12px; align-items:start; }
+  .col { display:flex; flex-direction:column; gap:8px; min-width:0; }
+  .sec { font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.6px; margin:4px 2px -2px; }
+  html[data-w="l"] .col:last-child > .sec:first-child { margin-top:0; }
+
+  /* switch card */
+  .hero { padding:10px 12px; }
+  .hero.is-on { border-color:#5A2420; background:linear-gradient(135deg,#3A1A18,#221B1D 55%,#1D1D20); }
+  .hero h1 { margin:0; font:600 17px "Bahnschrift","Segoe UI",sans-serif; display:flex; align-items:center; min-width:0; }
+  .hero h1 span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  html[data-w="xs"] .hero { padding:8px 10px; }
+  html[data-w="xs"] .hero h1 { font-size:15px; }
+  html[data-w="m"] .hero h1, html[data-w="l"] .hero h1 { font-size:19px; }
+  .hero p { margin:4px 0 0; color:var(--dim); font-size:12px; }
+  .actions { display:flex; gap:8px; margin-top:9px; }
+  .actions .primary { flex:1; }
+  html[data-w="m"] .actions button, html[data-w="l"] .actions button { min-height:34px; font-size:13px; }
+
+  /* live numbers: a strip of four, or 2x2 when narrow or in the wide two-column layout */
+  .nums { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--hair); overflow:hidden; }
+  html[data-w="l"] .nums { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  @media (max-width:259px) { .nums { grid-template-columns:repeat(2,minmax(0,1fr)); } #live > .line { flex-direction:column; gap:2px; } }
+  .m { background:var(--card); padding:7px 8px; min-width:0; }
+  html[data-w="m"] .m { padding:8px 10px; }
+  html[data-w="l"] .m { padding:9px 12px; }
+  html[data-w="m"] .m .num { font-size:23px; }
+  html[data-w="l"] .m .num { font-size:27px; }
+  .word { font-size:12px; color:var(--amber); min-height:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  html.no-words .word:empty { display:none; }
+  .spark { display:block; width:100%; height:calc(22px + var(--grow, 0px)); margin-top:3px; overflow:visible; }
+  html[data-w="m"] .spark, html[data-w="l"] .spark { height:calc(28px + var(--grow, 0px)); }
+  .spark polyline { fill:none; stroke:var(--line); stroke-width:1.5; stroke-linejoin:round; vector-effect:non-scaling-stroke; }
+  .spark.hot polyline { stroke:var(--amber); }
+  .spark line { stroke:var(--faint); stroke-width:1; stroke-dasharray:3 3; vector-effect:non-scaling-stroke; opacity:.6; }
+  html.no-spark .spark { display:none; }
+
+  /* this run's FPS */
+  .session { padding:8px 12px; display:flex; flex-wrap:wrap; gap:4px 14px; align-items:baseline; }
+  .session .k { color:var(--dim); font-size:12px; margin-right:4px; }
+  .session b { font:600 15px "Bahnschrift","Segoe UI",sans-serif; font-variant-numeric:tabular-nums; }
+  html.no-session .session { display:none; }
+
+  /* stream health */
+  .health { padding:9px 12px; }
+  .line { display:flex; justify-content:space-between; align-items:baseline; gap:8px; min-width:0; }
+  .line > span:first-child { display:flex; align-items:center; min-width:0; }
+  .line > span:first-child > span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .line > span:last-child { white-space:nowrap; }
+  .bar { height:4px; border-radius:2px; background:var(--raised); margin-top:6px; overflow:hidden; }
+  .bar i { display:block; height:100%; width:100%; background:var(--green); transform-origin:left center; transform:scaleX(0); transition:transform .2s cubic-bezier(.23,1,.32,1); }
+  .bar.warn i { background:var(--amber); }
+  .hint { color:var(--faint); font-size:12px; margin-top:6px; }
+  html.no-hint .hint { display:none; }
+
+  /* setup drawer */
+  summary { list-style:none; cursor:pointer; padding:9px 12px; display:flex; justify-content:space-between; align-items:center; gap:10px; border-radius:10px; }
+  summary::-webkit-details-marker { display:none; }
+  summary > span:first-child { white-space:nowrap; }
+  summary .s { color:var(--dim); font-size:12px; display:flex; align-items:center; min-width:0; }
+  summary .s span:first-child { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chev { color:var(--faint); margin-left:6px; flex:none; transition:transform .15s cubic-bezier(.23,1,.32,1); }
+  details[open] .chev { transform:rotate(90deg); }
+  .rows { padding:0 12px 8px; }
+  .row { display:flex; justify-content:space-between; gap:10px; padding:5px 0; border-top:1px solid var(--hair); }
+  .row span:first-child { color:var(--dim); white-space:nowrap; }
+  .row span:last-child { text-align:right; }
+  html.no-detail #live > .line, html.no-heads .sec, html.no-status #status, html.no-setup .setupPart, html.no-foot footer, html.no-open #open { display:none; }
+
+  footer { color:var(--faint); font-size:12px; margin:0 2px; display:flex; justify-content:space-between; gap:8px; grid-column:1 / -1; }
+  footer span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .link { color:var(--dim); text-decoration:underline; background:none; border:0; padding:0; min-height:0; font:inherit; flex:none; }
+  .link:hover:not(:disabled) { color:var(--ink); background:none; }
+
+  /* ---------- bar layout: a short dock (across the bottom of OBS) gets one line ---------- */
+  #bar { display:none; align-items:center; gap:16px; white-space:nowrap; overflow:hidden; height:100%; }
+  html[data-mode="bar"] body { padding:6px 10px; height:100vh; }
+  html[data-mode="bar"] #full { display:none; }
+  html[data-mode="bar"] #bar { display:flex; }
+  .bi { display:flex; flex-direction:column; justify-content:center; min-width:0; flex:none; }
+  .bi .num { font-size:20px; line-height:1.1; }
+  html.bar-inline .bi { flex-direction:row; align-items:baseline; gap:5px; }
+  html.bar-inline .bi .num { font-size:16px; }
+  .bi.state { flex-direction:row; align-items:center; font:600 15px "Bahnschrift","Segoe UI",sans-serif; }
+  .bi .word { min-height:0; }
+  html.bar-inline .bi .word { font-size:12px; }
+  html.bar-inline .bi .word:empty { display:none; }
+  #bar .cut { display:none; }
+  /* a sliver of a dock (under 150 px wide): one narrow column, least important items dropped from the bottom up */
+  html[data-mode="col"] body { padding:6px; height:100vh; }
+  html[data-mode="col"] #full { display:none; }
+  html[data-mode="col"] #bar { display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:8px; }
+  html[data-mode="col"] .bi .num { font-size:18px; overflow:hidden; text-overflow:ellipsis; }
+  html[data-mode="col"] .bi .lbl, html[data-mode="col"] .bi .word { overflow:hidden; text-overflow:ellipsis; }
+  html[data-mode="col"] .bi.state { font-size:14px; overflow:hidden; }
+  html[data-mode="col"] #bState { overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  html.lost[data-mode="col"] .bi.state { font-size:12px; }
+  html[data-mode="col"] .bi.extra, html[data-mode="col"] .bspacer { display:none; }
+  html[data-mode="col"] #bar button { width:100%; padding:6px 2px; min-height:28px; font-size:12px; overflow:hidden; text-overflow:ellipsis; }
+  html, body { overflow-x:hidden; }
+  .word.note { color:var(--faint); }
+  /* Race Mode not answering: only the message and a way to open it */
+  html.lost .nums, html.lost .session, html.lost .col + .col, html.lost #bar .bi:not(.state), html.lost #toggle, html.lost #bToggle, html.lost #open, html.lost #bOpen, html.lost #openLink { display:none !important; }
+  html.bar-wrap #bar { flex-wrap:wrap; align-content:center; row-gap:6px; }
+  .bi.extra .num { font-size:14px; color:var(--dim); font-weight:400; font-family:"Segoe UI",sans-serif; }
+  .bspacer { flex:1; min-width:0; }
+  @media (max-width:199px) { .health > .line { flex-direction:column; align-items:flex-start; gap:2px; } }
+  /* tight on height: smaller gaps and padding */
+  html.no-roomy body { padding:6px; }
+  html.no-roomy #full, html.no-roomy .col { gap:6px; }
+  html.no-roomy .hero { padding:7px 10px; }
+  html.no-roomy .actions { margin-top:6px; }
+  html.no-roomy .m { padding:5px 8px; }
+  html.no-roomy .health, html.no-roomy summary { padding:6px 10px; }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+<main id="full">
+  <div class="col">
+    <section class="card hero" id="hero">
+      <h1><span class="dot" id="dot"></span><span id="headline">Race Mode</span></h1>
+      <p id="status">Waiting for Race Mode…</p>
+      <div class="actions">
+        <button class="primary" id="toggle" disabled>Turn On</button>
+        <button id="open" title="Bring the Race Mode window to the front">Open</button>
+      </div>
+    </section>
+
+    <section class="card nums">
+      <div class="m" title="Frames per second in iRacing">
+        <div class="lbl" data-s="FPS" data-m="FPS">FPS</div>
+        <div class="num"><span id="fps">--</span></div><div class="word" id="fpsWord"></div>
+        <svg class="spark" id="fpsSpark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"><line id="fpsCapLine" x1="0" x2="100" y1="-10" y2="-10"></line><polyline></polyline></svg>
+      </div>
+      <div class="m" title="How busy your busiest CPU core is. iRacing leans on one core, so near 100% means the CPU is what holds your FPS back.">
+        <div class="lbl" data-s="Core" data-m="Busiest core">Core</div>
+        <div class="num"><span id="core">--</span><span class="unit">%</span></div><div class="word" id="coreWord"></div>
+        <svg class="spark" id="coreSpark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"><polyline></polyline></svg>
+      </div>
+      <div class="m" title="CPU temperature, from HWiNFO">
+        <div class="lbl" data-xs="Temp" data-s="CPU temp" data-m="CPU temp">CPU temp</div>
+        <div class="num"><span id="temp">--</span><span class="unit" id="tempUnit">°C</span></div><div class="word" id="tempWord"></div>
+        <svg class="spark" id="tempSpark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"><polyline></polyline></svg>
+      </div>
+      <div class="m" title="How busy your graphics card is">
+        <div class="lbl" data-s="GPU" data-m="GPU">GPU</div>
+        <div class="num"><span id="gpu">--</span><span class="unit">%</span></div><div class="word" id="gpuWord"></div>
+        <svg class="spark" id="gpuSpark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"><polyline></polyline></svg>
+      </div>
+    </section>
+
+    <section class="card session" id="session" hidden title="FPS while Race Mode has been on. Low = the slowest 5% of moments.">
+      <span><span class="k" id="sessKind">This run</span><b id="sessTime">--</b></span>
+      <span><span class="k">Avg</span><b id="sessAvg">--</b></span>
+      <span><span class="k">Low</span><b id="sessLow">--</b><span class="unit">FPS</span></span>
+    </section>
+  </div>
+
+  <div class="col">
+    <div class="sec">Stream</div>
+    <section class="card health">
+      <div class="line"><span><span class="dot" id="obsDot"></span><span id="obsStatus">…</span></span><span id="rate"></span></div>
+      <div id="live" hidden>
+        <div class="bar" id="rateBar" title="Bitrate compared with the highest so far this stream"><i id="barFill"></i></div>
+        <div class="line" style="margin-top:6px"><span class="lbl" id="dropped"></span><span class="lbl" id="lagged"></span></div>
+        <div class="hint">Dropped: your internet couldn't keep up. Lagged: your PC couldn't keep up.</div>
+      </div>
+    </section>
+
+    <div class="sec setupPart">Setup</div>
+    <details class="card setupPart" id="setupBox">
+      <summary><span>Set up for</span><span class="s"><span id="setupShort">…</span><span class="chev" aria-hidden="true">›</span></span></summary>
+      <div class="rows" id="setup"></div>
+    </details>
+  </div>
+
+  <footer><button class="link" id="openLink">Open Race Mode</button><span id="foot">Waiting for Race Mode…</span></footer>
+</main>
+
+<div id="bar">
+  <div class="bi state" data-cut="99"><span class="dot" id="bDot"></span><span id="bState">Race Mode</span></div>
+  <div class="bi" data-cut="9"><span class="lbl">FPS</span><span class="num" id="bFps">--</span><span class="word" id="bFpsWord"></span></div>
+  <div class="bi" data-cut="6"><span class="lbl">Core</span><span class="num"><span id="bCore">--</span><span class="unit">%</span></span><span class="word" id="bCoreWord"></span></div>
+  <div class="bi" data-cut="5"><span class="lbl">CPU</span><span class="num"><span id="bTemp">--</span><span class="unit" id="bTempUnit">°C</span></span><span class="word" id="bTempWord"></span></div>
+  <div class="bi" data-cut="2"><span class="lbl">GPU</span><span class="num"><span id="bGpu">--</span><span class="unit">%</span></span></div>
+  <div class="bi" data-cut="4" data-hot="28" id="bStream"><span class="lbl" id="bStreamLbl">Stream</span><span class="num" id="bKbps">--</span><span class="word" id="bStreamWord"></span></div>
+  <div class="bi" data-cut="3" id="bDropBox"><span class="lbl">Dropped</span><span class="num" id="bDrop">--</span></div>
+  <div class="bi extra" data-cut="1.5" id="bRun" hidden><span class="lbl" id="bRunLbl">This run</span><span class="num" id="bRunVal">--</span></div>
+  <div class="bi extra" data-cut="0.5"><span class="lbl">Set up for</span><span class="num" id="bSetup">--</span></div>
+  <div class="bspacer"></div>
+  <button class="primary" id="bToggle" disabled data-cut="98">Turn On</button>
+  <button id="bOpen" data-cut="1" title="Bring the Race Mode window to the front">Open</button>
+</div>
+
+<script>
+  // Polls Race Mode on this PC every 2 s. Everything is written with textContent, never as HTML.
+  // The layout follows the dock's size: a one-line bar when it's short, one column when narrow,
+  // two columns when wide. Then fit() drops optional extras, least useful first, until it fits without scrolling.
+  var token = new URLSearchParams(location.search).get("t") || "";
+  var root = document.documentElement;
+  function $(id) { return document.getElementById(id); }
+  function set(id, v) { $(id).textContent = v; }
+  function n0(v) { return (v === null || v === undefined || isNaN(v)) ? "--" : Math.round(v).toLocaleString(); }
+  function pct(d, t) { if (!t) return "0"; var p = 100 * d / t; return d.toLocaleString() + " (" + (p < 0.1 && d > 0 ? "<0.1" : p.toFixed(1)) + "%)"; }
+  function wide() { return root.getAttribute("data-w") === "m" || root.getAttribute("data-w") === "l"; }
+
+  // ---------- size ----------
+  var OPTIONAL = ["session", "spark", "hint", "heads", "status", "words", "detail", "roomy", "setup", "foot", "open"];   // dropped in this order
+  var setupPref = null;   // null = let the size decide; "1"/"0" = you opened/closed it
+  try { setupPref = localStorage.getItem("setupOpen"); } catch (e) {}
+  var box = $("setupBox");
+  box.querySelector("summary").addEventListener("click", function () {
+    setupPref = box.open ? "0" : "1";
+    try { localStorage.setItem("setupOpen", setupPref); } catch (e) {}
+    setTimeout(fit, 0);
+  });
+
+  var autoOpen = false;
+  function apply(off) {
+    OPTIONAL.forEach(function (f) { root.classList.toggle("no-" + f, off.indexOf(f) >= 0); });
+    var open = setupPref === "1" || (setupPref === null && autoOpen);
+    if (box.open !== open) box.open = open;
+  }
+  function fit() {
+    var w = window.innerWidth, h = window.innerHeight;
+    if (!w || !h) return;
+    var col = w < 150, bar = !col && (h < 130 || (h < 200 && w >= 2.6 * h));
+    root.setAttribute("data-mode", col ? "col" : bar ? "bar" : "full");
+    root.setAttribute("data-w", w < 200 ? "xs" : w < 340 ? "s" : w < 560 ? "m" : "l");
+    labels();
+    if (bar || col) { root.style.overflowY = "hidden"; fitBar(h, col); if (last) barText(last); return; }
+    var off = [], gated = [];
+    if (!wide()) gated.push("hint");
+    if (w < 170 || hist.core.length < 5) gated.push("spark");   // graphs wait for 10 s of data
+    off = gated.slice();
+    var fits = function () { return document.body.offsetHeight <= h; };
+    root.style.setProperty("--grow", "0px");
+    root.style.overflowY = "hidden";   // measure without a scrollbar eating width
+    autoOpen = false;
+    apply(off);
+    // drop extras, least useful first, until it fits...
+    for (var i = 0; i < OPTIONAL.length && !fits(); i++) {
+      if (off.indexOf(OPTIONAL[i]) < 0) { off.push(OPTIONAL[i]); apply(off); }
+    }
+    // ...then give back anything that fits again, most useful first
+    for (var j = OPTIONAL.length - 1; j >= 0; j--) {
+      var f = OPTIONAL[j], k = off.indexOf(f);
+      if (k < 0 || gated.indexOf(f) >= 0) continue;
+      off.splice(k, 1); apply(off);
+      if (!fits()) { off.push(f); apply(off); }
+    }
+    // with room to spare, the Setup drawer opens by itself (unless you've opened or closed it yourself)
+    if (setupPref === null && off.indexOf("setup") < 0) { autoOpen = true; apply(off); if (!fits()) { autoOpen = false; apply(off); } }
+    // spare height goes to the graphs
+    if (off.indexOf("spark") < 0) {
+      var rows = root.getAttribute("data-w") === "l" || w < 260 ? 2 : 1;
+      var slack = h - document.body.offsetHeight;
+      if (slack > 12) root.style.setProperty("--grow", Math.min(wide() ? 70 : 40, Math.floor(slack * 0.7 / rows)) + "px");
+    }
+    root.style.overflowY = fits() ? "hidden" : "auto";   // scroll only if even the bare minimum doesn't fit
+  }
+  function fitBar(h, col) {
+    root.classList.toggle("bar-inline", !col && h < 70);
+    root.classList.toggle("bar-wrap", !col && h >= 100 && window.innerWidth < 900);   // tall enough for two lines
+    var bar = $("bar"), items = [].slice.call(bar.querySelectorAll("[data-cut]"));
+    items.forEach(function (el) { el.classList.remove("cut"); });
+    var rank = function (el) { return el.querySelector(".hot") ? +(el.getAttribute("data-hot") || +el.getAttribute("data-cut") + 20) : +el.getAttribute("data-cut"); };   // warnings stay longest
+    items.sort(function (a, b) { return rank(a) - rank(b); });
+    var over = function () { return bar.scrollWidth > bar.clientWidth + 1 || bar.scrollHeight > bar.clientHeight + 1; };
+    for (var i = 0; i < items.length && over(); i++) {
+      if (rank(items[i]) < 90) items[i].classList.add("cut");
+    }
+    if (col && over()) bar.querySelector(".state").classList.add("cut");   // a tiny square keeps just the button
+  }
+  function labels() {
+    var tier = root.getAttribute("data-w");
+    [].forEach.call(document.querySelectorAll(".lbl[data-s]"), function (el) {
+      el.textContent = (window.innerWidth < 300 && el.getAttribute("data-xs")) || (wide() ? el.getAttribute("data-m") : el.getAttribute("data-s"));
+    });
+    if (last) words(last);
+  }
+  window.addEventListener("resize", fit);
+
+  // ---------- sparklines: the last 2 minutes ----------
+  var hist = { fps: [], core: [], temp: [], gpu: [] }, N = 60;
+  function push(k, v) { var a = hist[k]; a.push(v == null || isNaN(v) ? null : v); if (a.length > N) a.shift(); }
+  function spark(k, lo, hi, isHot) {
+    var a = hist[k], pts = [], svg = $(k + "Spark");
+    var vals = a.filter(function (v) { return v != null; });
+    if (lo == null) { lo = Math.min.apply(null, vals.concat([1e9])); hi = Math.max.apply(null, vals.concat([-1e9])); var mid = (lo + hi) / 2, half = Math.max(10, (hi - lo) * 0.6); lo = mid - half; hi = mid + half; }   // at least 20 degrees tall, so small wobbles stay small
+    if (!(hi > lo)) hi = lo + 1;
+    for (var i = 0; i < a.length; i++) if (a[i] != null) pts.push((100 * (i + N - a.length) / (N - 1)).toFixed(1) + "," + (24 - 24 * (Math.min(hi, Math.max(lo, a[i])) - lo) / (hi - lo)).toFixed(1));
+    svg.querySelector("polyline").setAttribute("points", pts.join(" "));
+    svg.setAttribute("class", "spark" + (isHot ? " hot" : ""));
+    return { lo: lo, hi: hi };
+  }
+
+  // ---------- this run's FPS ----------
+  var run = { on: false, start: 0, fps: [], end: 0 };
+  function trackRun(s) {
+    if (s.on && !run.on) run = { on: true, start: Date.now(), fps: [], end: 0 };
+    if (!s.on && run.on) { run.on = false; run.end = Date.now(); }
+    if (s.on && s.fps != null && s.fps >= 5) { run.fps.push(s.fps); if (run.fps.length > 1800) run.fps.shift(); }
+    $("session").hidden = $("bRun").hidden = run.fps.length < 3;
+    if (run.fps.length < 3) return;
+    var sorted = run.fps.slice().sort(function (a, b) { return a - b; });
+    var sum = 0; run.fps.forEach(function (v) { sum += v; });
+    var mins = Math.max(1, Math.round(((run.on ? Date.now() : run.end) - run.start) / 60000));
+    set("sessKind", run.on ? "On for" : "Last run");
+    set("sessTime", mins < 60 ? mins + " min" : Math.floor(mins / 60) + " h " + (mins % 60) + " min");
+    set("sessAvg", n0(sum / run.fps.length));
+    set("sessLow", n0(sorted[Math.floor(sorted.length * 0.05)]));
+    set("bRunLbl", run.on ? "This run" : "Last run");
+    set("bRunVal", $("sessTime").textContent + " · avg " + $("sessAvg").textContent + " · low " + $("sessLow").textContent);
+  }
+
+  // ---------- drawing ----------
+  var on = false, busy = false, peak = 0, last = null, answering = false;
+  function hot(id, isHot, shortWord, longWord) {
+    $(id).classList.toggle("hot", isHot);
+    set(id + "Word", isHot ? (root.getAttribute("data-w") === "l" ? longWord : shortWord) : "");
+    var B = "b" + id.charAt(0).toUpperCase() + id.slice(1);
+    $(B).classList.toggle("hot", isHot);
+    set(B + "Word", isHot ? (sliver() && id === "fps" ? "low" : shortWord) : "");
+  }
+  function words(s) {
+    var capLow = s.fpsCap > 0 ? s.fpsCap - 5 : 0;
+    hot("fps", s.fps != null && capLow > 0 && s.fps < capLow, "below " + capLow, "below your cap of " + s.fpsCap);
+    hot("core", s.core != null && s.core >= 95, "maxed", "maxed: CPU is the limit");
+    hot("temp", !!s.tempHot, "hot", "running hot");
+    var fw = $("fpsWord"); fw.classList.toggle("note", s.fps == null);
+    if (s.fps == null) fw.textContent = root.getAttribute("data-w") === "l" ? "iRacing closed" : "sim off";
+  }
+  function sliver() { return root.getAttribute("data-mode") === "col"; }
+  function barText(s) {
+    var turning = s.phase === "turning", tiny = sliver();
+    if (!answering) return;
+    set("bState", turning ? (tiny ? "Starting" : "Turning on…") : s.on ? (tiny ? "On" : "Race Mode on") : (tiny ? "Off" : "Race Mode off"));
+  }
+  function draw(s) {
+    last = s; answering = true; root.classList.remove("lost");
+    on = !!s.on;
+    var turning = s.phase === "turning";
+    $("hero").className = "card hero" + (on ? " is-on" : "");
+    $("dot").className = "dot" + (on ? " on" : "");
+    $("bDot").className = "dot" + (on ? " on" : "");
+    set("headline", turning ? "Turning on…" : (s.headline || (on ? "Race Mode is on" : "Race Mode is off")));
+    barText(s);
+    set("status", s.status || "");
+    [$("toggle"), $("bToggle")].forEach(function (t) { t.textContent = on ? "Turn Off" : "Turn On"; t.disabled = busy || turning; });
+
+    set("fps", n0(s.fps)); set("core", n0(s.core)); set("temp", n0(s.temp)); set("gpu", n0(s.gpu));
+    set("bFps", n0(s.fps)); set("bCore", n0(s.core)); set("bTemp", n0(s.temp)); set("bGpu", n0(s.gpu));
+    set("tempUnit", s.tempUnit || "°C"); set("bTempUnit", s.tempUnit || "°C");
+    words(s);
+    push("fps", s.fps); push("core", s.core); push("temp", s.temp); push("gpu", s.gpu);
+    var top = Math.max(s.fpsCap || 0, Math.max.apply(null, hist.fps.filter(function (v) { return v != null; }).concat([60])));
+    spark("fps", 0, top * 1.05, $("fps").classList.contains("hot"));
+    var cl = $("fpsCapLine"), capY = s.fpsCap > 0 ? (24 - 24 * s.fpsCap / (top * 1.05)).toFixed(1) : -10;
+    cl.setAttribute("y1", capY); cl.setAttribute("y2", capY);
+    spark("core", 0, 100, $("core").classList.contains("hot"));
+    spark("temp", null, null, !!s.tempHot);
+    spark("gpu", 0, 100, false);
+    trackRun(s);
+
+    var o = s.obs || {};
+    var streaming = !!o.streaming;
+    var dropPct = o.netTotal ? 100 * (o.netDropped || 0) / o.netTotal : 0;
+    var warn = streaming && (o.reconnecting || dropPct >= 1);
+    $("obsDot").className = "dot" + (warn ? " warn" : (o.connected || streaming) ? " ok" : "");
+    var health = o.reconnecting ? "reconnecting" : dropPct >= 1 ? "dropping frames" : "healthy";
+    var narrow = window.innerWidth < 260;
+    set("obsStatus", !o.status ? "OBS stats are off" : !streaming ? (o.connected ? (narrow ? "OBS ready" : "OBS connected") : o.status) : narrow ? health.charAt(0).toUpperCase() + health.slice(1) : "Streaming · " + health);
+    $("live").hidden = !streaming;
+    var rate = $("rate"); while (rate.firstChild) rate.removeChild(rate.firstChild);
+    if (streaming) {
+      var k = o.kbps; if (k != null && !isNaN(k) && k > peak) peak = k;
+      var n = document.createElement("span"); n.className = "num"; n.style.fontSize = "17px"; n.textContent = n0(k);
+      var u = document.createElement("span"); u.className = "unit"; u.textContent = "kbps";
+      rate.appendChild(n); rate.appendChild(u);
+      $("barFill").style.transform = "scaleX(" + (peak > 0 && k != null ? Math.max(0.02, Math.min(1, k / peak)) : 0) + ")";
+      $("rateBar").className = "bar" + (warn ? " warn" : "");
+      set("dropped", "Dropped " + pct(o.netDropped || 0, o.netTotal || 0));
+      set("lagged", "Lagged " + pct((o.renderSkipped || 0) + (o.encodeSkipped || 0), (o.renderTotal || 0) + (o.encodeTotal || 0)));
+    } else {
+      peak = 0;
+      if (o.connected) { var nl = document.createElement("span"); nl.className = "lbl"; nl.textContent = "not streaming"; rate.appendChild(nl); }
+    }
+    // bar layout's stream item: bitrate while live, otherwise a word
+    set("bStreamLbl", streaming ? "kbps" : "Stream");
+    set("bKbps", streaming ? n0(o.kbps) : o.connected ? "ready" : "off");
+    $("bKbps").className = "num" + (warn ? " hot" : "");
+    set("bStreamWord", !warn ? "" : sliver() ? (o.reconnecting ? "lost" : "drops") : health);
+    $("bDropBox").hidden = !streaming;
+    set("bDrop", !streaming ? "" : sliver() ? (o.netTotal ? (100 * (o.netDropped || 0) / o.netTotal).toFixed(1) + "%" : "0%") : pct(o.netDropped || 0, o.netTotal || 0));
+
+    set("setupShort", s.setupShort || ""); set("bSetup", s.setupShort || "--");
+    var rows = $("setup"); while (rows.firstChild) rows.removeChild(rows.firstChild);
+    (s.setup || []).forEach(function (r) {
+      var row = document.createElement("div"); row.className = "row";
+      var a = document.createElement("span"); a.textContent = r.label;
+      var b = document.createElement("span"); b.textContent = r.value;
+      row.appendChild(a); row.appendChild(b); rows.appendChild(row);
+    });
+    set("foot", "Updated " + new Date().toLocaleTimeString());
+    fit();
+  }
+  function lost() {
+    answering = false; root.classList.add("lost");
+    set("headline", window.innerWidth < 300 ? "Not answering" : "Race Mode isn't answering"); set("bState", sliver() ? "Offline" : "Not answering");
+    set("status", "Open Race Mode on this PC and turn on Streaming in it. The dock picks it up by itself.");
+    $("hero").className = "card hero"; $("dot").className = "dot"; $("bDot").className = "dot";
+    [$("toggle"), $("bToggle")].forEach(function (t) { t.disabled = true; });
+    set("foot", "Not answering since " + new Date().toLocaleTimeString());
+    fit();
+  }
+  function tick() {
+    fetch("stats.json?t=" + encodeURIComponent(token), { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(draw)
+      .catch(lost);
+  }
+  // Commands: POST with our own header, so only this page (same origin) can send them.
+  function command(path) {
+    return fetch(path + (path.indexOf("?") < 0 ? "?" : "&") + "t=" + encodeURIComponent(token), { method: "POST", headers: { "X-RaceMode": "1" }, cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw 0; });
+  }
+  function toggle() {
+    if (!answering) return;
+    busy = true; $("toggle").disabled = true; $("bToggle").disabled = true;
+    set("status", on ? "Turning Race Mode off…" : "Turning Race Mode on…");
+    command("switch?on=" + (on ? "0" : "1"))
+      .catch(function () { set("status", "Race Mode didn't answer. Is it open, with Streaming on?"); })
+      .then(function () { setTimeout(function () { busy = false; tick(); }, 1200); });
+  }
+  function show() { command("show").catch(function () { set("status", "Race Mode didn't answer. Is it open?"); }); }
+  $("toggle").addEventListener("click", toggle); $("bToggle").addEventListener("click", toggle);
+  $("open").addEventListener("click", show); $("openLink").addEventListener("click", show); $("bOpen").addEventListener("click", show);
+  fit(); tick(); setInterval(tick, 2000);
+</script>
+</body>
+</html>

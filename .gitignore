@@ -1,0 +1,31 @@
+# Allowlist: only these paths are part of the repo. Anything new stays private unless added here on purpose.
+/*
+!/.github/
+!/assets/
+!/docs/
+!/src/
+!/tests/
+!/.gitignore
+!/.gitattributes
+!/build.cmd
+!/install.cmd
+!/README.md
+
+# Never commit build output, test leftovers or backups, even inside the folders above.
+*.exe
+*.exe.*
+*.dll
+*.pdb
+*.bak
+*.old
+*.orig
+*.lnk
+*.zip
+*.sha256
+*.before-*
+*.tmp
+*~
+*.log
+Thumbs.db
+desktop.ini
+/tests/**/*cases/

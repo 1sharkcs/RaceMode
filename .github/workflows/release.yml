@@ -1,0 +1,121 @@
+name: Release
+
+# Releases come from tags, and only the repo owner can push tags (tag ruleset, see docs/RELEASING.md).
+#   v1.2.0-rc.1  on a commit made on the dev branch   -> pre-release ("test versions" in the app)
+#   v1.2.0       on a commit made on the main branch  -> stable release
+# "Made on" means in the branch's own first-parent history: a commit that only reached the branch through a
+# merge (a feature branch's commit, or dev's commit inside main) is refused.
+#
+# Two jobs: "build" runs the repo's code (build, tests) with a read-only token. "publish" runs none of the
+# repo's code and is the only step that can write to the repo's releases.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: cmd
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check the tag is on the right branch
+        shell: pwsh
+        run: |
+          $v = $env:TAG -replace '^v', ''
+          if ($v -cnotmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-rc\.([1-9][0-9]*))?$') { throw "Bad tag: $env:TAG (use v1.2.3 or v1.2.3-rc.4)" }
+          $branch = if ($Matches[4]) { 'dev' } else { 'main' }
+          $own = @(git rev-list --first-parent "origin/$branch")
+          if ($LASTEXITCODE -ne 0) { throw "Couldn't read the $branch branch" }
+          if ($own -notcontains $env:GITHUB_SHA) { throw "$env:TAG must point at a commit made on the $branch branch itself" }
+          "Tag $env:TAG is on $branch"
+
+      - name: Generate src\Version.cs from tag
+        shell: pwsh
+        run: |
+          # v1.2.3 -> 1.2.3.0 / 1.2.3 ; v1.2.3-rc.4 -> 1.2.3.4 / 1.2.3-rc.4
+          $v = $env:TAG -replace '^v', ''
+          $null = $v -cmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-rc\.([1-9][0-9]*))?$'
+          $rev = if ($Matches[4]) { $Matches[4] } else { '0' }
+          $asm = "$($Matches[1]).$($Matches[2]).$($Matches[3]).$rev"
+          $repo = $env:GITHUB_REPOSITORY
+          $lines = @(
+            "[assembly: System.Reflection.AssemblyVersion(`"$asm`")]",
+            "[assembly: System.Reflection.AssemblyInformationalVersion(`"$v`")]",
+            "[assembly: System.Reflection.AssemblyTitle(`"Race Mode`")]",
+            "[assembly: System.Reflection.AssemblyProduct(`"Race Mode`")]",
+            "namespace RaceMode { static class BuildInfo { public const string Repo = `"$repo`"; } }"
+          )
+          Set-Content -Path src\Version.cs -Value $lines -Encoding ascii
+          Get-Content src\Version.cs
+          # the installer downloads from this repo's releases
+          (Get-Content install.cmd -Raw) -replace '(?m)^set REPO=[^\r\n]*', "set REPO=$repo" | Set-Content install.cmd -NoNewline -Encoding ascii
+
+      - name: Build
+        run: |
+          call .\build.cmd
+          if errorlevel 1 exit /b 1
+
+      # Tests that need real monitors aren't part of this repo.
+      - name: Build and run tests
+        run: |
+          xcopy /e /i /y tests\fixtures fixtures >nul
+          rem portable.txt keeps the test runs' own files (crash.log and so on) in this folder
+          echo tests>portable.txt
+          for %%T in (CatalogTests PresetTests IrsdkTests UpdaterTests SetupTests ObsTests CloseScanTests) do (
+            "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /r:RaceMode.exe /r:System.Core.dll /r:System.Web.Extensions.dll /out:%%T.exe tests\%%T.cs
+            if errorlevel 1 exit /b 1
+            .\%%T.exe
+            if errorlevel 1 exit /b 1
+          )
+
+      - name: Zip and checksum
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory out | Out-Null
+          Compress-Archive -Path RaceMode.exe -DestinationPath out\RaceMode.zip -Force
+          $h = (Get-FileHash out\RaceMode.zip -Algorithm SHA256).Hash.ToLower()
+          # FORMAT IS REQUIRED: exactly "<64 lowercase hex>  RaceMode.zip" (two spaces), ASCII, nothing else.
+          # install.cmd and the in-app updater reject anything that differs. Never change this line's output.
+          Set-Content -Path out\RaceMode.zip.sha256 -Value "$h  RaceMode.zip" -Encoding ascii
+          Copy-Item install.cmd out\install.cmd
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-files
+          path: out/
+          if-no-files-found: error
+
+  # install.cmd is attached too, so the one-line install command in the README
+  # (releases/latest/download/install.cmd) works.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-files
+          path: out
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          pre=""
+          case "$TAG" in *-rc.*) pre="--prerelease" ;; esac
+          gh release create "$TAG" out/RaceMode.zip out/RaceMode.zip.sha256 out/install.cmd --repo "$GITHUB_REPOSITORY" --generate-notes $pre

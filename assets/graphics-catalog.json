@@ -1,0 +1,4030 @@
+{
+  "version": 1,
+  "keys": [
+    {
+      "key": "AntiAliasMethod",
+      "group": "Anti-aliasing",
+      "label": "Anti-aliasing method",
+      "desc": "Smooths jagged edges. MSAA looks cleanest but costs the most FPS; FXAA is cheap but makes the picture a little soft.",
+      "scope": "slider",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 2,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "None",
+          "q": 0
+        },
+        {
+          "v": "1",
+          "label": "MSAA",
+          "q": 2
+        },
+        {
+          "v": "2",
+          "label": "FXAA",
+          "q": 1
+        },
+        {
+          "v": "3",
+          "label": "SMAA",
+          "q": 1.5
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      },
+      "levels": [
+        "2",
+        "2",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "MSAASamples",
+      "group": "Anti-aliasing",
+      "label": "MSAA samples",
+      "desc": "How many samples are used to smooth each edge. 4x is the usual sweet spot; 8x suits screenshots or a strong graphics card.",
+      "scope": "slider",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 3,
+        "evidence": "anecdote"
+      },
+      "values": [
+        {
+          "v": "2",
+          "label": "2x"
+        },
+        {
+          "v": "4",
+          "label": "4x"
+        },
+        {
+          "v": "8",
+          "label": "8x"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "4",
+        "photo": null
+      },
+      "levels": [
+        "2",
+        "2",
+        "4",
+        "4",
+        "4",
+        "4",
+        "4",
+        "8",
+        "8",
+        "8"
+      ]
+    },
+    {
+      "key": "MSAAUseFilter",
+      "group": "Anti-aliasing",
+      "label": "MSAA edge blending",
+      "desc": "How the smoothed edge samples are blended together: soft, neutral, sharp or the old method.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Soft"
+        },
+        {
+          "v": "1",
+          "label": "Neutral"
+        },
+        {
+          "v": "2",
+          "label": "Sharp"
+        },
+        {
+          "v": "3",
+          "label": "Simple (legacy)"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "ShadowMapType",
+      "group": "Shadows",
+      "label": "Shadow maps",
+      "desc": "Turns on real-time shadows from the sun. One of the biggest FPS costs in the sim.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 2,
+        "evidence": "anecdote"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "ShadowDetail",
+      "group": "Shadows",
+      "label": "Shadow detail",
+      "desc": "How many shadows are drawn. 0 draws fewer, 1 draws as many as possible.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Fewer shadows"
+        },
+        {
+          "v": "1",
+          "label": "Maximum shadows"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "DynamicShadowMaps",
+      "group": "Shadows",
+      "label": "Car shadows (day)",
+      "desc": "Shadows cast by cars and other moving things in daytime. Costs CPU for every car on screen.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 3,
+        "gpu": 1,
+        "evidence": "anecdote"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "DynamicShadowTrim",
+      "group": "Shadows",
+      "label": "Trim small shadow casters",
+      "desc": "On skips small objects when drawing car shadows, which saves work. Off keeps more of the shadows.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 1,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off (keep small objects)"
+        },
+        {
+          "v": "1",
+          "label": "On (trim)"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": false,
+      "rec": {
+        "race": "1",
+        "photo": "0"
+      },
+      "levels": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "0"
+      ],
+      "photoLevels": [
+        "1",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "key": "DynamicShadowRes",
+      "group": "Shadows",
+      "label": "Car shadow resolution",
+      "desc": "How sharp car shadows look. Only matters while car shadows are on.",
+      "scope": "slider",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 2,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "512"
+        },
+        {
+          "v": "1",
+          "label": "1024"
+        },
+        {
+          "v": "2",
+          "label": "2048"
+        },
+        {
+          "v": "3",
+          "label": "4096"
+        },
+        {
+          "v": "4",
+          "label": "8192"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      },
+      "levels": [
+        "0",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "2",
+        "2",
+        "2"
+      ]
+    },
+    {
+      "key": "StaticShadowNumber",
+      "group": "Shadows",
+      "label": "Track shadow maps",
+      "desc": "How many high-quality shadow layers are used for the track and its surroundings (3 to 8).",
+      "scope": "slider",
+      "inReplay": false,
+      "cost": {
+        "cpu": 1,
+        "gpu": 2,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 3,
+        "max": 8,
+        "steps": [
+          3,
+          4,
+          5,
+          6,
+          8
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "3",
+        "photo": null
+      },
+      "levels": [
+        "3",
+        "3",
+        "3",
+        "3",
+        "3",
+        "3",
+        "3",
+        "4",
+        "5",
+        "5"
+      ]
+    },
+    {
+      "key": "StaticShadowRes",
+      "group": "Shadows",
+      "label": "Track shadow resolution",
+      "desc": "How sharp the track shadows look. Mostly uses graphics card memory and power.",
+      "scope": "slider",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 2,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "512"
+        },
+        {
+          "v": "1",
+          "label": "1024"
+        },
+        {
+          "v": "2",
+          "label": "2048"
+        },
+        {
+          "v": "3",
+          "label": "4096"
+        },
+        {
+          "v": "4",
+          "label": "8192"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "2",
+        "photo": null
+      },
+      "levels": [
+        "1",
+        "1",
+        "2",
+        "2",
+        "2",
+        "2",
+        "3",
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "key": "AllowTSOSelfShadows",
+      "group": "Shadows",
+      "label": "Object self-shadowing",
+      "desc": "Lets trackside objects cast shadows on themselves. iRacing support says this can hurt performance.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "DNSMEnable",
+      "group": "Shadows",
+      "label": "Night shadow maps",
+      "desc": "Real-time shadows at night, cast by the track and car lights.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 2,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "DNSMFilter",
+      "group": "Shadows",
+      "label": "Night shadow filter",
+      "desc": "How soft night shadow edges are. iRacing warns the higher steps can cause stutter; PCF4 is the safe step.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 2,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "None"
+        },
+        {
+          "v": "1",
+          "label": "Fetch4"
+        },
+        {
+          "v": "2",
+          "label": "PCF4"
+        },
+        {
+          "v": "3",
+          "label": "PCF4P"
+        },
+        {
+          "v": "4",
+          "label": "PCF8P"
+        },
+        {
+          "v": "5",
+          "label": "PCF16P"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "5"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "2",
+        "2"
+      ],
+      "photoLevels": [
+        "0",
+        "3",
+        "5"
+      ]
+    },
+    {
+      "key": "DNSMNumLights",
+      "group": "Shadows",
+      "label": "Night shadow lights",
+      "desc": "How many lights cast shadows at night. iRacing advises 3 or fewer.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 2,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 0,
+        "max": 128,
+        "steps": [
+          1,
+          2,
+          3,
+          4,
+          8,
+          16
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": "8"
+      },
+      "levels": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "2",
+        "3"
+      ],
+      "photoLevels": [
+        "1",
+        "4",
+        "8"
+      ]
+    },
+    {
+      "key": "DNSMWallsCastShadows",
+      "group": "Shadows",
+      "label": "Night wall shadows",
+      "desc": "Track walls cast shadows at night.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 1,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "DNSMTSOsCastShadows",
+      "group": "Shadows",
+      "label": "Night object shadows",
+      "desc": "Trackside objects, like signs and buildings, cast shadows at night.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 1,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "DNSMDownsampleFirst",
+      "group": "Shadows",
+      "label": "Night shadow sampling",
+      "desc": "0 works out night shadows more exactly; 1 is a bit faster but slightly softer.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Per AA sample"
+        },
+        {
+          "v": "1",
+          "label": "Per pixel"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": false,
+      "rec": {
+        "race": "0",
+        "photo": "0"
+      },
+      "photoLevels": [
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "key": "DNSMShadowFadeTime",
+      "group": "Shadows",
+      "label": "Night shadow fade-in",
+      "desc": "How long night shadows take to fade in, in hundredths of a second. Has no effect on FPS.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": null,
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "25",
+        "photo": "25"
+      },
+      "photoLevels": [
+        "25",
+        "25",
+        "25"
+      ]
+    },
+    {
+      "key": "DNSMMaxLightsPerPass",
+      "group": "Shadows",
+      "label": "Shadow lights per pass",
+      "desc": "How many shadow-casting lights are handled at once (0 to 6). The default is fine.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": null,
+      "range": {
+        "min": 0,
+        "max": 6,
+        "steps": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "3",
+        "photo": null
+      }
+    },
+    {
+      "key": "SSAO",
+      "group": "Lighting & effects",
+      "label": "Ambient occlusion",
+      "desc": "Adds soft darkening in corners and where objects meet. A subtle effect that costs graphics card power.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 2,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "SSRLevel",
+      "group": "Lighting & effects",
+      "label": "Reflections (SSR)",
+      "desc": "Reflections of the scene on wet track and shiny paint. Costly, and mostly noticeable in rain.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 3,
+        "evidence": "anecdote"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "Lower resolution"
+        },
+        {
+          "v": "2",
+          "label": "Full resolution"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "2"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    {
+      "key": "SSRRainOnly",
+      "group": "Lighting & effects",
+      "label": "Reflections only in rain",
+      "desc": "With reflections on, 1 shows them only in wet sessions.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Always"
+        },
+        {
+          "v": "1",
+          "label": "Wet only"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": false,
+      "rec": {
+        "race": "0",
+        "photo": "0"
+      },
+      "photoLevels": [
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "key": "NumFixedCubemaps",
+      "group": "Lighting & effects",
+      "label": "Fixed cubemaps",
+      "desc": "How often reflections of the surroundings are refreshed on fixed objects (100 = every frame). Costs CPU and graphics card.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 3,
+        "gpu": 2,
+        "evidence": "anecdote"
+      },
+      "values": null,
+      "range": {
+        "min": 0,
+        "max": 1000,
+        "steps": [
+          0,
+          25,
+          50,
+          100,
+          300
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "300"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "25"
+      ],
+      "photoLevels": [
+        "0",
+        "100",
+        "300"
+      ]
+    },
+    {
+      "key": "NumDynamicCubemaps",
+      "group": "Lighting & effects",
+      "label": "Dynamic cubemaps",
+      "desc": "How often reflections of the surroundings are refreshed on moving cars (100 = every frame). Costs CPU and graphics card.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 3,
+        "gpu": 2,
+        "evidence": "anecdote"
+      },
+      "values": null,
+      "range": {
+        "min": 0,
+        "max": 1000,
+        "steps": [
+          0,
+          25,
+          50,
+          100,
+          300
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "300"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "25"
+      ],
+      "photoLevels": [
+        "0",
+        "100",
+        "300"
+      ]
+    },
+    {
+      "key": "HeadlightLevel",
+      "group": "Lighting & effects",
+      "label": "Headlight quality",
+      "desc": "How good the headlight beams look at night.",
+      "scope": "slider",
+      "inReplay": false,
+      "cost": {
+        "cpu": 1,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Low"
+        },
+        {
+          "v": "1",
+          "label": "Medium"
+        },
+        {
+          "v": "2",
+          "label": "High"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      },
+      "levels": [
+        "0",
+        "0",
+        "1",
+        "1",
+        "1",
+        "1",
+        "2",
+        "2",
+        "2",
+        "2"
+      ]
+    },
+    {
+      "key": "MonochromeHeadlights",
+      "group": "Lighting & effects",
+      "label": "White headlights",
+      "desc": "All-white headlights avoid blotchy bands of light; colored headlights look more realistic.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Colored"
+        },
+        {
+          "v": "1",
+          "label": "All white"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": null
+      }
+    },
+    {
+      "key": "SkyRefreshRate",
+      "group": "Lighting & effects",
+      "label": "Sky update rate",
+      "desc": "How often the sky and clouds are redrawn.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "anecdote"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Low"
+        },
+        {
+          "v": "1",
+          "label": "Medium"
+        },
+        {
+          "v": "2",
+          "label": "High"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "2"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1",
+        "1",
+        "2"
+      ],
+      "photoLevels": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    {
+      "key": "ParticleDetail",
+      "group": "Lighting & effects",
+      "label": "Particle detail",
+      "desc": "How good smoke, dust and sparks look.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 1,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Low"
+        },
+        {
+          "v": "1",
+          "label": "Medium"
+        },
+        {
+          "v": "2",
+          "label": "High"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "2"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    {
+      "key": "ParticlesFullRes",
+      "group": "Lighting & effects",
+      "label": "Full-resolution particles",
+      "desc": "Draws smoke and spray at full sharpness instead of half. Costs only graphics card power.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": "1"
+      },
+      "levels": [
+        "0",
+        "0",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ],
+      "photoLevels": [
+        "1",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "Distortion",
+      "group": "Lighting & effects",
+      "label": "Lens distortion",
+      "desc": "A lens-warping effect on replay cameras. Purely a look choice.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "photoLevels": [
+        "0",
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "HeatHaze",
+      "group": "Lighting & effects",
+      "label": "Heat haze",
+      "desc": "The heat shimmer behind hot cars. Purely a look choice.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "photoLevels": [
+        "0",
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "DepthOfField",
+      "group": "Lighting & effects",
+      "label": "Depth of field",
+      "desc": "Blurs things in the background or foreground. Purely a look choice.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "0"
+      },
+      "photoLevels": [
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "key": "MotionBlurBroadcastCams",
+      "group": "Lighting & effects",
+      "label": "Motion blur (broadcast cams)",
+      "desc": "Motion blur on TV and replay cameras only.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": "0"
+      },
+      "photoLevels": [
+        "1",
+        "1",
+        "0"
+      ]
+    },
+    {
+      "key": "MotionBlurDrivingCams",
+      "group": "Lighting & effects",
+      "label": "Motion blur (driving cams)",
+      "desc": "Motion blur while driving. It makes the picture less clear, so most racers leave it off.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "0"
+      },
+      "photoLevels": [
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "key": "MotionBlurStrength",
+      "group": "Lighting & effects",
+      "label": "Motion blur strength",
+      "desc": "How strong the blur is: off, low, medium, high or ultra.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "Low"
+        },
+        {
+          "v": "2",
+          "label": "Medium"
+        },
+        {
+          "v": "3",
+          "label": "High"
+        },
+        {
+          "v": "4",
+          "label": "Ultra"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "0"
+      },
+      "photoLevels": [
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "key": "MaxCarsToDraw",
+      "group": "Cars & mirrors",
+      "label": "Cars drawn",
+      "desc": "The most cars drawn in the main view (10 to 64). Every extra car costs CPU, which is usually the limit for FPS.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 3,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 10,
+        "max": 64,
+        "steps": [
+          10,
+          12,
+          14,
+          20,
+          24,
+          30,
+          40,
+          64
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "14",
+        "photo": "64"
+      },
+      "levels": [
+        "10",
+        "10",
+        "10",
+        "12",
+        "12",
+        "14",
+        "14",
+        "20",
+        "24",
+        "30"
+      ],
+      "photoLevels": [
+        "14",
+        "40",
+        "64"
+      ]
+    },
+    {
+      "key": "MaxCarsToDrawInMirrors",
+      "group": "Cars & mirrors",
+      "label": "Cars drawn in mirrors",
+      "desc": "The most cars drawn in each mirror (4 to 64). Too low and cars behind you can disappear.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 4,
+        "max": 64,
+        "steps": [
+          4,
+          6,
+          8,
+          12,
+          18,
+          24
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "8",
+        "photo": "18"
+      },
+      "levels": [
+        "4",
+        "4",
+        "4",
+        "6",
+        "6",
+        "8",
+        "8",
+        "10",
+        "12",
+        "16"
+      ],
+      "photoLevels": [
+        "8",
+        "12",
+        "18"
+      ]
+    },
+    {
+      "key": "MaxPitObjsToDrawInMirrors",
+      "group": "Cars & mirrors",
+      "label": "Pit objects in mirrors",
+      "desc": "How much pit equipment is drawn in each mirror (0 to 192).",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 1,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 0,
+        "max": 192,
+        "steps": [
+          0,
+          4,
+          8,
+          12,
+          20
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "12"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "4",
+        "8"
+      ],
+      "photoLevels": [
+        "0",
+        "4",
+        "12"
+      ]
+    },
+    {
+      "key": "MaxCockpitMirrors",
+      "group": "Cars & mirrors",
+      "label": "Cockpit mirrors",
+      "desc": "How many real mirrors in the car (0 to 4). Each one is a big FPS cost; the on-screen virtual mirror is cheaper.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 3,
+        "gpu": 2,
+        "evidence": "anecdote"
+      },
+      "values": null,
+      "range": {
+        "min": 0,
+        "max": 4,
+        "steps": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "4"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "2"
+      ],
+      "photoLevels": [
+        "0",
+        "2",
+        "4"
+      ]
+    },
+    {
+      "key": "MirrorDetail",
+      "group": "Cars & mirrors",
+      "label": "Mirror detail",
+      "desc": "How detailed things look in the mirrors: 0 is low, 1 is high.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 1,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Low"
+        },
+        {
+          "v": "1",
+          "label": "High"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "CarDetail",
+      "group": "Cars & mirrors",
+      "label": "Car detail",
+      "desc": "How detailed the car models look.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 1,
+        "evidence": "anecdote"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Low"
+        },
+        {
+          "v": "1",
+          "label": "Medium"
+        },
+        {
+          "v": "2",
+          "label": "High"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": "2"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1",
+        "1",
+        "2",
+        "2"
+      ],
+      "photoLevels": [
+        "1",
+        "2",
+        "2"
+      ]
+    },
+    {
+      "key": "LODPctMirrorsMin",
+      "group": "Cars & mirrors",
+      "label": "Mirror detail floor",
+      "desc": "The most detail mirrors can show. Below 100 adds detail and costs FPS. Lower is better quality.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 25,
+        "max": 500,
+        "steps": [
+          25,
+          50,
+          75,
+          100,
+          125,
+          150,
+          200
+        ]
+      },
+      "higherIsBetter": false,
+      "rec": {
+        "race": "100",
+        "photo": "25"
+      },
+      "levels": [
+        "200",
+        "150",
+        "125",
+        "100",
+        "100",
+        "100",
+        "100",
+        "100",
+        "75",
+        "50"
+      ],
+      "photoLevels": [
+        "100",
+        "50",
+        "25"
+      ]
+    },
+    {
+      "key": "LODPctMirrorsMax",
+      "group": "Cars & mirrors",
+      "label": "Mirror detail ceiling",
+      "desc": "How far mirror detail may drop to save FPS. Above 100 trades detail for FPS. Lower is better quality.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 25,
+        "max": 500,
+        "steps": [
+          100,
+          200,
+          300,
+          400,
+          500
+        ]
+      },
+      "higherIsBetter": false,
+      "rec": {
+        "race": "500",
+        "photo": "400"
+      },
+      "levels": [
+        "500",
+        "500",
+        "500",
+        "500",
+        "500",
+        "500",
+        "500",
+        "500",
+        "400",
+        "300"
+      ],
+      "photoLevels": [
+        "500",
+        "450",
+        "400"
+      ]
+    },
+    {
+      "key": "LODPctDynoMirrorsMin",
+      "group": "Cars & mirrors",
+      "label": "Mirror detail floor (adaptive)",
+      "desc": "Same as the mirror detail floor, but for the setting that adjusts itself to your FPS. Lower is better quality.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 25,
+        "max": 500,
+        "steps": [
+          25,
+          50,
+          75,
+          100,
+          125,
+          150,
+          200
+        ]
+      },
+      "higherIsBetter": false,
+      "rec": {
+        "race": "100",
+        "photo": "25"
+      },
+      "levels": [
+        "200",
+        "150",
+        "125",
+        "100",
+        "100",
+        "100",
+        "100",
+        "100",
+        "75",
+        "50"
+      ],
+      "photoLevels": [
+        "100",
+        "50",
+        "25"
+      ]
+    },
+    {
+      "key": "LODPctDynoMirrorsMax",
+      "group": "Cars & mirrors",
+      "label": "Mirror detail ceiling (adaptive)",
+      "desc": "Same as the mirror detail ceiling, but for the setting that adjusts to FPS. Already at its top in the Race preset. Lower is better quality.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 25,
+        "max": 500,
+        "steps": [
+          100,
+          200,
+          300,
+          400,
+          500
+        ]
+      },
+      "higherIsBetter": false,
+      "rec": {
+        "race": "500",
+        "photo": "500"
+      },
+      "levels": [
+        "500",
+        "500",
+        "500",
+        "500",
+        "500",
+        "500",
+        "500",
+        "500",
+        "500",
+        "500"
+      ],
+      "photoLevels": [
+        "500",
+        "500",
+        "500"
+      ]
+    },
+    {
+      "key": "HideCockpitObstructions",
+      "group": "Cars & mirrors",
+      "label": "Hide cockpit obstructions",
+      "desc": "Hides the halo, A-pillar and roll cage so they don't block your view. Down to your preference.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Hide nothing"
+        },
+        {
+          "v": "1",
+          "label": "Hide halo"
+        },
+        {
+          "v": "2",
+          "label": "Hide A-pillar / cage"
+        },
+        {
+          "v": "3",
+          "label": "Hide everything"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "3",
+        "photo": "0"
+      },
+      "photoLevels": [
+        "3",
+        "2",
+        "0"
+      ]
+    },
+    {
+      "key": "DriverHands",
+      "group": "Cars & mirrors",
+      "label": "Driver hands",
+      "desc": "Shows the driver's hands on the wheel. Down to your preference.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "No"
+        },
+        {
+          "v": "1",
+          "label": "Yes"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "photoLevels": [
+        "0",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "SteeringWheel",
+      "group": "Cars & mirrors",
+      "label": "Steering wheel",
+      "desc": "Shows the steering wheel: none, yes, fixed, or only if it has a display. Down to your preference.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "No"
+        },
+        {
+          "v": "1",
+          "label": "Yes"
+        },
+        {
+          "v": "2",
+          "label": "Fixed"
+        },
+        {
+          "v": "3",
+          "label": "Only with display"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "2",
+        "photo": "1"
+      },
+      "photoLevels": [
+        "2",
+        "2",
+        "1"
+      ]
+    },
+    {
+      "key": "VirtualMirrors",
+      "group": "Cars & mirrors",
+      "label": "Virtual mirror",
+      "desc": "The rear-view mirror shown on screen. Cheaper than real mirrors in the car, so it is kept on.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 1,
+        "gpu": 1,
+        "evidence": "anecdote"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": "1"
+      },
+      "photoLevels": [
+        "1",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "HeadlightsInMirrors",
+      "group": "Cars & mirrors",
+      "label": "Headlights in mirrors",
+      "desc": "Headlights light up the track in the mirrors. Kept at the Race preset value.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 1,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": null
+      }
+    },
+    {
+      "key": "ReduceCockpitFlicker",
+      "group": "Cars & mirrors",
+      "label": "Reduce cockpit flicker",
+      "desc": "Reduces shimmering on parts of the cockpit. A compatibility setting, left as is.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "CarPaint2048x2048",
+      "group": "Cars & mirrors",
+      "label": "2048 car paint textures",
+      "desc": "0 uses 1024-pixel car textures, 1 uses sharper 2048-pixel ones. 2048 takes much more video memory.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 2,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "1024"
+        },
+        {
+          "v": "1",
+          "label": "2048"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": null
+      }
+    },
+    {
+      "key": "CacheSwap3HighResCars",
+      "group": "Cars & mirrors",
+      "label": "Swap high-res nearest cars",
+      "desc": "Puts higher-resolution textures on the nearest cars. Memory handling, left as is.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 1,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Shrink to fit"
+        },
+        {
+          "v": "1",
+          "label": "Cache swap"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "ObjectDetail",
+      "group": "Track & world detail",
+      "label": "Object detail",
+      "desc": "How many objects are placed around the track.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 0,
+        "evidence": "anecdote"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Low"
+        },
+        {
+          "v": "1",
+          "label": "Medium"
+        },
+        {
+          "v": "2",
+          "label": "High"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "2"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    {
+      "key": "GrandstandDetail",
+      "group": "Track & world detail",
+      "label": "Grandstand detail",
+      "desc": "How detailed the grandstands look.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Low"
+        },
+        {
+          "v": "1",
+          "label": "Medium"
+        },
+        {
+          "v": "2",
+          "label": "High"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "2"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    {
+      "key": "CrowdDetail",
+      "group": "Track & world detail",
+      "label": "Crowd",
+      "desc": "The spectators in the stands. You barely notice them while driving, but they show in replays.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "Low"
+        },
+        {
+          "v": "2",
+          "label": "Medium"
+        },
+        {
+          "v": "3",
+          "label": "High"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "3"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "key": "PitObjectDetail",
+      "group": "Track & world detail",
+      "label": "Pit object detail",
+      "desc": "How detailed the pit equipment looks.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 1,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "Low"
+        },
+        {
+          "v": "2",
+          "label": "Medium"
+        },
+        {
+          "v": "3",
+          "label": "High"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "3"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "key": "FoliageDetail",
+      "group": "Track & world detail",
+      "label": "Foliage",
+      "desc": "How many trees and bushes there are. A clear visual change on wooded tracks.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 1,
+        "evidence": "anecdote"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "Low"
+        },
+        {
+          "v": "2",
+          "label": "Medium"
+        },
+        {
+          "v": "3",
+          "label": "High"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "3"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "key": "WeekendDetail",
+      "group": "Track & world detail",
+      "label": "Event detail",
+      "desc": "Extra detail around the race weekend scene.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 1,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Low"
+        },
+        {
+          "v": "1",
+          "label": "Medium"
+        },
+        {
+          "v": "2",
+          "label": "High"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "2"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "1",
+        "2"
+      ]
+    },
+    {
+      "key": "MaxPitObjsToDraw",
+      "group": "Track & world detail",
+      "label": "Pit objects drawn",
+      "desc": "The most pit objects drawn per camera (0 to 192).",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 2,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 0,
+        "max": 192,
+        "steps": [
+          0,
+          5,
+          10,
+          20,
+          40,
+          60,
+          100,
+          192
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "20",
+        "photo": "192"
+      },
+      "levels": [
+        "0",
+        "0",
+        "5",
+        "10",
+        "10",
+        "20",
+        "20",
+        "30",
+        "40",
+        "60"
+      ],
+      "photoLevels": [
+        "20",
+        "100",
+        "192"
+      ]
+    },
+    {
+      "key": "TwoPassTrees",
+      "group": "Track & world detail",
+      "label": "Two-pass trees",
+      "desc": "Draws trees in two steps for cleaner edges. Costs graphics card power.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 2,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1"
+      ],
+      "photoLevels": [
+        "0",
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "LowQualityTrees",
+      "group": "Track & world detail",
+      "label": "Low-quality trees",
+      "desc": "1 draws simpler trees, 0 draws full-quality trees.",
+      "scope": "slider",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Full quality"
+        },
+        {
+          "v": "1",
+          "label": "Low quality"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": false,
+      "rec": {
+        "race": "1",
+        "photo": null
+      },
+      "levels": [
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "0"
+      ]
+    },
+    {
+      "key": "EnableSwayTrees",
+      "group": "Track & world detail",
+      "label": "Swaying trees",
+      "desc": "Trees move in the wind. Purely cosmetic.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 1,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": null
+      }
+    },
+    {
+      "key": "TrackDisplacementEnable",
+      "group": "Track & world detail",
+      "label": "Track surface relief",
+      "desc": "Gives the track surface real bumps and curbs. Costs graphics card power only.",
+      "scope": "slider",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 2,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      },
+      "levels": [
+        "0",
+        "0",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "EnableTireMarks",
+      "group": "Track & world detail",
+      "label": "Tire marks",
+      "desc": "Rubber marks left on the track.",
+      "scope": "slider",
+      "inReplay": false,
+      "cost": {
+        "cpu": 1,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      },
+      "levels": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "ShaderQuality",
+      "group": "Image",
+      "label": "Shader quality",
+      "desc": "How good materials, car paint and lighting look.",
+      "scope": "slider",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 3,
+        "evidence": "anecdote"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Low"
+        },
+        {
+          "v": "1",
+          "label": "Medium"
+        },
+        {
+          "v": "2",
+          "label": "High"
+        },
+        {
+          "v": "3",
+          "label": "Max"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "2",
+        "photo": null
+      },
+      "levels": [
+        "1",
+        "1",
+        "2",
+        "2",
+        "2",
+        "2",
+        "2",
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "key": "EnableHDR",
+      "group": "Image",
+      "label": "HDR rendering",
+      "desc": "Brighter highlights and deeper darks in lighting. A look choice that also changes how bright the scene is.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 2,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off (LDR)"
+        },
+        {
+          "v": "1",
+          "label": "On (HDR)"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": null
+      }
+    },
+    {
+      "key": "AutoExposure",
+      "group": "Image",
+      "label": "Auto exposure",
+      "desc": "Adjusts brightness to the scene, like your eyes adapting. Only works when HDR is on.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": "1"
+      },
+      "photoLevels": [
+        "1",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "key": "Sharpening",
+      "group": "Image",
+      "label": "Sharpening",
+      "desc": "Adds a sharpening effect. A matter of taste; it can look artificial.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "1"
+      },
+      "photoLevels": [
+        "0",
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "SharpeningAmount",
+      "group": "Image",
+      "label": "Sharpening strength",
+      "desc": "How strong the sharpening is, 10 to 300 (default 125).",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 10,
+        "max": 300,
+        "steps": [
+          125,
+          175
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "125",
+        "photo": "125"
+      },
+      "photoLevels": [
+        "125",
+        "125",
+        "125"
+      ]
+    },
+    {
+      "key": "SharpeningClamp",
+      "group": "Image",
+      "label": "Sharpening limit",
+      "desc": "Caps how harsh the sharpening can get, 0 to 100 (default 10).",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 0,
+        "max": 100,
+        "steps": [
+          10
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "9",
+        "photo": "10"
+      },
+      "photoLevels": [
+        "9",
+        "9",
+        "10"
+      ]
+    },
+    {
+      "key": "MipLODBias",
+      "group": "Image",
+      "label": "Texture sharpness bias",
+      "desc": "Shifts how sharp textures look, in percent. Positive is blurrier, negative is sharper.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": null
+      }
+    },
+    {
+      "key": "ResolutionScaling",
+      "group": "Image",
+      "label": "Resolution scaling",
+      "desc": "Draws below your screen resolution and scales it up. Saves graphics card power only; it won't help if your CPU is the limit.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 2,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 0,
+        "max": 4,
+        "steps": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": null
+      }
+    },
+    {
+      "key": "FSRSharpness",
+      "group": "Image",
+      "label": "Upscaler sharpness",
+      "desc": "How much the scaled-up picture is sharpened. Only used with resolution scaling on.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "4",
+        "photo": null
+      }
+    },
+    {
+      "key": "ContrastAdj",
+      "group": "Image",
+      "label": "Contrast",
+      "desc": "How strong the light-dark difference is, -6 to +6. Down to your preference.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": -6,
+        "max": 6,
+        "steps": null
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": null
+      }
+    },
+    {
+      "key": "BrightnessAdj",
+      "group": "Image",
+      "label": "Brightness",
+      "desc": "How bright the scene is, -6 to +6. Down to your preference.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": -6,
+        "max": 6,
+        "steps": null
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": null
+      }
+    },
+    {
+      "key": "GammaAdj",
+      "group": "Image",
+      "label": "Gamma",
+      "desc": "Shifts the brightness of midtones, -6 to +6. Down to your preference.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": -6,
+        "max": 6,
+        "steps": null
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": null
+      }
+    },
+    {
+      "key": "ZBuffer32Bits",
+      "group": "Image",
+      "label": "32-bit depth buffer",
+      "desc": "More precise depth handling so surfaces don't flicker. A system setting, left as is.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "LODPctMin",
+      "group": "Performance",
+      "label": "Detail floor",
+      "desc": "The most detail cars and objects can show. Below 100 adds detail and costs FPS. Lower is better quality.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 3,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 25,
+        "max": 500,
+        "steps": [
+          25,
+          50,
+          75,
+          100,
+          125,
+          150,
+          200
+        ]
+      },
+      "higherIsBetter": false,
+      "rec": {
+        "race": "100",
+        "photo": "25"
+      },
+      "levels": [
+        "200",
+        "150",
+        "125",
+        "100",
+        "100",
+        "100",
+        "100",
+        "100",
+        "75",
+        "50"
+      ],
+      "photoLevels": [
+        "100",
+        "50",
+        "25"
+      ]
+    },
+    {
+      "key": "LODPctMax",
+      "group": "Performance",
+      "label": "Detail ceiling",
+      "desc": "How far detail may drop when your FPS sags. Above 100 trades detail for FPS. Lower is better quality.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 3,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 25,
+        "max": 500,
+        "steps": [
+          25,
+          100,
+          150,
+          200,
+          300,
+          400,
+          500
+        ]
+      },
+      "higherIsBetter": false,
+      "rec": {
+        "race": "400",
+        "photo": "25"
+      },
+      "levels": [
+        "500",
+        "500",
+        "500",
+        "500",
+        "500",
+        "400",
+        "400",
+        "300",
+        "200",
+        "150"
+      ],
+      "photoLevels": [
+        "400",
+        "100",
+        "25"
+      ]
+    },
+    {
+      "key": "LODPctDynoMin",
+      "group": "Performance",
+      "label": "Detail floor (adaptive)",
+      "desc": "Same as the detail floor, but for the setting that adjusts itself to your FPS. Lower is better quality.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 3,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 25,
+        "max": 500,
+        "steps": [
+          25,
+          50,
+          75,
+          100,
+          125,
+          150,
+          200
+        ]
+      },
+      "higherIsBetter": false,
+      "rec": {
+        "race": "100",
+        "photo": "25"
+      },
+      "levels": [
+        "200",
+        "150",
+        "125",
+        "100",
+        "100",
+        "100",
+        "100",
+        "100",
+        "75",
+        "50"
+      ],
+      "photoLevels": [
+        "100",
+        "50",
+        "25"
+      ]
+    },
+    {
+      "key": "LODPctDynoMax",
+      "group": "Performance",
+      "label": "Detail ceiling (adaptive)",
+      "desc": "Same as the detail ceiling, but for the setting that adjusts to FPS. Lower is better quality.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 3,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 25,
+        "max": 500,
+        "steps": [
+          25,
+          100,
+          150,
+          200,
+          300,
+          400,
+          500
+        ]
+      },
+      "higherIsBetter": false,
+      "rec": {
+        "race": "400",
+        "photo": "25"
+      },
+      "levels": [
+        "500",
+        "500",
+        "500",
+        "500",
+        "500",
+        "400",
+        "400",
+        "300",
+        "200",
+        "150"
+      ],
+      "photoLevels": [
+        "400",
+        "100",
+        "25"
+      ]
+    },
+    {
+      "key": "LODMinFPSTarget",
+      "group": "Performance",
+      "label": "Detail drop FPS target",
+      "desc": "Detail is lowered whenever FPS falls below this number. Lower means fewer detail drops. iRacing doesn't document the limits.",
+      "scope": "slider",
+      "inReplay": true,
+      "cost": {
+        "cpu": 3,
+        "gpu": 0,
+        "evidence": "anecdote"
+      },
+      "values": null,
+      "range": {
+        "min": 10,
+        "max": 250,
+        "steps": [
+          10,
+          60,
+          100,
+          120,
+          150,
+          200,
+          250
+        ]
+      },
+      "higherIsBetter": false,
+      "rec": {
+        "race": "150",
+        "photo": "10"
+      },
+      "levels": [
+        "250",
+        "225",
+        "200",
+        "175",
+        "150",
+        "150",
+        "150",
+        "120",
+        "90",
+        "60"
+      ],
+      "photoLevels": [
+        "150",
+        "60",
+        "10"
+      ]
+    },
+    {
+      "key": "AutoAddNoDynOnEmptyLOD",
+      "group": "Performance",
+      "label": "Stop objects vanishing",
+      "desc": "Stops detail from dropping so far that an object disappears from view completely.",
+      "scope": "user",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": null
+      }
+    },
+    {
+      "key": "OcclusionCull",
+      "group": "Performance",
+      "label": "Occlusion culling",
+      "desc": "Skips drawing things hidden behind other things. iRacing says leave it on.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "ParallelSorting",
+      "group": "Performance",
+      "label": "Multithreaded scene sort",
+      "desc": "Uses several CPU cores to prepare the scene. Leave it on.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "VisibilityFrameDelay",
+      "group": "Performance",
+      "label": "Visibility re-test delay",
+      "desc": "How many frames pass between checks for what is visible. A fine-tuning detail, left as is.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 1,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": null,
+      "range": {
+        "min": 0,
+        "max": 20,
+        "steps": null
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "5",
+        "photo": null
+      }
+    },
+    {
+      "key": "WorldNearPlaneDistance",
+      "group": "Performance",
+      "label": "Near clip distance",
+      "desc": "How close an object can be before it stops being drawn, in tenths of a metre (1 to 30). Fine-tuning, left as is.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 1,
+        "max": 30,
+        "steps": null
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "10",
+        "photo": null
+      }
+    },
+    {
+      "key": "LoadTexturesWhenDriving",
+      "group": "Performance",
+      "label": "Load textures while driving",
+      "desc": "0 loads textures only when you are out of the car. Left as is.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 1,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "CompressTexturesCars",
+      "group": "Performance",
+      "label": "Compress car textures",
+      "desc": "Shrinks car textures to save video memory. iRacing highly recommends it.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "CompressTexturesHelmets",
+      "group": "Performance",
+      "label": "Compress helmet textures",
+      "desc": "Shrinks helmet textures to save video memory.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "CompressTexturesSuits",
+      "group": "Performance",
+      "label": "Compress suit textures",
+      "desc": "Shrinks driver suit textures to save video memory.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "CompressedVertices",
+      "group": "Performance",
+      "label": "Compressed vertices",
+      "desc": "Stores 3D model data in a smaller form. Left as is.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "unverified"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "NvReflexMode",
+      "group": "Performance",
+      "label": "NVIDIA Reflex",
+      "desc": "NVIDIA's low-latency mode: off, on, or on+boost. Reduces input lag; doesn't change the picture.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        },
+        {
+          "v": "2",
+          "label": "On + Boost"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "2",
+        "photo": null
+      }
+    },
+    {
+      "key": "MaxPreRenderedFrames",
+      "group": "Performance",
+      "label": "Max pre-rendered frames",
+      "desc": "How many frames the graphics card may lag behind the CPU (0 to 4). 1 is normal.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 0,
+        "max": 4,
+        "steps": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "VerticalSync",
+      "group": "Performance",
+      "label": "V-Sync",
+      "desc": "Locks frames to your screen's refresh rate. Off can show tearing but avoids added input lag.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": null
+      }
+    },
+    {
+      "key": "NumMultiGPUs",
+      "group": "Performance",
+      "label": "Multi-GPU count",
+      "desc": "How many graphics cards are linked together (SLI or CrossFire). Always 1 here.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 1,
+        "max": 4,
+        "steps": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "VRMode",
+      "group": "Performance",
+      "label": "VR mode",
+      "desc": "The way the sim draws for VR headsets. Not used on a monitor, so RaceMode never writes it.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Normal"
+        },
+        {
+          "v": "1",
+          "label": "NV Single Pass Stereo"
+        },
+        {
+          "v": "2",
+          "label": "NV foveated quad view"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "1",
+        "photo": null
+      }
+    },
+    {
+      "key": "SysMemToUseMB",
+      "group": "Display / other",
+      "label": "System memory for iRacing",
+      "desc": "How much of your PC's memory iRacing may use, in MB. Depends on your PC, so RaceMode never writes it.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": {
+        "min": 1024,
+        "max": 32768,
+        "steps": null
+      },
+      "higherIsBetter": true,
+      "rec": {
+        "race": null,
+        "photo": null
+      }
+    },
+    {
+      "key": "VidMemToUseMB",
+      "group": "Display / other",
+      "label": "Video memory for iRacing",
+      "desc": "How much graphics card memory iRacing may use, in MB. Depends on your card, so RaceMode never writes it.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": null,
+        "photo": null
+      }
+    },
+    {
+      "key": "UIScale",
+      "group": "Display / other",
+      "label": "UI size",
+      "desc": "Size of the on-screen interface, in percent. Set it in the sim.",
+      "scope": "machine",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "100",
+        "photo": null
+      }
+    },
+    {
+      "key": "ReplayRenderModes",
+      "group": "Display / other",
+      "label": "Replay render modes",
+      "desc": "Stylized replay looks such as black and white or VHS. Leave off for normal use.",
+      "scope": "user",
+      "inReplay": true,
+      "cost": {
+        "cpu": 0,
+        "gpu": 1,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "Off"
+        },
+        {
+          "v": "1",
+          "label": "On"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": "0",
+        "photo": "0"
+      },
+      "photoLevels": [
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "key": "LimitFrameRate",
+      "group": "Display / other",
+      "label": "Limit frame rate",
+      "desc": "Turns the FPS cap on or off. RaceMode never writes it here; only the screen check can keep it, and only if you turn that on.",
+      "scope": "guard",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": [
+        {
+          "v": "0",
+          "label": "No limit"
+        },
+        {
+          "v": "1",
+          "label": "Use FPS limit"
+        }
+      ],
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": null,
+        "photo": null
+      }
+    },
+    {
+      "key": "DesiredFPSLimit",
+      "group": "Display / other",
+      "label": "FPS limit",
+      "desc": "The FPS cap. RaceMode never writes it here; only the screen check can keep it, and only if you turn that on.",
+      "scope": "guard",
+      "inReplay": false,
+      "cost": {
+        "cpu": 0,
+        "gpu": 0,
+        "evidence": "official"
+      },
+      "values": null,
+      "range": null,
+      "higherIsBetter": true,
+      "rec": {
+        "race": null,
+        "photo": null
+      }
+    }
+  ]
+}
