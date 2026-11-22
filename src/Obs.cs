@@ -127,7 +127,7 @@ namespace RaceMode
                 panel.Children.Add(SetupFlow.Button("Turn It On", () =>
                 {
                     err = EnableRemoteControl();
-                    Installer.Log("obs", new[] { err ?? "OBS remote control switched on" });
+                    Installer.Log("obs", new[] { err ?? "OBS remote control switched on" }, Shell.Data);
                     MessageBox.Show(err ?? "Done. OBS's remote control is on.", "Race Mode", MessageBoxButton.OK, err == null ? MessageBoxImage.Information : MessageBoxImage.Warning);
                 }));
                 return panel;
