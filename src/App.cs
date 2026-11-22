@@ -819,7 +819,7 @@ namespace RaceMode
             Get<TextBox>("LowerBox").LostFocus += (s, e) => SaveConfig();
             FillMonitorPick();
             Get<ComboBox>("MonitorPick").SelectionChanged += (s, e) => OnMonitorPicked();
-            Get<ComboBox>("MonitorPick").DropDownOpened += (s, e) => { if (!_bindingMonitor) FillMonitorPick(); };
+            HostScreenPicker();
             BindUpdates();
             Get<CheckBox>("OptAutostart").IsChecked = Installer.StartsWithWindows;
             Get<CheckBox>("OptAutostart").Checked += (s, e) => SetAutostart(true);
@@ -1627,8 +1627,9 @@ namespace RaceMode
 
         static string TripleLabel(List<MonitorInfo> row)
         {
-            return "Three screens side by side · screens " + string.Join(", ", row.Select(m => (m.Index + 1).ToString()).ToArray())
-                + " · 3 × " + row[0].Width + " × " + row[0].Height + " · " + row.Min(m => m.Hz) + " Hz";
+            int x, y, w, h; DisplayGuard.TripleWindow(row, out x, out y, out w, out h);
+            return "three screens side by side · screens " + string.Join(", ", row.Select(m => (m.Index + 1).ToString()).ToArray())
+                + " · " + w + " × " + h + " · " + row.Min(m => m.Hz) + " Hz";
         }
 
         void FillMonitorPick()
@@ -1679,7 +1680,8 @@ namespace RaceMode
                 var row = _pickTriples[i - 1 - _pickMonitors.Count];
                 if (row.Any(x => string.IsNullOrEmpty(x.MonitorId) || x.Hz <= 0)) { Tick("Couldn't read those screens' details, so nothing changed"); FillMonitorPick(); return; }
                 g.Triple = row.Select(x => x.MonitorId).ToList();
-                g.MonitorId = row[1].MonitorId; g.Width = row[0].Width; g.Height = row[0].Height; g.RefreshRate = row.Min(x => x.Hz);
+                int wx, wy, ww, wh; DisplayGuard.TripleWindow(row, out wx, out wy, out ww, out wh);
+                g.MonitorId = row[1].MonitorId; g.Width = ww; g.Height = wh; g.RefreshRate = row.Min(x => x.Hz);
                 label = TripleLabel(row);
             }
             else
