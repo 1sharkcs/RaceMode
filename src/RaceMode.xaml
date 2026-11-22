@@ -1090,6 +1090,13 @@
               </Border>
             </Border>
 
+            <TextBlock Style="{StaticResource SectionHeader}" Text="CPU temperature" Margin="16,22,0,7"/>
+            <Border Style="{StaticResource Group}">
+              <Border Style="{StaticResource LastRow}">
+                <StackPanel x:Name="HwinfoPanel"/>
+              </Border>
+            </Border>
+
             <TextBlock Style="{StaticResource SectionHeader}" Text="Windows" Margin="16,22,0,7"/>
             <Border Style="{StaticResource Group}">
               <StackPanel>
@@ -1141,7 +1148,7 @@
                   </Grid>
                 </Border>
                 <Border Style="{StaticResource Row}">
-                  <CheckBox x:Name="OptUpdateCheck" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Check for updates once a day"/><TextBlock Style="{StaticResource Sub}" Text="Only looks. Nothing is installed until you click Update."/></StackPanel></CheckBox>
+                  <CheckBox x:Name="OptUpdateCheck" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Check for updates every 12 hours"/><TextBlock Style="{StaticResource Sub}" Text="Only looks. Nothing is installed until you click Update."/></StackPanel></CheckBox>
                 </Border>
                 <Border Style="{StaticResource LastRow}">
                   <CheckBox x:Name="OptTestVersions" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Try test versions"/><TextBlock Style="{StaticResource Sub}" Text="Get the next version early, while it's still being tested (a release candidate). It may have bugs. Turn this off to go back at the next normal release."/></StackPanel></CheckBox>

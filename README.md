@@ -61,7 +61,7 @@ certutil -hashfile RaceMode.zip SHA256
 
 ## Updates
 
-Race Mode checks for a new version once a day. It shows what it found on the Settings tab, under Updates. Nothing installs until you click Update, and only while Race Mode is off and iRacing is closed. Turn on **Try test versions** to get the next version early, while it's still being tested (a release candidate).
+Race Mode checks for a new version every 12 hours while it runs. It shows what it found on the Settings tab, under Updates. Nothing installs until you click Update, and only while Race Mode is off and iRacing is closed. Turn on **Try test versions** to get the next version early, while it's still being tested (a release candidate).
 
 ## Uninstall
 

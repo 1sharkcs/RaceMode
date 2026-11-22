@@ -120,6 +120,28 @@ class CatalogTests
         }
         Check("14 quality never drops from one level to the next", down.Count == 0, string.Join(", ", down.Take(8).ToArray()));
 
+        // 15-17 new install: no Photo settings yet -> made from the replay settings at the chosen quality
+        var keepFolder = GraphicsPresets.Folder;
+        var fresh = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "photoseed");
+        if (Directory.Exists(fresh)) Directory.Delete(fresh, true);
+        Directory.CreateDirectory(fresh);
+        var freshIni = Path.Combine(fresh, "live.ini");
+        File.Copy(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"fixtures\live-before-race-preset.ini"), freshIni);
+        var looks = new List<string>();
+        bool seededOk = true, onlyReplay = true;
+        for (int pl = 1; pl <= 3; pl++)
+        {
+            GraphicsPresets.Folder = Path.Combine(fresh, "graphics" + pl);
+            seededOk &= GraphicsPresets.EnsurePhotoSeeded(freshIni, pl) && GraphicsPresets.Exists("Photo") && !GraphicsPresets.EnsurePhotoSeeded(freshIni, pl);
+            var ph = GraphicsPresets.Load("Photo");
+            onlyReplay &= ph.Count == 1 && ph.ContainsKey("Replay Graphics");
+            looks.Add(string.Join("|", ph["Replay Graphics"].OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value).ToArray()));
+        }
+        Check("15 no Photo settings -> made once, and not again", seededOk, null);
+        Check("16 Photo settings hold replay settings only (racing untouched)", onlyReplay, null);
+        Check("17 Race look, Better and Max each give different replay settings", looks.Distinct().Count() == 3, null);
+        GraphicsPresets.Folder = keepFolder;
+
         Console.WriteLine(pass + " passed, " + fail + " failed");
         Environment.Exit(fail == 0 ? 0 : 1);
     }

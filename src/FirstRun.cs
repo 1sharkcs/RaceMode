@@ -272,13 +272,6 @@ namespace RaceMode
             if (sw != null) Window.Dispatcher.BeginInvoke(new Action(() => sw.Focus()), DispatcherPriority.Input);
         }
 
-        // The setup Helpers page on its own, from the CPU temperature tile.
-        void OpenHelpers()
-        {
-            if (_firstRun == null) StartFirstRun(3);
-            else _firstRun.Start(3);
-        }
-
         // Most pixels, then the fastest refresh rate: usually the screen people race on (a fast 1080p side screen
         // loses to the 1440p or ultrawide one in front).
         int SuggestRacingMonitor()
@@ -313,33 +306,7 @@ namespace RaceMode
             Action render = null;
             render = () =>
             {
-                hw.Children.Clear();
-                if (_helperError != null && !File.Exists(HwinfoExe)) hw.Children.Add(SetupFlow.Status("HWiNFO didn't install", _helperError, false));
-                bool installed = File.Exists(HwinfoExe);
-                var live = _mon.Live; double temp = live == null ? double.NaN : live.CpuTemp;   // NaN until HWiNFO shares a CPU temperature
-                var hps = Process.GetProcessesByName("HWiNFO64"); bool hwRunning = hps.Length > 0; foreach (var hp in hps) hp.Dispose();
-                if (!double.IsNaN(temp))
-                    hw.Children.Add(SetupFlow.Status("CPU temperature works", "HWiNFO is sharing it: " + Math.Round(temp) + " °C right now.", true));
-                else if (!installed)
-                {
-                    hw.Children.Add(SetupFlow.Status("CPU temperature needs HWiNFO", "HWiNFO is a free sensor app. Race Mode reads the CPU temperature it shares.", null));
-                    hw.Children.Add(SetupFlow.Button(_helperBusy ? "Installing HWiNFO…" : "Install HWiNFO", InstallHwinfo, true));
-                }
-                else if (!hwRunning)
-                {
-                    hw.Children.Add(SetupFlow.Status("HWiNFO is installed but not running", "Open it, and Race Mode reads the CPU temperature it shares.", false));
-                    hw.Children.Add(SetupFlow.Button("Open HWiNFO", () => { StartHwinfo(); }, true));
-                }
-                else
-                {
-                    hw.Children.Add(SetupFlow.Status("HWiNFO is running but isn't sharing the CPU temperature yet", "It takes three clicks in HWiNFO. This line turns green by itself when it works.", false));
-                    var steps = (FrameworkElement)SetupFlow.Text("In HWiNFO",
-                        "1. Choose Sensors-only when it opens.\n2. Settings > HWiNFO Gadget: tick Enable reporting to Gadget.\n3. Right-click CPU Package in the sensor list > Report value in Gadget.\nTip: in HWiNFO's settings, tick Auto Start so it's always running.");
-                    steps.Margin = new Thickness(0, 10, 0, 0);
-                    steps.Visibility = _helperStepsShown ? Visibility.Visible : Visibility.Collapsed;
-                    hw.Children.Add(SetupFlow.Button(_helperStepsShown ? "Hide Steps" : "Show Me How", () => { _helperStepsShown = !_helperStepsShown; render(); }));
-                    hw.Children.Add(steps);
-                }
+                RenderHwinfo(hw, render);
                 obs.Children.Clear();
                 var cb = SetupFlow.Switch("I stream", "Turns on Streaming: OBS starts with Race Mode and gets a little more CPU.", _cfg.Streaming);
                 cb.Checked += (s, e) => { Get<CheckBox>("OptStream").IsChecked = true; };
@@ -354,6 +321,83 @@ namespace RaceMode
             _helperRender = render;
             _helperTimer.Start();
             return SetupFlow.Stack(SetupFlow.Group(hw), SetupFlow.Group(obs));
+        }
+
+        // HWiNFO's state and the one button that moves it on. Shared by setup's Helpers page and the Settings tab
+        // (CPU temperature), so fixing it never means going back into setup. rerender: called after a button press
+        // (null: the caller's timer refreshes it).
+        int _hwStage;          // 0 nothing running, 1 waiting for the user to quit HWiNFO, 2 started with sharing on
+        DateTime _hwStageAt;
+        void RenderHwinfo(StackPanel hw, Action rerender)
+        {
+            if (hw == null) return;
+            Action again = () => { if (rerender != null) rerender(); else RenderHwinfo(hw, null); };
+            hw.Children.Clear();
+            bool installed = File.Exists(HwinfoExe);
+            var live = _mon.Live; double temp = live == null ? double.NaN : live.CpuTemp;   // NaN until HWiNFO shares a CPU temperature
+            var hps = Process.GetProcessesByName("HWiNFO64"); bool hwRunning = hps.Length > 0; foreach (var hp in hps) hp.Dispose();
+            if (!double.IsNaN(temp))
+            {
+                _hwStage = 0;
+                hw.Children.Add(SetupFlow.Status("CPU temperature works", "HWiNFO is sharing it: " + Math.Round(Monitor.HwinfoFahrenheit ? temp * 9 / 5 + 32 : temp) + (Monitor.HwinfoFahrenheit ? " °F" : " °C") + " right now.", true));
+                return;
+            }
+            if (!installed)
+            {
+                if (_helperError != null) hw.Children.Add(SetupFlow.Status("HWiNFO didn't install", _helperError, false));
+                hw.Children.Add(SetupFlow.Status("CPU temperature needs HWiNFO", "HWiNFO is a free sensor app. Race Mode reads the CPU temperature it shares.", null));
+                hw.Children.Add(SetupFlow.Button(_helperBusy ? "Installing HWiNFO…" : "Install HWiNFO", InstallHwinfo, true));
+                return;
+            }
+            if (_hwStage == 1 && !hwRunning) SetUpAndStartHwinfo();   // the user quit it: switch sharing on, start it again
+            if (_hwStage == 1)
+            {
+                hw.Children.Add(SetupFlow.Status("Quit HWiNFO so Race Mode can switch on its sharing",
+                    "Right-click HWiNFO's icon in the system tray (next to the clock) and choose Exit. Race Mode carries on by itself once it has closed.", null));
+                hw.Children.Add(SetupFlow.Button("Cancel", () => { _hwStage = 0; again(); }));
+                return;
+            }
+            if (_hwStage == 2 && (DateTime.Now - _hwStageAt).TotalSeconds < 30)
+            {
+                hw.Children.Add(SetupFlow.Status("HWiNFO is starting with sharing switched on…",
+                    "Allow it if Windows asks for permission. If HWiNFO asks how to start, choose Sensors-only. This turns green by itself.", null));
+                return;
+            }
+            if (!hwRunning)
+            {
+                bool on = HwinfoSetup.SharingOn();
+                hw.Children.Add(SetupFlow.Status("HWiNFO is installed but not running",
+                    on ? "Open it, and Race Mode reads the CPU temperature it shares." : "Race Mode can switch on its sharing and open it for you.", false));
+                hw.Children.Add(SetupFlow.Button(on ? "Open HWiNFO" : "Set Up and Open HWiNFO", () => { SetUpAndStartHwinfo(); again(); }, true));
+                return;
+            }
+            bool afterSetup = _hwStage == 2;
+            hw.Children.Add(SetupFlow.Status(afterSetup ? "One step left in HWiNFO" : "HWiNFO is running but isn't sharing the CPU temperature yet",
+                afterSetup ? "Sharing is on, but HWiNFO didn't pick a CPU temperature for this processor. Do the step below; this turns green by itself."
+                           : "Race Mode can switch its sharing on for you. HWiNFO closes for a moment while it does.", false));
+            if (!afterSetup) hw.Children.Add(SetupFlow.Button("Set Up HWiNFO for Me", () => { _hwStage = 1; Tick("Quit HWiNFO, and Race Mode switches on its sharing"); again(); }, true));
+            var steps = (FrameworkElement)SetupFlow.Text("In HWiNFO", afterSetup
+                ? "In the sensor window, right-click your CPU's package temperature (CPU Package, or CPU (Tctl/Tdie) on AMD) and choose Report value in Gadget."
+                : "1. Choose Sensors-only when it opens.\n2. Settings > HWiNFO Gadget: tick Enable reporting to Gadget.\n3. Right-click CPU Package in the sensor list > Report value in Gadget.\nTip: in HWiNFO's settings, tick Auto Start so it's always running.");
+            steps.Margin = new Thickness(0, 10, 0, 0);
+            steps.Visibility = _helperStepsShown || afterSetup ? Visibility.Visible : Visibility.Collapsed;
+            if (!afterSetup) hw.Children.Add(SetupFlow.Button(_helperStepsShown ? "Hide Steps" : "Do It Myself", () => { _helperStepsShown = !_helperStepsShown; again(); }));
+            hw.Children.Add(steps);
+        }
+
+        // HWiNFO is closed: switch its sharing on (its own per-user settings), then start it (Windows asks first).
+        void SetUpAndStartHwinfo()
+        {
+            try
+            {
+                int n = HwinfoSetup.Apply();
+                _mon.Event("Switched on HWiNFO's sharing (" + n + " CPU readings added)");
+                Installer.Log("hwinfo", new[] { "sharing switched on, " + n + " CPU readings added" });
+            }
+            catch (Exception ex) { LogCrash(ex); Tick("Couldn't change HWiNFO's settings: " + ex.Message); _hwStage = 0; return; }
+            _hwStage = 2; _hwStageAt = DateTime.Now;
+            try { Process.Start(new ProcessStartInfo(HwinfoExe) { UseShellExecute = true }); _hwinfoCheckedAt = DateTime.MinValue; Tick("Starting HWiNFO with sharing switched on…"); }
+            catch (Exception ex) { Tick("Couldn't start HWiNFO: " + ex.Message); }
         }
 
         Action _helperRender;
