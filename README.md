@@ -4,8 +4,8 @@ A small Windows app for iRacing. One switch gets your PC ready to race.
 
 ## What it does
 
-- Closes the apps you list (browsers, launchers, anything you don't want running during a race). Setup and the Close tab suggest heavy apps it finds on your PC, with how much memory each uses; nothing is ticked for you. iRacing, your Launch apps and Windows itself are never closed, and neither are your streaming apps while Streaming is on
-- Starts your race apps, like SimHub and Crew Chief. Setup and the Launch tab suggest the race apps it finds installed
+- Closes the apps you list (browsers, launchers, anything you don't want running during a race). Setup and the Close list suggest heavy apps it finds on your PC, with how much memory each uses; nothing is ticked for you. iRacing, your Launch apps and Windows itself are never closed, and neither are your streaming apps while Streaming is on
+- Starts your race apps, like SimHub and Crew Chief. Setup and the Launch list suggest the race apps it finds installed
 - Puts iRacing first, so Windows gives it the processor ahead of your other apps
 - Keeps iRacing on your racing monitor, or across three screens side by side, as a borderless window that fills it. iRacing's own triple-screen settings (angles, bezels) are left to iRacing
 - Sets Race or Photo graphics, and only while iRacing is closed
@@ -14,6 +14,13 @@ A small Windows app for iRacing. One switch gets your PC ready to race.
 - Stays in the system tray (next to the clock) when you close its window, so it's always one right-click away (Quit is in that menu)
 
 It never changes iRacing while iRacing is running, and it leaves your FPS cap alone.
+
+## The window
+
+- **Overview** has the switch and the last minute of FPS, CPU, graphics card and memory. While Race Mode is on it shows the checklist of what Race Mode did; while it's off it shows your last session.
+- The menu down the left opens Launch apps, Close list, Streaming, Graphics, Settings and Logs (Ctrl+1 to Ctrl+7), and shows what each is set to. The switch stays under the menu on every page. Make the window narrow and the menu shrinks to icons.
+- From 1440 pixels wide, the charts stay beside the Launch, Close, Streaming and Graphics pages.
+- The Small panel button in the title bar shrinks the window to the switch, FPS and the live numbers, for a corner of a side monitor. Drag it wide and short for a strip, or narrow and tall for a column. Click the button again to go back.
 
 ## Install
 
@@ -43,7 +50,7 @@ Running the same command again is a safe repair: it reinstalls the latest normal
 
 ## Privacy
 
-Race Mode reads the list of running apps, the apps in Settings > Apps and what starts with Windows (the Run keys and Startup folders) to suggest apps to close. It also reads the Start menu and Settings > Apps to find where iRacing, OBS, HWiNFO and Steam are installed, and which race apps to suggest for the Launch list. All of that is only used on this PC and is never sent anywhere. The only internet access is the update check to api.github.com and github.com (you can switch it off on the Settings tab), and HWiNFO's installer if you click Install. Logs stay on this PC, and Copy Summary copies only the session summary text.
+Race Mode reads the list of running apps, the apps in Settings > Apps and what starts with Windows (the Run keys and Startup folders) to suggest apps to close. It also reads the Start menu and Settings > Apps to find where iRacing, OBS, HWiNFO and Steam are installed, and which race apps to suggest for the Launch list. All of that is only used on this PC and is never sent anywhere. The only internet access is the update check to api.github.com and github.com (you can switch it off in Settings), and HWiNFO's installer if you click Install. Logs stay on this PC, and Copy Summary copies only the session summary text.
 
 ## Where things live
 
@@ -61,7 +68,7 @@ certutil -hashfile RaceMode.zip SHA256
 
 ## Updates
 
-Race Mode checks for a new version every 12 hours while it runs. It shows what it found on the Settings tab, under Updates. Nothing installs until you click Update, and only while Race Mode is off and iRacing is closed. Turn on **Try test versions** to get the next version early, while it's still being tested (a release candidate).
+Race Mode checks for a new version every 12 hours while it runs. It shows what it found in Settings, under Updates. Nothing installs until you click Update, and only while Race Mode is off and iRacing is closed. Turn on **Try test versions** to get the next version early, while it's still being tested (a release candidate).
 
 ## Uninstall
 

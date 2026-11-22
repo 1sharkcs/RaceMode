@@ -90,7 +90,7 @@ namespace RaceMode
             done.Add("Added Race Mode to Settings > Apps, so you can uninstall it there");
 
             SetStartWithWindows(startWithWindows, target);
-            done.Add(startWithWindows ? "Race Mode will start with Windows, in the system tray" : "Race Mode won't start with Windows (you can change this on the Settings tab)");
+            done.Add(startWithWindows ? "Race Mode will start with Windows, in the system tray" : "Race Mode won't start with Windows (you can change this in Settings)");
             Log("install", done);
             return done;
         }
@@ -361,7 +361,9 @@ namespace RaceMode
         public static UIElement Text(string title, string sub)
         {
             var sp = new StackPanel();
-            sp.Children.Add(new TextBlock { Text = title, Foreground = Res<Brush>("Ink"), TextWrapping = TextWrapping.Wrap });
+            var head = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap };
+            head.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
+            sp.Children.Add(head);
             if (!string.IsNullOrEmpty(sub)) sp.Children.Add(new TextBlock { Text = sub, Style = Res<Style>("Sub"), TextWrapping = TextWrapping.Wrap });
             return sp;
         }
@@ -395,7 +397,8 @@ namespace RaceMode
             var g = (Grid)CheckRow(title, sub, on, out box);
             if (string.IsNullOrEmpty(value)) return g;
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var v = new TextBlock { Text = value, FontFamily = Res<FontFamily>("Display"), FontSize = 15, Foreground = Res<Brush>("Ink"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            var v = new TextBlock { Text = value, FontFamily = Res<FontFamily>("Display"), FontSize = 15, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            v.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
             Grid.SetColumn(v, 2); g.Children.Add(v);
             var cb = box; v.MouseLeftButtonUp += (s, e) => { cb.IsChecked = cb.IsChecked != true; };
             System.Windows.Automation.AutomationProperties.SetHelpText(cb, value + (string.IsNullOrEmpty(sub) ? "" : ". " + sub));
@@ -426,7 +429,8 @@ namespace RaceMode
             AutomationAttach(tb, title);
             var inner = new StackPanel();
             for (int i = 0; i < rows.Length; i++) inner.Children.Add(new Border { Style = Res<Style>(i == rows.Length - 1 ? "LastRow" : "Row"), Child = rows[i] });
-            var panel = new Border { BorderBrush = Res<Brush>("Hairline"), BorderThickness = new Thickness(0, 1, 0, 0), Child = inner, Visibility = open ? Visibility.Visible : Visibility.Collapsed };
+            var panel = new Border { BorderThickness = new Thickness(0, 1, 0, 0), Child = inner, Visibility = open ? Visibility.Visible : Visibility.Collapsed };
+            panel.SetResourceReference(Border.BorderBrushProperty, "Hairline");
             tb.Checked += (s, e) => { panel.Visibility = Visibility.Visible; if (changed != null) changed(true); };
             tb.Unchecked += (s, e) => { panel.Visibility = Visibility.Collapsed; if (changed != null) changed(false); };
             var sp = new StackPanel(); sp.Children.Add(tb); sp.Children.Add(panel);
@@ -440,9 +444,9 @@ namespace RaceMode
             g.ColumnDefinitions.Add(new ColumnDefinition());
             var dot = new System.Windows.Shapes.Ellipse
             {
-                Width = 8, Height = 8, Margin = new Thickness(0, 5, 10, 0), VerticalAlignment = VerticalAlignment.Top,
-                Fill = ok == true ? Res<Brush>("Live") : ok == false ? Res<Brush>("Warn") : (Brush)new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x60))
+                Width = 8, Height = 8, Margin = new Thickness(0, 5, 10, 0), VerticalAlignment = VerticalAlignment.Top
             };
+            dot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, ok == true ? "Live" : ok == false ? "Warn" : "DotOff");
             g.Children.Add(dot);
             var t = Text(title, sub); Grid.SetColumn(t, 1); g.Children.Add(t);
             return g;
@@ -476,10 +480,14 @@ namespace RaceMode
         {
             Window w;
             using (var fs = typeof(Installer).Assembly.GetManifestResourceStream("RaceMode.xaml")) w = (Window)XamlReader.Load(fs);
-            w.Height = Math.Min(w.Height, SystemParameters.WorkArea.Height - 16);
+            // setup is one column of questions: narrower and taller than the app's own default
+            w.MinWidth = 560; w.MinHeight = 620; w.Width = 600;
+            w.Height = Math.Min(820, SystemParameters.WorkArea.Height - 16);
             app.MainWindow = w;
+            Palette.Apply(w, Palette.IsLight("System"));   // no settings yet: follow Windows' app mode (Theme.cs)
             Shell.ApplyIcon(w);
             ((UIElement)w.FindName("MaxBtn")).Visibility = Visibility.Collapsed;
+            ((UIElement)w.FindName("SmallBtn")).Visibility = Visibility.Collapsed;
             ((Button)w.FindName("CloseBtn")).Click += (s, e) => w.Close();
             ((Button)w.FindName("MinBtn")).Click += (s, e) => w.WindowState = WindowState.Minimized;
             ((Grid)w.FindName("TitleBar")).MouseLeftButtonDown += (s, e) => { if (e.ButtonState == MouseButtonState.Pressed) try { w.DragMove(); } catch { } };
@@ -511,7 +519,7 @@ namespace RaceMode
                                                   SetupFlow.Button("Try Again", () => flow.Refresh())) : SetupFlow.Status("Race Mode is closed, ready to install", null, true));
                     var dcb = SetupFlow.Switch("Add a desktop shortcut", null, desktop);
                     dcb.Checked += (s, e) => desktop = true; dcb.Unchecked += (s, e) => desktop = false;
-                    var acb = SetupFlow.Switch("Start Race Mode with Windows", "Starts in the system tray, next to the clock, when you sign in, so it's ready before a race. You can change this later on the Settings tab.", autostart);
+                    var acb = SetupFlow.Switch("Start Race Mode with Windows", "Starts in the system tray, next to the clock, when you sign in, so it's ready before a race. You can change this later in Settings.", autostart);
                     acb.Checked += (s, e) => autostart = true; acb.Unchecked += (s, e) => autostart = false;
                     var errEl = error == null ? null : SetupFlow.Group(SetupFlow.Status("Install didn't finish", error, false));
                     var backEl = goingBack == null ? null : SetupFlow.Group(SetupFlow.Status("This installs an older version", goingBack, null));
