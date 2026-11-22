@@ -1,5 +1,6 @@
 // Tests for RaceMode.InstallFinder. The registry is a fake (in-memory) and every exe is an empty file in a temp
-// folder, so nothing on this PC is read or changed.
+// folder, so nothing on this PC is changed. (The default Program Files paths are still checked for existence,
+// read-only, so a few results depend on what's installed; those checks accept either outcome.)
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -137,7 +138,37 @@ class InstallFinderTests
             Set(@"HKCU\Software\Valve\Steam", "SteamExe", missing);
             Check("Steam falls back to the default path", InstallFinder.SteamExe() == InstallFinder.DefaultSteam || File.Exists(InstallFinder.SteamExe()), InstallFinder.SteamExe());
 
-            // ---- Cache: a second lookup within 30 s doesn't re-read the registry
+            // ---- Red-team fixes
+            // HWiNFO is started through an admin prompt: a user-writable (HKCU) entry must never be used for it.
+            Reset();
+            var planted = Exe(@"user\HWiNFO64.EXE");
+            Set(UC + "HWiNFO64_is1", "DisplayName", "HWiNFO64");
+            Set(UC + "HWiNFO64_is1", "DisplayIcon", planted);
+            Check("HWiNFO: a per-user registry entry is ignored", !Same(InstallFinder.HwinfoExe(), planted), InstallFinder.HwinfoExe());
+            // Other apps: the machine-wide entry wins over a per-user one.
+            Reset();
+            var obsMachine = Exe(@"machine\obs-studio\bin\64bit\obs64.exe");
+            Exe(@"user\obs-studio\bin\64bit\obs64.exe");
+            Set(UC + "OBS Studio", "DisplayName", "OBS Studio");
+            Set(UC + "OBS Studio", "InstallLocation", Path.Combine(Root, @"user\obs-studio"));
+            Set(U + "OBS Studio", "DisplayName", "OBS Studio");
+            Set(U + "OBS Studio", "InstallLocation", Path.Combine(Root, @"machine\obs-studio"));
+            Check("machine-wide entry wins over a per-user one", Same(InstallFinder.ObsExe(), obsMachine), InstallFinder.ObsExe());
+            // Steam's own key is only trusted when it points at steam.exe.
+            Reset();
+            var notSteam = Exe(@"user\evil.bat");
+            Set(@"HKCU\Software\Valve\Steam", "SteamExe", notSteam.Replace('\\', '/'));
+            Check("Steam: a SteamExe that isn't steam.exe is ignored", !Same(InstallFinder.SteamExe(), notSteam), InstallFinder.SteamExe());
+            // Network paths are never touched (an unreachable share would freeze Race Mode and send a login hash).
+            Check("network paths are recognised", InstallFinder.IsNetworkPath(@"\\host\share\x.exe") && InstallFinder.IsNetworkPath("//host/share/x.exe") && !InstallFinder.IsNetworkPath(@"C:\x.exe"), null);
+            Check("a network path never counts as found", !InstallFinder.LocalFileExists(@"\\nohost.invalid\share\HWiNFO64.EXE"), null);
+            Reset();
+            Set(U + "OBS Studio", "DisplayName", "OBS Studio");
+            Set(U + "OBS Studio", "InstallLocation", @"\\nohost.invalid\obs");
+            var sw = System.Diagnostics.Stopwatch.StartNew(); var netObs = InstallFinder.ObsExe();
+            Check("a network InstallLocation is skipped without waiting on it", (netObs == null || !InstallFinder.IsNetworkPath(netObs)) && sw.ElapsedMilliseconds < 5000, sw.ElapsedMilliseconds + " ms, " + netObs);
+
+            // ---- Cache: a second lookup soon after doesn't re-read the registry (answers are kept 10 minutes)
             Reset();
             Set(UW + "HWiNFO64_is1", "DisplayName", "HWiNFO64");
             Set(UW + "HWiNFO64_is1", "DisplayIcon", hw);

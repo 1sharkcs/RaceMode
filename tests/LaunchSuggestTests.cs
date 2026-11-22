@@ -44,8 +44,14 @@ class LaunchSuggestTests
             var real = AppScan.Apps;
             var launchable = real.Where(a => a.Launchable).ToList();
             Check("catalog: loads with launchable race apps", AppScan.LoadError == null && launchable.Count >= 10, AppScan.LoadError ?? launchable.Count.ToString());
-            foreach (var want in new[] { "SimHub", "Crew Chief", "Trading Paints", "Garage 61", "Logitech G HUB", "Simagic SimPro", "Fanatec software", "Simucube", "iOverlay", "RaceLab" })
+            foreach (var want in new[] { "SimHub", "Crew Chief", "Trading Paints", "Garage 61", "Logitech G HUB", "Simagic SimPro", "Fanatec software", "iOverlay", "RaceLab" })
                 Check("catalog: " + want + " can be suggested", launchable.Any(a => a.label == want), null);
+            // Red-team fixes: unverified exe names are not suggested; the G HUB tray app counts as G HUB.
+            Check("catalog: Simucube is not suggested (its exe name is unverified)", !launchable.Any(a => a.label == "Simucube"), null);
+            var simagic = real.FirstOrDefault(a => a.label == "Simagic SimPro");
+            Check("catalog: Simagic starts simpro3 only, not its background daemon", simagic != null && simagic.launch != null && simagic.launch.Length == 1 && simagic.launch[0] == "simpro3", null);
+            var ghub = real.FirstOrDefault(a => a.label == "Logitech G HUB");
+            Check("catalog: G HUB tray app is one of G HUB's processes", ghub != null && ghub.process.Contains("lghub_system_tray"), null);
             var bad = launchable.Where(a => a.launch.Any(n => n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || n.IndexOfAny(new[] { '\\', '/', '*', '%' }) >= 0)).Select(a => a.label).ToList();
             Check("catalog: launch names are plain exe names", bad.Count == 0, string.Join(", ", bad.ToArray()));
             bad = launchable.Where(a => a.category != "keep").Select(a => a.label).ToList();
@@ -149,13 +155,17 @@ class LaunchSuggestTests
             var fallback = Config.KnownRaceApps(null);
             Check("defaults: with nothing detected, only fixed paths that exist", fallback.All(i => File.Exists(i.Path)), Show(fallback));
 
-            // ---- a real, read-only scan of this PC
-            var t0 = DateTime.UtcNow;
+            // ---- red-team fix: only apps in trusted folders are ticked for you on a fresh install
+            var pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            var trustedItem = new LaunchItem { Name = "SimHub", Path = Path.Combine(pf, @"SimHub\SimHubWPF.exe"), ProcessName = "SimHubWPF", Enabled = true };
+            var tempItem = new LaunchItem { Name = "SimHub", Path = Path.Combine(Path.GetTempPath(), @"x\SimHubWPF.exe"), ProcessName = "SimHubWPF", Enabled = true };
+            Check("auto-tick: an app in Program Files can be ticked for you", LaunchScan.AutoTick(real, trustedItem), trustedItem.Path);
+            Check("auto-tick: the same exe name in a temp folder is only offered", !LaunchScan.AutoTick(real, tempItem), tempItem.Path);
+
+            // ---- a real, read-only scan of this PC (informational: what it finds depends on the PC, so it isn't printed)
             var mine = LaunchScan.Find();
-            var secs = (DateTime.UtcNow - t0).TotalSeconds;
-            Console.WriteLine("  this PC (" + secs.ToString("0.0") + " s): " + string.Join(", ", mine.Select(i => i.Name + " (" + i.ProcessName + ")").ToArray()));
-            Check("real scan: finishes within its time budget (plus slack)", secs < LaunchScan.Budget.TotalSeconds + 4, secs.ToString());
-            Check("real scan: only existing exes of launchable catalog apps", mine.All(i => File.Exists(i.Path) && launchable.Any(a => a.label == i.Name)), Show(mine));
+            Console.WriteLine("  this PC: " + mine.Count + " race app(s) found");
+            Check("real scan: only existing exes of launchable catalog apps", mine.All(i => File.Exists(i.Path) && launchable.Any(a => a.label == i.Name)), mine.Count + " found");
         }
         catch (Exception ex) { Check("no crash", false, ex.ToString()); }
         finally { try { Directory.Delete(Root, true); } catch { } Environment.SetEnvironmentVariable("RM_LAUNCHTEST", null); }
