@@ -84,16 +84,36 @@ namespace RaceMode
             // First run on a new PC: nothing to close or slow down, and only race apps that are actually
             // installed go on the Launch list. The screen check stays off until a racing monitor is picked
             // (Settings tab), so a friend's iRacing screen settings are never changed by someone else's defaults.
+            // Only quick default-path checks here (this runs on the UI thread); the full scan of Start menu
+            // shortcuts and Settings > Apps runs in the background later (Shell.StartLaunchScan).
+            List<LaunchItem> quick;
+            try { quick = LaunchScan.Find(AppScan.Apps, new string[0], null, null, LaunchScan.Budget); } catch { quick = null; }
+            return Defaults(quick);
+        }
+
+        // detected: race apps a LaunchScan found (null: only the fixed default paths).
+        public static Config Defaults(IEnumerable<LaunchItem> detected)
+        {
             var c = new Config { SetupDone = false };
             c.DisplayGuard = new DisplayGuardConfig { KeepFpsCap = false };
-            foreach (var it in KnownRaceApps())
-                if (File.Exists(it.Path)) c.Launch.Add(it);
+            c.Launch.AddRange(KnownRaceApps(detected));
             c.StreamLaunch.Add(DefaultObs());
             return c;
         }
 
-        // Common sim-racing helpers at their default install paths. Only the ones found are added.
-        static IEnumerable<LaunchItem> KnownRaceApps()
+        // Race apps on this PC: the detected ones first, then the fixed default paths below for apps the detection
+        // didn't find (one item per app). Only items whose exe exists are returned.
+        public static List<LaunchItem> KnownRaceApps(IEnumerable<LaunchItem> detected)
+        {
+            var list = (detected ?? new LaunchItem[0]).Where(i => i != null && File.Exists(i.Path)).ToList();
+            List<KnownApp> apps; try { apps = AppScan.Apps; } catch { apps = new List<KnownApp>(); }
+            var fixedFound = FixedRaceApps().Where(i => File.Exists(i.Path)).ToList();
+            foreach (var it in LaunchScan.NotListed(apps, fixedFound, list)) list.Add(it);
+            return list;
+        }
+
+        // Common sim-racing helpers at their default install paths (the fallback when detection finds nothing).
+        static IEnumerable<LaunchItem> FixedRaceApps()
         {
             var x86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
             yield return new LaunchItem { Name = "SimHub", Path = System.IO.Path.Combine(x86, @"SimHub\SimHubWPF.exe"), ProcessName = "SimHubWPF", Enabled = true };
@@ -616,6 +636,8 @@ namespace RaceMode
             }));
 
             foreach (var i in _cfg.Launch) _launch.Add(i);
+            _launch.CollectionChanged += (s, e) => RefreshLaunchSuggest();   // "Found on your PC" leaves out what's listed
+            StartLaunchScan();
             foreach (var c in _cfg.Close) _close.Add(c);
             foreach (var i in _cfg.StreamLaunch) _stream.Add(i);
             Get<ListBox>("LaunchList").ItemsSource = _launch;
