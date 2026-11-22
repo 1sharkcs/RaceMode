@@ -66,7 +66,7 @@ namespace RaceMode
         // Window size and state, restored at start (0 = default 580 x 840). Maximised shows the full dashboard.
         public double WindowWidth, WindowHeight;
         public bool WindowMaximized;
-        // Updates (Updater.cs): check once a day; test versions = GitHub pre-releases from the dev branch.
+        // Updates (Updater.cs): check every 12 hours; test versions = GitHub pre-releases from the dev branch.
         public bool UpdateCheck = true, UpdateTestVersions = false;
         public bool TrayOnClose = true, TrayHintShown = false;
         public bool? SetupDone;   // false until first-run setup is finished; null in configs from before this existed   // closing the window keeps Race Mode in the tray
@@ -430,6 +430,7 @@ namespace RaceMode
             _confirmTimer.Tick += (s, e) => ConfirmTick();
             // First run: if there's no Race preset yet, iRacing's current graphics become it (nothing changes in iRacing).
             GraphicsPresets.EnsureRaceSeeded(IniPath());
+            GraphicsPresets.EnsurePhotoSeeded(IniPath(), _cfg.GraphicsPhoto != null && _cfg.GraphicsPhoto.Level > 0 ? _cfg.GraphicsPhoto.Level : 2);
             InitGraphicsLevels();
             RefreshGraphicsStatus();
             Window.Closing += (s, e) =>
@@ -767,6 +768,12 @@ namespace RaceMode
             Get<ListBox>("RunningList").MouseDoubleClick += (s, e) => addPicked();
             Get<ListBox>("RunningList").KeyDown += (s, e) => { if (e.Key == Key.Enter) { addPicked(); e.Handled = true; } };
             Get<Button>("RerunSetupBtn").Click += (s, e) => StartFirstRun();
+            // Settings tab, CPU temperature: HWiNFO's state and the button that moves it on, refreshed while it shows.
+            var hwPanel = Get<StackPanel>("HwinfoPanel");
+            var hwTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            hwTimer.Tick += (s, e) => { if (hwPanel.IsVisible && !_helperBusy) RenderHwinfo(hwPanel, null); };
+            hwTimer.Start();
+            hwPanel.IsVisibleChanged += (s, e) => { if (hwPanel.IsVisible) RenderHwinfo(hwPanel, null); };
 
             Get<Button>("OpenLogsBtn").Click += (s, e) =>
             {
@@ -980,7 +987,7 @@ namespace RaceMode
             SetText("GpuTempSub", double.IsNaN(s.GpuTemp) ? "NVIDIA only" : "VRAM " + N1(s.VramUsedMB / 1024.0) + " GB");
             SetMeter("GpuTempBar", s.GpuTemp, 100, s.GpuTemp >= 83);
             SetRun("RamVal", N1(s.RamTotalGB - s.RamUsedGB));
-            SetText("RamSub", "Used " + N0(s.RamUsedGB) + " of " + N0(s.RamTotalGB) + " GB");
+            SetText("RamSub", "Used " + N0(s.RamUsedGB) + "/" + N0(s.RamTotalGB) + " GB");
             var commitHot = s.CommitLimitGB > 0 && s.CommitGB > s.CommitLimitGB * 0.9;
             var ramHot = s.RamTotalGB > 0 && s.RamUsedGB > s.RamTotalGB * 0.9;
             SetMeter("RamBar", s.RamTotalGB > 0 ? 100.0 * s.RamUsedGB / s.RamTotalGB : double.NaN, 100, ramHot || commitHot);
@@ -1057,8 +1064,10 @@ namespace RaceMode
         void CpuTempAction()
         {
             if (!double.IsNaN(_mon.Live.CpuTemp)) return;
-            if (!_hwinfoRunning && File.Exists(HwinfoExe)) StartHwinfo();
-            else OpenHelpers();
+            var tabs = Get<TabControl>("Tabs");
+            var item = tabs == null ? null : tabs.Items.OfType<TabItem>().FirstOrDefault(t => "Settings".Equals(t.Header as string));
+            if (item != null) tabs.SelectedItem = item;
+            Window.Dispatcher.BeginInvoke(new Action(() => { var p = Get<StackPanel>("HwinfoPanel"); if (p != null) { RenderHwinfo(p, null); p.BringIntoView(); } }), DispatcherPriority.Loaded);
         }
 
         void StartHwinfo()
@@ -1347,6 +1356,7 @@ namespace RaceMode
                 _killTimer = null;
                 int forced = 0;
                 var waiting = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+                var denied = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var kv in pids)
                 {
                     if (ProtectedFromClose(kv.Value)) continue;   // protected since (Streaming turned on, added to Launch)
@@ -1355,18 +1365,45 @@ namespace RaceMode
                     try
                     {
                         if (p.HasExited || !string.Equals(p.ProcessName, kv.Value, StringComparison.OrdinalIgnoreCase)) continue;   // gone, or the id was reused
+                        // runs as administrator: Windows doesn't let Race Mode close it
+                        bool locked = false; try { var h = p.Handle; } catch (System.ComponentModel.Win32Exception) { locked = true; }
+                        if (locked) { denied.Add(FriendlyApp(kv.Value)); continue; }
                         // still showing a window: probably a "Save changes?" prompt, so it's left for the user
                         if (p.MainWindowHandle != IntPtr.Zero) { waiting.Add(FriendlyApp(kv.Value)); continue; }
                         p.Kill(); forced++;
                     }
+                    catch (System.ComponentModel.Win32Exception) { denied.Add(FriendlyApp(kv.Value)); }
                     catch { }
                     finally { p.Dispose(); }
                 }
                 _forced += forced;
                 if (forced > 0) _mon.Event("Force-closed " + forced + " leftover processes");
                 if (waiting.Count > 0) _mon.Event("Left open (still showing a window): " + string.Join(", ", waiting.ToArray()));
-                Tick(waiting.Count > 0 ? string.Join(", ", waiting.ToArray()) + (waiting.Count == 1 ? " is" : " are") + " still open: it may be asking you to save"
+                if (denied.Count > 0) _mon.Event("Couldn't close (runs as administrator): " + string.Join(", ", denied.ToArray()));
+                var notes = new List<string>();
+                if (denied.Count > 0) notes.Add(string.Join(", ", denied.ToArray()) + " runs as administrator, so Windows doesn't let Race Mode close it");
+                if (waiting.Count > 0) notes.Add(string.Join(", ", waiting.ToArray()) + (waiting.Count == 1 ? " is" : " are") + " still open: it may be asking you to save");
+                Tick(notes.Count > 0 ? string.Join(". ", notes.ToArray())
                      : "Closed " + asked.Count + " app" + (asked.Count == 1 ? "" : "s") + (forced > 0 ? " (" + forced + " forced)" : ""));
+                // 10 s later: anything that came straight back was reopened by its own background service
+                var recheck = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+                recheck.Tick += (s2, e2) =>
+                {
+                    recheck.Stop();
+                    if (!_on) return;
+                    var back = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var name in asked.Where(n => !string.Equals(n, "steam", StringComparison.OrdinalIgnoreCase) && !ProtectedFromClose(n)))
+                        foreach (var p in Mine(name))
+                        {
+                            try { if (!pids.ContainsKey(p.Id) && AppScan.BelongsTo(name, AppScan.ImagePath(p.Id))) back.Add(FriendlyApp(name)); } catch { }
+                            finally { p.Dispose(); }
+                        }
+                    if (back.Count == 0) return;
+                    _mon.Event("Reopened by itself after closing: " + string.Join(", ", back.ToArray()));
+                    Tick(string.Join(", ", back.ToArray()) + (back.Count == 1 ? " reopened itself" : " reopened themselves") +
+                         " (a background service starts it again). Turn off its start-with-Windows option in its own settings, or take it off the Close list");
+                };
+                recheck.Start();
             };
             later.Start();
         }
@@ -1527,8 +1564,8 @@ namespace RaceMode
                 Get<Button>("UpdateBtn").IsEnabled = false;
                 return;
             }
-            // First check 45 s after start (out of the way of the race-start rush), then once a day.
-            _updateTimer.Tick += (s, e) => { _updateTimer.Interval = TimeSpan.FromHours(24); if (_cfg.UpdateCheck) CheckForUpdate(true); };
+            // First check 45 s after start (out of the way of the race-start rush), then every 12 hours.
+            _updateTimer.Tick += (s, e) => { _updateTimer.Interval = TimeSpan.FromHours(12); if (_cfg.UpdateCheck) CheckForUpdate(true); };
             _updateTimer.Start();
         }
 
@@ -1669,6 +1706,7 @@ namespace RaceMode
         {
             if (_bindingGraphics) return;
             _cfg.GraphicsMode = GraphicsPresets.Normalize(mode);
+            if (_cfg.GraphicsMode == "Photo" && GraphicsPresets.EnsurePhotoSeeded(IniPath(), _cfg.GraphicsPhoto != null ? _cfg.GraphicsPhoto.Level : 2)) { DerivePhotoLevel(); ShowGraphicsLevels(); }
             SaveConfig();
             ApplyGraphics("Photo mode " + (_cfg.GraphicsMode == "Photo" ? "on" : "off"));
         }
@@ -2149,7 +2187,7 @@ namespace RaceMode
                     if (_cfg.GraphicsMode == "Race") { apply = true; why = "Race quality " + g.Level; }
                     else Tick("Race quality " + g.Level + " saved. Used when Photo mode is off.");
                 }
-                if (_photoDirty && GraphicsPresets.Exists("Photo"))
+                if (_photoDirty && (GraphicsPresets.Exists("Photo") || GraphicsPresets.EnsurePhotoSeeded(IniPath(), _cfg.GraphicsPhoto.Level)))
                 {
                     var g = _cfg.GraphicsPhoto;
                     GraphicsPresets.Write("Photo", GraphicsCatalog.ComposePhoto(g.Level, g.Overrides, GraphicsPresets.Load("Photo")), "Replay quality " + GraphicsCatalog.PhotoNames[g.Level]);

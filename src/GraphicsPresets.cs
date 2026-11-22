@@ -108,6 +108,21 @@ namespace RaceMode
         }
 
         // First run: no Race preset yet, so the current settings become it (nothing in iRacing changes).
+        // Photo mode needs Photo settings: made from iRacing's current replay settings at the chosen replay quality
+        // (1 Race look, 2 Better, 3 Max), so all three choices work without saving anything by hand first.
+        public static bool EnsurePhotoSeeded(string iniPath, int level)
+        {
+            try
+            {
+                if (Exists("Photo") || !File.Exists(iniPath)) return false;
+                level = Math.Max(1, Math.Min(3, level));
+                SaveFromIni("Photo", iniPath);
+                Write("Photo", GraphicsCatalog.ComposePhoto(level, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), Load("Photo")), "Replay quality " + GraphicsCatalog.PhotoNames[level]);
+                return true;
+            }
+            catch (Exception ex) { Shell.LogCrash(ex); return false; }
+        }
+
         public static void EnsureRaceSeeded(string iniPath)
         {
             try { if (!Exists("Race") && File.Exists(iniPath)) SaveFromIni("Race", iniPath); }
