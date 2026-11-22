@@ -139,6 +139,10 @@ class TripleTests
             var r6 = DisplayGuard.Run(single, true, oneRow, false);
             Check("one screen picked, iRacing on 3: left alone", r6.Skipped && File.ReadAllText(iniOne) == textOne, r6.Message);
             Check("one screen picked, iRacing on 3: says why", r6.Message.Contains("set up for three screens"), r6.Message);
+            var r6b = DisplayGuard.Run(single, true, new List<MonitorInfo> { M(0, "TSTA", 0, 0, 1920, 1080, 144, true) }, false);
+            Check("one screen picked but unplugged, iRacing on 3: says it isn't connected", r6b.Skipped && r6b.Message.Contains("isn't connected") && File.ReadAllText(iniOne) == textOne, r6b.Message);
+            var preview = DisplayGuard.Run(single.With(Ini("single-preview", 1)), false, oneRow, false);
+            Check("preview wording", preview.Message.StartsWith("Would fix (your 1920"), preview.Message);
             // Surround / Eyefinity: one joined display is still guarded as one screen.
             var iniSur = Ini("surround", 3);
             var sur = new DisplayGuardConfig { Enabled = true, MonitorId = "TSTSUR", Width = 5760, Height = 1080, RefreshRate = 144, KeepFpsCap = false, IniPath = iniSur };

@@ -1481,7 +1481,7 @@ namespace RaceMode
             else if (main != null) where = m.X + m.Width <= main.X ? " · left of main" : m.X >= main.X + main.Width ? " · right of main" : m.Y + m.Height <= main.Y ? " · above main" : m.Y >= main.Y + main.Height ? " · below main" : "";
             bool twin = _pickMonitors != null && _pickMonitors.Count(x => x.Width == m.Width && x.Height == m.Height && x.Hz == m.Hz) > 1;
             return "Screen " + (m.Index + 1) + " · " + m.Width + " × " + m.Height + " · " + m.Hz + " Hz" + where
-                + (DisplayGuard.LooksJoined(m) ? " · three screens joined (Surround or Eyefinity)" : "")
+                + (DisplayGuard.LooksJoined(m) ? " · looks like joined screens (Surround or Eyefinity)" : "")
                 + (twin && !string.IsNullOrEmpty(m.MonitorId) ? "  (" + m.MonitorId + ")" : "");
         }
 

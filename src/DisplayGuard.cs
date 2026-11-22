@@ -107,7 +107,8 @@ namespace RaceMode
                 if (IniNumMonitors(path) == 3)
                 {
                     var one = r.Monitors.FirstOrDefault(m => (m.MonitorId ?? "").IndexOf(cfg.MonitorId.Trim(), StringComparison.OrdinalIgnoreCase) >= 0);
-                    if (one == null || !LooksJoined(one))
+                    // (An unplugged racing monitor falls through to the usual "isn't connected" message.)
+                    if (one != null && !LooksJoined(one))
                         return Skip(r, "iRacing is set up for three screens, so Race Mode left its screen settings alone. To have them checked, pick your three screens as the racing monitor on the Settings tab");
                 }
 
@@ -155,7 +156,7 @@ namespace RaceMode
                 else if (target.Width != cfg.Width || target.Height != cfg.Height)
                     r.Warning = "Windows has your racing monitor at " + target.Width + "×" + target.Height + ", not " + cfg.Width + "×" + cfg.Height + ". Change it in Settings > Display";
                 var desc = "your " + target.Width + "×" + target.Height + " racing monitor";
-                return Write(r, cfg, path, want, apply, "on " + desc, "back on " + desc, null);
+                return Write(r, cfg, path, want, apply, desc, "on " + desc, "back on " + desc, null);
             }
             catch (Exception ex)
             {
@@ -205,11 +206,11 @@ namespace RaceMode
             // Not Race Mode's to change: iRacing's own monitor settings decide how the picture is split.
             string note = IniNumMonitors(path) == 1 ? "iRacing itself is set up for one screen, so the side screens look stretched: in iRacing, open Settings > Display > Monitor and set it up for 3 screens" : null;
             var desc = "your three racing screens (" + width + "×" + row3[0].Height + ")";
-            return Write(r, cfg, path, want, apply, "across " + desc, "back across " + desc, note);
+            return Write(r, cfg, path, want, apply, desc, "across " + desc, "back across " + desc, note);
         }
 
         // Shared tail: write (or preview) the wanted values and describe what happened.
-        static GuardResult Write(GuardResult r, DisplayGuardConfig cfg, string path, Dictionary<string, Dictionary<string, string>> want, bool apply, string okWhere, string fixedWhere, string note)
+        static GuardResult Write(GuardResult r, DisplayGuardConfig cfg, string path, Dictionary<string, Dictionary<string, string>> want, bool apply, string desc, string okWhere, string fixedWhere, string note)
         {
             var patch = IniFile.Patch(path, want, apply);
             r.Changes = patch.Changes;
@@ -227,7 +228,7 @@ namespace RaceMode
                 r.Changed = patch.Written;
                 r.Message = "Put iRacing " + fixedWhere + " (" + r.Changes.Count + " setting" + (r.Changes.Count == 1 ? "" : "s") + " fixed): " + string.Join(", ", r.Changes.ToArray());
             }
-            else r.Message = "Would fix (" + okWhere + "): " + string.Join(", ", r.Changes.ToArray());
+            else r.Message = "Would fix (" + desc + "): " + string.Join(", ", r.Changes.ToArray());
             if (missing.Count > 0) r.Message += " (not in the file: " + string.Join(", ", missing.ToArray()) + ")";
             if (note != null) r.Message += ". " + note;
             return r;
