@@ -29,7 +29,7 @@ namespace RaceMode
             Get<Button>("ObsEnableBtn").Click += (s, e) =>
             {
                 var err = Obs.EnableRemoteControl();
-                Installer.Log("obs", new[] { err ?? "OBS remote control switched on (from the Stream tab)" });
+                Installer.Log("obs", new[] { err ?? "OBS remote control switched on (from Stream)" });
                 Tick(err ?? "OBS's remote control is on. Open OBS and Race Mode connects by itself.");
             };
             Get<Button>("StreamTestBtn").Click += (s, e) => { if (_test == null) StartStreamTest(); else StopStreamTest("Stream test stopped"); };

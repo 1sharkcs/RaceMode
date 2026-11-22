@@ -89,7 +89,7 @@ namespace RaceMode
             done.Add("Added Race Mode to Settings > Apps, so you can uninstall it there");
 
             SetStartWithWindows(startWithWindows, target);
-            done.Add(startWithWindows ? "Race Mode will start with Windows, in the system tray" : "Race Mode won't start with Windows (you can change this on the Settings tab)");
+            done.Add(startWithWindows ? "Race Mode will start with Windows, in the system tray" : "Race Mode won't start with Windows (you can change this in Settings)");
             Log("install", done);
             return done;
         }
@@ -443,10 +443,13 @@ namespace RaceMode
         {
             Window w;
             using (var fs = typeof(Installer).Assembly.GetManifestResourceStream("RaceMode.xaml")) w = (Window)XamlReader.Load(fs);
-            w.Height = Math.Min(w.Height, SystemParameters.WorkArea.Height - 16);
+            // setup is one column of questions: narrower and taller than the app's own default
+            w.MinWidth = 560; w.MinHeight = 620; w.Width = 600;
+            w.Height = Math.Min(820, SystemParameters.WorkArea.Height - 16);
             app.MainWindow = w;
             Shell.ApplyIcon(w);
             ((UIElement)w.FindName("MaxBtn")).Visibility = Visibility.Collapsed;
+            ((UIElement)w.FindName("SmallBtn")).Visibility = Visibility.Collapsed;
             ((Button)w.FindName("CloseBtn")).Click += (s, e) => w.Close();
             ((Button)w.FindName("MinBtn")).Click += (s, e) => w.WindowState = WindowState.Minimized;
             ((Grid)w.FindName("TitleBar")).MouseLeftButtonDown += (s, e) => { if (e.ButtonState == MouseButtonState.Pressed) try { w.DragMove(); } catch { } };
@@ -477,7 +480,7 @@ namespace RaceMode
                                                   SetupFlow.Button("Try Again", () => flow.Refresh())) : SetupFlow.Status("Race Mode is closed, ready to install", null, true));
                     var dcb = SetupFlow.Switch("Add a desktop shortcut", null, desktop);
                     dcb.Checked += (s, e) => desktop = true; dcb.Unchecked += (s, e) => desktop = false;
-                    var acb = SetupFlow.Switch("Start Race Mode with Windows", "Starts in the system tray, next to the clock, when you sign in, so it's ready before a race. You can change this later on the Settings tab.", autostart);
+                    var acb = SetupFlow.Switch("Start Race Mode with Windows", "Starts in the system tray, next to the clock, when you sign in, so it's ready before a race. You can change this later in Settings.", autostart);
                     acb.Checked += (s, e) => autostart = true; acb.Unchecked += (s, e) => autostart = false;
                     var errEl = error == null ? null : SetupFlow.Group(SetupFlow.Status("Install didn't finish", error, false));
                     return SetupFlow.Stack(errEl, checks, SetupFlow.Group(dcb, acb));

@@ -63,8 +63,10 @@ namespace RaceMode
         // Slider level + pinned settings (Advanced editor) behind the Race and Photo presets (GraphicsCatalog.cs).
         // Null until first run, then worked out from the saved presets.
         public GraphicsLevels GraphicsRace, GraphicsPhoto;
-        // Window size and state, restored at start (0 = default 580 x 840). Maximised shows the full dashboard.
+        // Window size and state, restored at start (0 = default 960 x 720).
         public double WindowWidth, WindowHeight;
+        // The size to go back to from the small panel (Layout.cs ToggleSmall).
+        public double FullWidth, FullHeight;
         public bool WindowMaximized;
         // Updates (Updater.cs): check every 12 hours; test versions = GitHub pre-releases from the dev branch.
         public bool UpdateCheck = true, UpdateTestVersions = false;
@@ -298,7 +300,7 @@ namespace RaceMode
             if (args.Length >= 3 && args[1] == "--snapshot")
             {
                 // Renders the window to a PNG after a few seconds and exits (used to check the design).
-                var outPath = args[2]; int tab = ArgInt(args, 3, 0, 0, 5);
+                var outPath = args[2]; int tab = ArgInt(args, 3, 0, 0, 6);   // 0 Overview, 1 Launch, 2 Close, 3 Stream, 4 Graphics, 5 Settings, 6 Logs
                 // wide snapshots wait longer so the 60 s charts have some history to show
                 var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(args.Length >= 5 && args[4].Contains("wide") ? 20 : 4) };
                 t.Tick += (s, e) =>
@@ -309,7 +311,13 @@ namespace RaceMode
                     var root = (FrameworkElement)shell.Window.Content;
                     var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap((int)shell.Window.ActualWidth, (int)shell.Window.ActualHeight, 96, 96, PixelFormats.Pbgra32);
                     var dv = new DrawingVisual();
-                    using (var dc = dv.RenderOpen()) dc.DrawRectangle(new VisualBrush(shell.Window) , null, new Rect(0, 0, shell.Window.ActualWidth, shell.Window.ActualHeight));
+                    using (var dc = dv.RenderOpen())
+                    {
+                        // the window's own fill first, then its content at 1:1 from the top left (a small window's content doesn't cover it)
+                        var all = new Rect(0, 0, shell.Window.ActualWidth, shell.Window.ActualHeight);
+                        dc.DrawRectangle(shell.Window.Background, null, all);
+                        dc.DrawRectangle(new VisualBrush(root) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top, ViewboxUnits = BrushMappingMode.Absolute, Viewbox = all }, null, all);
+                    }
                     bmp.Render(dv);
                     var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
                     enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
@@ -321,6 +329,12 @@ namespace RaceMode
                     var tabs = shell.Window.FindName("Tabs") as TabControl; if (tabs != null) tabs.SelectedIndex = tab;
                     if (args.Length >= 5 && args[4] == "on") shell.PreviewOn();
                     if (args.Length >= 5 && args[4].Contains("wide")) { shell.Window.Width = ArgInt(args, 5, 1600, 1100, 3840); shell.Window.Height = 900; }
+                    // size=WIDTHxHEIGHT anywhere after the tab: any window size, to check the layout at it
+                    foreach (var a in args.Skip(4))
+                    {
+                        var m = System.Text.RegularExpressions.Regex.Match(a, @"^size=(\d{3,4})x(\d{3,4})$");
+                        if (m.Success) { shell.Window.Width = Math.Max(shell.Window.MinWidth, int.Parse(m.Groups[1].Value)); shell.Window.Height = Math.Max(shell.Window.MinHeight, int.Parse(m.Groups[2].Value)); }
+                    }
                     if (args.Length >= 5 && args[4].Contains("mon"))
                         shell.Window.Dispatcher.BeginInvoke(new Action(() => { var l = shell.Window.FindName("OptTestVersions") as FrameworkElement; if (l != null) l.BringIntoView(); }), DispatcherPriority.ApplicationIdle);
                     if (args.Length >= 5 && args[4].Contains("adv"))
@@ -574,14 +588,14 @@ namespace RaceMode
             Get<Button>("MaxBtn").Click += (s, e) => ToggleMaximize();
             Window.StateChanged += (s, e) => OnWindowState();
             Window.SizeChanged += (s, e) => ApplyLayout();
-            { var tc = Get<TabControl>("Tabs"); if (tc != null) for (int ti = 0; ti < tc.Items.Count; ti++) { var item = tc.Items[ti] as TabItem; if (item != null) item.ToolTip = item.Header + "  (Ctrl+" + (ti + 1) + ")"; } }
-            // Ctrl+1..6 jumps to a tab (Launch, Close, Stream, Graphics, Settings, Logs).
+            BuildSideNav();
+            // Ctrl+1..7 jumps to a section (Overview, Launch, Close, Stream, Graphics, Settings, Logs).
             Window.PreviewKeyDown += (s, e) =>
             {
                 if ((Keyboard.Modifiers & ModifierKeys.Control) == 0 || Get<UIElement>("SetupOverlay").Visibility == Visibility.Visible) return;
-                int n = e.Key >= Key.D1 && e.Key <= Key.D6 ? e.Key - Key.D1 : e.Key >= Key.NumPad1 && e.Key <= Key.NumPad6 ? e.Key - Key.NumPad1 : -1;
+                int n = e.Key >= Key.D1 && e.Key <= Key.D7 ? e.Key - Key.D1 : e.Key >= Key.NumPad1 && e.Key <= Key.NumPad7 ? e.Key - Key.NumPad1 : -1;
                 if (n < 0) return;
-                var tabs = Get<TabControl>("Tabs"); if (tabs != null && n < tabs.Items.Count) { tabs.SelectedIndex = n; e.Handled = true; }
+                GoToSection(n); e.Handled = true;
             };
             Get<Button>("CloseBtn").Click += (s, e) => Window.Close();
             Window.SourceInitialized += (s, e) => RoundCorners();
@@ -1066,7 +1080,7 @@ namespace RaceMode
             if (!double.IsNaN(_mon.Live.CpuTemp)) return;
             var tabs = Get<TabControl>("Tabs");
             var item = tabs == null ? null : tabs.Items.OfType<TabItem>().FirstOrDefault(t => "Settings".Equals(t.Header as string));
-            if (item != null) tabs.SelectedItem = item;
+            if (item != null) GoToSection(tabs.Items.IndexOf(item));   // from the small panel, this opens the full window first
             Window.Dispatcher.BeginInvoke(new Action(() => { var p = Get<StackPanel>("HwinfoPanel"); if (p != null) { RenderHwinfo(p, null); p.BringIntoView(); } }), DispatcherPriority.Loaded);
         }
 
@@ -1588,7 +1602,7 @@ namespace RaceMode
                     else
                     {
                         SetText("UpdateText", (u.Prerelease ? "Test version " : "Version ") + u.Version + " is ready");
-                        Tick("Race Mode " + u.Version + " is ready to install (Settings tab, Updates)");
+                        Tick("Race Mode " + u.Version + " is ready to install (Settings, Updates)");
                     }
                     Get<Button>("UpdateBtn").Content = u != null ? "Update" : "Check Now";
                 }));
@@ -1783,10 +1797,7 @@ namespace RaceMode
             t.Foreground = _graphicsOk || _graphicsPending ? (Brush)Window.Resources["Dim"] : (Brush)Window.Resources["Warn"];
         }
 
-        // ---------------- window: maximise, compact/wide layout, remembered size ----------------
-        const double WideAt = 1100;   // at this width (e.g. maximised) the dashboard appears beside the app
-        bool _wide;
-
+        // ---------------- window: maximise, remembered size (the layout itself is in Layout.cs) ----------------
         void ToggleMaximize() { Window.WindowState = Window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized; }
 
         void OnWindowState()
@@ -1802,49 +1813,16 @@ namespace RaceMode
             var icon = Get<System.Windows.Shapes.Path>("MaxIcon");
             if (icon != null) icon.Data = Geometry.Parse(max ? "M2.5,0.5 H9.5 V7.5 M0.5,2.5 H7.5 V9.5 H0.5 Z" : "M0.5,0.5 H9.5 V9.5 H0.5 Z");
             var btn = Get<Button>("MaxBtn");
-            if (btn != null) { btn.ToolTip = max ? "Restore" : "Maximize: shows the full dashboard"; AutomationProperties.SetName(btn, max ? "Restore" : "Maximize"); }
+            if (btn != null) { btn.ToolTip = max ? "Restore" : "Maximize"; AutomationProperties.SetName(btn, max ? "Restore" : "Maximize"); }
             if (Window.WindowState != WindowState.Minimized) RenderDashboard();
-        }
-
-        // Short windows (a 1080p laptop at 150% scaling has about 690 px): a tighter hero and stats strip, so the
-        // tabs keep room for their content. Nothing is hidden that carries meaning; only padding and the meters go.
-        bool _compact;
-        void ApplyCompact(bool compact)
-        {
-            if (compact == _compact) return;
-            _compact = compact;
-            var hero = Get<Border>("Hero");
-            if (hero != null) hero.Padding = compact ? new Thickness(16, 12, 18, 12) : new Thickness(16, 22, 22, 22);
-            var head = Get<TextBlock>("Headline"); if (head != null) head.FontSize = compact ? 22 : 28;
-            var tel = Get<UniformGrid>("Telemetry");
-            if (tel != null)
-                foreach (var cell in tel.Children.OfType<Border>()) cell.Padding = compact ? new Thickness(cell.Padding.Left, 8, cell.Padding.Right, 8) : new Thickness(cell.Padding.Left, 14, cell.Padding.Right, 14);
-            foreach (var n in new[] { "CpuBar", "CpuTempBar", "GpuBar", "GpuTempBar", "RamBar" })
-            { var b = Get<ProgressBar>(n); if (b != null && b.Visibility != Visibility.Hidden) b.Visibility = compact ? Visibility.Collapsed : Visibility.Visible; }
-        }
-
-        void ApplyLayout()
-        {
-            bool wide = Window.ActualWidth >= WideAt;
-            ApplyCompact(!wide && Window.ActualHeight < 720);
-            if (wide)
-            {
-                // the dashboard is the window minus the 580 px app column and margins
-                double dash = Window.ActualWidth - 620;
-                var cg = Get<UniformGrid>("ChartGrid"); if (cg != null) cg.Columns = dash >= 900 ? 3 : 2;
-                var bg = Get<UniformGrid>("DashBottom"); if (bg != null) bg.Columns = dash >= 900 ? 2 : 1;
-            }
-            if (wide == _wide && _chartsBuilt == wide) return;
-            _wide = wide;
-            Get<ColumnDefinition>("MainCol").Width = wide ? new GridLength(580) : new GridLength(1, GridUnitType.Star);
-            Get<ColumnDefinition>("DashCol").Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-            Get<ScrollViewer>("Dash").Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
-            if (wide) { BuildDashboard(); UpdateChecklist(); ShowLastSession(); RenderDashboard(); }
         }
 
         void RestoreWindowSize()
         {
             var work = SystemParameters.WorkArea;
+            // 580 x 840 was the old default (a tall column under a tab bar): nobody chose it, so it becomes the new default
+            if (_cfg.WindowWidth == 580 && _cfg.WindowHeight == 840) { _cfg.WindowWidth = 0; _cfg.WindowHeight = 0; }
+            if (Window.Width > work.Width) Window.Width = Math.Max(Window.MinWidth, work.Width);
             if (_cfg.WindowWidth >= Window.MinWidth) Window.Width = Math.Min(_cfg.WindowWidth, work.Width);
             if (_cfg.WindowHeight >= Window.MinHeight) Window.Height = Math.Min(_cfg.WindowHeight, work.Height - 16);
             if (_cfg.WindowMaximized) Window.Loaded += (s, e) => Window.WindowState = WindowState.Maximized;
@@ -1946,7 +1924,7 @@ namespace RaceMode
 
         void RenderDashboard()
         {
-            if (!_chartsBuilt || !_wide || Window.WindowState == WindowState.Minimized || !Window.IsVisible) return;
+            if (!_chartsBuilt || !_dashOn || Window.WindowState == WindowState.Minimized || !Window.IsVisible) return;
             foreach (var c in _charts) c.Render();
         }
 
@@ -1970,7 +1948,7 @@ namespace RaceMode
         void UpdateChecklist()
         {
             var list = Get<StackPanel>("Checklist");
-            if (list == null || !_wide) return;
+            if (list == null || !_dashOn) return;
             list.Children.Clear();
             bool on = _on;
             list.Children.Add(CheckRow("Race Mode", _phase == "off" ? "off" : _phase == "turning" ? "turning on" : _phase == "issues" ? "on, needs a look" : "on, all checked",
@@ -1995,7 +1973,7 @@ namespace RaceMode
             }
             list.Children.Add(CheckRow("Screen", string.IsNullOrEmpty(_displayLine) ? (_cfg.DisplayGuard != null && _cfg.DisplayGuard.Enabled ? "checked when Race Mode turns on" : "check is off") : _displayLine.Replace("screen ", ""),
                                        _displayLine == "screen OK" ? "Live" : _displayLine == "screen needs a look" ? "Warn" : "Off"));
-            list.Children.Add(CheckRow(_cfg.GraphicsMode + " graphics", _graphicsPending ? "waiting for iRacing to close" : _graphicsOk ? "set" : "see the Graphics tab",
+            list.Children.Add(CheckRow(_cfg.GraphicsMode + " graphics", _graphicsPending ? "waiting for iRacing to close" : _graphicsOk ? "set" : "see Graphics",
                                        _graphicsPending ? "Dim" : _graphicsOk ? "Live" : "Warn"));
             if (_cfg.Streaming)
             {
@@ -2009,7 +1987,7 @@ namespace RaceMode
         void ShowLastSession()
         {
             var box = Get<StackPanel>("LastSession");
-            if (box == null || !_wide) return;
+            if (box == null || !_dashOn) return;
             box.Children.Clear();
             if (string.IsNullOrEmpty(_lastSummary))
             {
@@ -2344,6 +2322,7 @@ namespace RaceMode
         void SetPhase(string phase)
         {
             _phase = phase;
+            NavPhase(phase);
             SetText("Headline", phase == "off" ? "Race Mode is off" : phase == "turning" ? "Turning on…" : "Race Mode is on");
             var dot = Get<Shape>("StatusDot");
             if (dot == null) return;
