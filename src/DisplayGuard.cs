@@ -180,15 +180,16 @@ namespace RaceMode
                 return Skip(r, "More than one row of three matching screens is connected, so Race Mode can't tell which to race on and left iRacing's screen settings alone");
             var row3 = rows[0];
             var inv = CultureInfo.InvariantCulture;
-            int width = row3.Sum(m => m.Width);
+            int x, y, width, height;
+            TripleWindow(row3, out x, out y, out width, out height);
             var want = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
             want["Display"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 { "fullScreen", "0" },
-                { "windowedXPos", row3[0].X.ToString(inv) },
-                { "windowedYPos", row3[0].Y.ToString(inv) },
+                { "windowedXPos", x.ToString(inv) },
+                { "windowedYPos", y.ToString(inv) },
                 { "windowedWidth", width.ToString(inv) },
-                { "windowedHeight", row3[0].Height.ToString(inv) },
+                { "windowedHeight", height.ToString(inv) },
                 { "windowedMaximized", "0" },
                 { "border", "0" },
             };
@@ -201,11 +202,12 @@ namespace RaceMode
             var slow = row3.Where(m => m.Hz > 0 && m.Hz < cfg.RefreshRate).OrderBy(m => m.Hz).FirstOrDefault();
             if (slow != null)
                 r.Warning = "Windows has one of your racing screens (screen " + (slow.Index + 1) + ") at " + slow.Hz + " Hz, not " + cfg.RefreshRate + " Hz. Change it in Settings > Display > Advanced display";
-            else if (row3.Any(m => m.Width != cfg.Width || m.Height != cfg.Height))
-                r.Warning = "Windows has your racing screens at a different size than when you picked them (" + cfg.Width + "×" + cfg.Height + " each). Change it in Settings > Display";
+            // cfg.Width/Height: the whole window's size (older configs kept one screen's size, so either counts)
+            else if (!(width == cfg.Width && height == cfg.Height) && !row3.All(m => m.Width == cfg.Width && m.Height == cfg.Height))
+                r.Warning = "Windows has your racing screens at a different size than when you picked them. Change it in Settings > Display";
             // Not Race Mode's to change: iRacing's own monitor settings decide how the picture is split.
             string note = IniNumMonitors(path) == 1 ? "iRacing itself is set up for one screen, so the side screens look stretched: in the iRacing sim (not Windows), open its monitor settings and set it up for 3 screens" : null;
-            var desc = "your three racing screens (" + width + "×" + row3[0].Height + ")";
+            var desc = "your three racing screens (" + width + "×" + height + ")";
             return Write(r, cfg, path, want, apply, desc, "across " + desc, "back across " + desc, note);
         }
 
@@ -236,12 +238,15 @@ namespace RaceMode
 
         static bool IdMatches(MonitorInfo m, string id) { return id != null && (m.MonitorId ?? "").IndexOf(id.Trim(), StringComparison.OrdinalIgnoreCase) >= 0; }
 
-        // Three same-size screens in a row: same top edge, each starting where the one before ends. Left to right.
+        // Three screens in a row, left to right: each starts where the one before ends and they overlap top to bottom.
+        // They don't have to match: the picker only offers rows once "I race on three screens" is ticked, and
+        // TripleWindow uses the height all three share.
         public static List<List<MonitorInfo>> TripleRows(List<MonitorInfo> mons)
         {
             var rows = new List<List<MonitorInfo>>();
             if (mons == null) return rows;
-            Func<MonitorInfo, MonitorInfo, bool> next = (a, b) => b != a && b.Width > 0 && b.Y == a.Y && b.Width == a.Width && b.Height == a.Height && b.X == a.X + a.Width;
+            Func<MonitorInfo, MonitorInfo, bool> next = (a, b) => b != a && b.Width > 0 && b.Height > 0 && b.X == a.X + a.Width
+                                                                  && b.Y < a.Y + a.Height && a.Y < b.Y + b.Height;
             foreach (var a in mons.Where(m => m.Width > 0 && m.Height > 0).OrderBy(m => m.X))
             {
                 var b = mons.FirstOrDefault(m => next(a, m)); if (b == null) continue;
@@ -249,6 +254,22 @@ namespace RaceMode
                 rows.Add(new List<MonitorInfo> { a, b, c });
             }
             return rows;
+        }
+
+        // The one window that spans a row: from the left screen's left edge to the right screen's right edge, over
+        // the height all three share (screens of different heights leave the rest of the taller ones empty).
+        public static void TripleWindow(List<MonitorInfo> row, out int x, out int y, out int width, out int height)
+        {
+            x = row[0].X;
+            y = row.Max(m => m.Y);
+            width = row[2].X + row[2].Width - x;
+            height = row.Min(m => m.Y + m.Height) - y;
+        }
+
+        // True when the three screens are the same size at the same height: the window covers all of each.
+        public static bool TripleMatches(List<MonitorInfo> row)
+        {
+            return row.All(m => m.Width == row[0].Width && m.Height == row[0].Height && m.Y == row[0].Y);
         }
 
         // One very wide display: almost always three screens joined by NVIDIA Surround or AMD Eyefinity

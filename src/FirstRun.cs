@@ -216,8 +216,8 @@ namespace RaceMode
             if (_firstRun != null) { _firstRun.Start(Math.Max(0, startAt)); return; }
             var pages = new List<SetupPage>();
 
-            // 1. racing monitor (same list and rules as the Settings tab picker). Your screens first, "Don't check" last.
-            ComboBox pick = null;
+            // 1. racing monitor: the same picture and rules as Settings; the choice is kept until Next.
+            int draft = 0;
             bool suggested = false;
             pages.Add(new SetupPage
             {
@@ -227,28 +227,21 @@ namespace RaceMode
                 {
                     FillMonitorPick();
                     var src = Get<ComboBox>("MonitorPick");
-                    pick = new ComboBox();
-                    System.Windows.Automation.AutomationProperties.SetName(pick, "Racing monitor");
-                    for (int k = 1; k < src.Items.Count; k++) pick.Items.Add(src.Items[k]);
-                    pick.Items.Add(src.Items[0]);
                     suggested = false;
-                    if (src.SelectedIndex > 0) pick.SelectedIndex = src.SelectedIndex - 1;
-                    else if (_pickMonitors.Count > 0) { pick.SelectedIndex = SuggestRacingMonitor(); suggested = true; }
-                    else pick.SelectedIndex = pick.Items.Count - 1;
+                    if (src.SelectedIndex > 0) draft = src.SelectedIndex;
+                    else if (_pickMonitors.Count > 0) { draft = 1 + SuggestRacingMonitor(); suggested = true; }
+                    else draft = 0;
                     // iRacing is already set up for three screens and three sit side by side: those are the pick.
                     bool tripleSuggested = suggested && _pickTriples.Count == 1 && DisplayGuard.IniNumMonitors(IniPath()) == 3;
-                    if (tripleSuggested) pick.SelectedIndex = _pickMonitors.Count;
-                    string why = !suggested ? "" : tripleSuggested ? "Your three screens are picked, because iRacing is set up for three. "
-                        : _pickMonitors.Count == 1 ? "Your only screen is picked. " : "Your biggest screen is picked. ";
-                    return SetupFlow.Group(SetupFlow.Stack(SetupFlow.Text("Racing monitor",
-                        why + (_pickTriples.Count > 0 && !tripleSuggested ? "Racing on three screens? Pick \"Three screens side by side\". " : "") + "Choose \"Don't check\" to leave iRacing's screen settings alone."), Pad(pick)));
+                    if (tripleSuggested) draft = 1 + _pickMonitors.Count;
+                    string why = !suggested ? "" : tripleSuggested ? "Your three screens are picked, because iRacing is set up for three."
+                        : _pickMonitors.Count == 1 ? "Your only screen is picked." : "Your biggest screen is picked.";
+                    return SetupFlow.Group(BuildScreenPicker(() => draft, i => draft = i, why));
                 },
                 OnNext = () =>
                 {
-                    if (pick == null) return true;
                     var src = Get<ComboBox>("MonitorPick");
-                    int want = pick.SelectedIndex == pick.Items.Count - 1 ? 0 : pick.SelectedIndex + 1;
-                    if (want != src.SelectedIndex) src.SelectedIndex = want;
+                    if (src != null && draft != src.SelectedIndex) src.SelectedIndex = draft;
                     return true;
                 }
             });

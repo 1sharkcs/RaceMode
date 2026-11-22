@@ -1374,7 +1374,9 @@
                       <StackPanel>
                         <TextBlock Text="Keep iRacing on this screen" Foreground="{DynamicResource Ink}"/>
                         <TextBlock x:Name="MonitorSub" Style="{StaticResource Sub}" Text="Before each race, Race Mode checks that iRacing will open on this screen, or across your three screens, and fill it as a borderless window. Any fix is made while iRacing is closed. Your FPS cap is left alone."/>
-                        <ComboBox x:Name="MonitorPick" Margin="0,10,0,0" AutomationProperties.Name="Racing monitor"/>
+                        <!-- the picture of your screens (ScreenPick.cs); the list underneath holds the choice and stays hidden -->
+                        <ContentControl x:Name="MonitorMapHost" Focusable="False" IsTabStop="False"/>
+                        <ComboBox x:Name="MonitorPick" Margin="0,10,0,0" AutomationProperties.Name="Racing monitor" Visibility="Collapsed"/>
                       </StackPanel>
                     </Border>
                   </Border>

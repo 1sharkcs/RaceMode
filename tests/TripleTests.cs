@@ -77,13 +77,23 @@ class TripleTests
             var rows = DisplayGuard.TripleRows(Row());
             Check("three screens in a row are found", rows.Count == 1, rows.Count + " rows");
             Check("the row runs left to right", rows.Count == 1 && rows[0][0].X == -1920 && rows[0][1].X == 0 && rows[0][2].X == 1920, null);
-            Check("a mixed desk is not a triple", DisplayGuard.TripleRows(Mixed()).Count == 0, null);
+            // a desk of different screens side by side is a row too; the picker only offers it once three screens is ticked
+            var mixed = DisplayGuard.TripleRows(Mixed());
+            Check("screens of different sizes side by side still make a row", mixed.Count == 1 && !DisplayGuard.TripleMatches(mixed[0]), null);
+            Check("three matching screens match", DisplayGuard.TripleMatches(rows[0]), null);
+            int wx, wy, ww, wh;
+            DisplayGuard.TripleWindow(mixed[0], out wx, out wy, out ww, out wh);
+            Check("mixed row: the window spans all three over the height they share", wx == -4480 && wy == 0 && ww == 6400 && wh == 1080, wx + "," + wy + " " + ww + "x" + wh);
             var four = Row(); four.Add(M(3, "TST0001", 3840, 0, 1920, 1080, 144, false));
             Check("four in a row give two possible rows", DisplayGuard.TripleRows(four).Count == 2, null);
             var gap = Row(); gap[1].X = 1930;
             Check("a gap between screens is not a row", DisplayGuard.TripleRows(gap).Count == 0, null);
             var tall = Row(); tall[1].Y = 50;
-            Check("screens at different heights are not a row", DisplayGuard.TripleRows(tall).Count == 0, null);
+            var tallRows = DisplayGuard.TripleRows(tall);
+            DisplayGuard.TripleWindow(tallRows.Count == 1 ? tallRows[0] : Row(), out wx, out wy, out ww, out wh);
+            Check("a screen set lower is still in the row; the window uses the part all three share", tallRows.Count == 1 && wy == 50 && wh == 1030 && ww == 5760, wx + "," + wy + " " + ww + "x" + wh);
+            var apart = Row(); apart[1].Y = 1080;
+            Check("a screen below the others, not beside them, is not a row", DisplayGuard.TripleRows(apart).Count == 0, null);
             Check("5760x1080 looks like joined screens", DisplayGuard.LooksJoined(M(0, "X", 0, 0, 5760, 1080, 144, true)), null);
             Check("a 32:9 ultrawide is not joined screens", !DisplayGuard.LooksJoined(M(0, "X", 0, 0, 5120, 1440, 240, true)), null);
 
