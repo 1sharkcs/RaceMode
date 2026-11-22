@@ -74,12 +74,11 @@ jobs:
           xcopy /e /i /y tests\fixtures fixtures >nul
           rem portable.txt keeps the test runs' own files (crash.log and so on) in this folder
           echo tests>portable.txt
-          for %%T in (CatalogTests PresetTests IrsdkTests UpdaterTests SetupTests ObsTests CloseScanTests) do (
-            "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /r:RaceMode.exe /r:System.Core.dll /r:System.Web.Extensions.dll /out:%%T.exe tests\%%T.cs
-            if errorlevel 1 exit /b 1
-            .\%%T.exe
-            if errorlevel 1 exit /b 1
-          )
+          rem one test program for every suite (tests\Runner.cs): it runs each suite in turn and fails if any does
+          "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /main:TestRunner /r:RaceMode.exe /r:System.Core.dll /r:System.Web.Extensions.dll /out:Tests.exe tests\*.cs
+          if errorlevel 1 exit /b 1
+          .\Tests.exe
+          if errorlevel 1 exit /b 1
 
       - name: Zip and checksum
         shell: pwsh
