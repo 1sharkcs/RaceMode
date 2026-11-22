@@ -260,6 +260,7 @@ namespace RaceMode
                     return;
                 }
                 _showSignal = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, @"Local\RaceMode.Show" + sfx);
+                if (!afterUpdate) Updater.NoticeEarlierUpdate();   // an update installed while on, starting only now
             }
             // Tests: read a fake iRacing telemetry map (see tests\IrsdkTests.cs) instead of the real one.
             for (int i = 1; i + 1 < args.Length; i++)
@@ -1217,7 +1218,7 @@ namespace RaceMode
 
             _on = true; _simSeen = false; _uiSeen = false; _simBoosted = false; _goneTicks = 0; _lowered.Clear(); _boosted.Clear();
             _simLoggedPid = -1; _prioNoted.Clear();
-            _onAt = DateTime.Now; _issues.Clear(); _started.Clear(); _alreadyOpen.Clear(); _closed.Clear(); _notInstalled.Clear(); _leftOpen.Clear();
+            _onAt = DateTime.Now; _issues.Clear(); _started.Clear(); _alreadyOpen.Clear(); _closed.Clear(); _notInstalled.Clear(); _leftOpen.Clear(); _reopened.Clear(); _runId++;
             _forced = 0; _confirmedRunning.Clear(); _vramWarned = false; _activation = "Turning on…";
             SetPhase("turning");
             try
@@ -1336,6 +1337,21 @@ namespace RaceMode
 
         // Apps Race Mode chose to leave open after asking (process name -> why), so turning on doesn't wait for them.
         readonly Dictionary<string, string> _leftOpen = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // Apps that came straight back after closing (process names), kept apart so FinishActivation lists them again.
+        readonly List<string> _reopened = new List<string>();
+        int _runId;   // +1 on every TurnOn, so a timer from an earlier run does nothing
+
+        public enum PidState { Gone, Close, Window, Admin }
+
+        // Which pids may be force-closed: only those of apps with no pid left open. If any pid of an app still shows
+        // a window (maybe a "Save changes?" prompt) or runs as administrator, none of that app's pids are killed,
+        // because killing a helper can take the open document down with it.
+        public static List<int> PidsToKill(IDictionary<int, string> pids, IDictionary<int, PidState> states)
+        {
+            var held = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in states) if ((kv.Value == PidState.Window || kv.Value == PidState.Admin) && pids.ContainsKey(kv.Key)) held.Add(pids[kv.Key]);
+            return states.Where(kv => kv.Value == PidState.Close && pids.ContainsKey(kv.Key) && !held.Contains(pids[kv.Key])).Select(kv => kv.Key).OrderBy(k => k).ToList();
+        }
 
         void CloseApps()
         {
@@ -1366,6 +1382,7 @@ namespace RaceMode
             }
             if (asked.Count == 0) { Tick("Nothing on the Close list was running"); return; }
             Tick("Closing " + asked.Count + " app" + (asked.Count == 1 ? "" : "s") + "…");
+            int run = _runId;
             var later = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
             _killTimer = later;
             later.Tick += (s, e) =>
@@ -1376,8 +1393,12 @@ namespace RaceMode
                 int forced = 0;
                 var waiting = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
                 var denied = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+                const string adminWhy = "runs as administrator, so Windows doesn't let Race Mode close it";
+                // Pass 1: what each pid is doing now. Nothing is closed yet.
+                var states = new Dictionary<int, PidState>();
                 foreach (var kv in pids)
                 {
+                    states[kv.Key] = PidState.Gone;
                     if (ProtectedFromClose(kv.Value)) continue;   // protected since (Streaming turned on, added to Launch)
                     Process p;
                     try { p = Process.GetProcessById(kv.Key); } catch { continue; }   // already gone
@@ -1386,12 +1407,27 @@ namespace RaceMode
                         if (p.HasExited || !string.Equals(p.ProcessName, kv.Value, StringComparison.OrdinalIgnoreCase)) continue;   // gone, or the id was reused
                         // runs as administrator: Windows doesn't let Race Mode close it
                         bool locked = false; try { var h = p.Handle; } catch (System.ComponentModel.Win32Exception) { locked = true; }
-                        if (locked) { denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = "runs as administrator, so Windows doesn't let Race Mode close it"; continue; }
+                        if (locked) { states[kv.Key] = PidState.Admin; denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = adminWhy; continue; }
                         // still showing a window: probably a "Save changes?" prompt, so it's left for the user
-                        if (p.MainWindowHandle != IntPtr.Zero) { waiting.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = "is still open: it may be asking you to save"; continue; }
+                        if (p.MainWindowHandle != IntPtr.Zero) { states[kv.Key] = PidState.Window; waiting.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = "is still open: it may be asking you to save"; continue; }
+                        states[kv.Key] = PidState.Close;
+                    }
+                    catch (System.ComponentModel.Win32Exception) { states[kv.Key] = PidState.Admin; denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = adminWhy; }
+                    catch { }
+                    finally { p.Dispose(); }
+                }
+                // Pass 2: force-close only apps with nothing left open (see PidsToKill).
+                foreach (var id in PidsToKill(pids, states))
+                {
+                    var name = pids[id];
+                    Process p;
+                    try { p = Process.GetProcessById(id); } catch { continue; }
+                    try
+                    {
+                        if (p.HasExited || !string.Equals(p.ProcessName, name, StringComparison.OrdinalIgnoreCase)) continue;
                         p.Kill(); forced++;
                     }
-                    catch (System.ComponentModel.Win32Exception) { denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = "runs as administrator, so Windows doesn't let Race Mode close it"; }
+                    catch (System.ComponentModel.Win32Exception) { denied.Add(FriendlyApp(name)); _leftOpen[name] = adminWhy; }
                     catch { }
                     finally { p.Dispose(); }
                 }
@@ -1411,18 +1447,25 @@ namespace RaceMode
                 recheck.Tick += (s2, e2) =>
                 {
                     recheck.Stop();
-                    if (!_on) return;
+                    if (!_on || run != _runId) return;   // turned off, or a timer from an earlier run
                     var back = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var name in asked.Where(n => !string.Equals(n, "steam", StringComparison.OrdinalIgnoreCase) && !ProtectedFromClose(n)))
+                    var backNames = new List<string>();
+                    // Apps left open on purpose (save prompt, admin) never closed, so they didn't "come back".
+                    foreach (var name in asked.Where(n => !string.Equals(n, "steam", StringComparison.OrdinalIgnoreCase) && !ProtectedFromClose(n) && !_leftOpen.ContainsKey(n)))
                         foreach (var p in Mine(name))
                         {
-                            try { if (!pids.ContainsKey(p.Id) && AppScan.BelongsTo(name, AppScan.ImagePath(p.Id))) back.Add(FriendlyApp(name)); } catch { }
+                            try { if (!pids.ContainsKey(p.Id) && AppScan.BelongsTo(name, AppScan.ImagePath(p.Id))) { back.Add(FriendlyApp(name)); if (!backNames.Contains(name)) backNames.Add(name); } } catch { }
                             finally { p.Dispose(); }
                         }
                     if (back.Count == 0) return;
                     _mon.Event("Reopened by itself after closing: " + string.Join(", ", back.ToArray()));
-                    foreach (var b in back) _issues.Add(b + " reopened itself");
-                    if (_confirmTimer.IsEnabled == false) { _activation = NeedsALook(); SetPhase("issues"); UpdateStatus(); }
+                    foreach (var n in backNames) if (!_reopened.Contains(n)) _reopened.Add(n);
+                    // Still confirming: FinishActivation lists them from _reopened. Already confirmed: add them now.
+                    if (_confirmTimer.IsEnabled == false)
+                    {
+                        foreach (var b in back) if (!_issues.Contains(b + " reopened itself")) _issues.Add(b + " reopened itself");
+                        _activation = NeedsALook(); SetPhase("issues"); UpdateStatus();
+                    }
                     Tick(string.Join(", ", back.ToArray()) + (back.Count == 1 ? " reopened itself" : " reopened themselves") +
                          " (a background service starts it again). Turn off its start-with-Windows option in its own settings, or take it off the Close list");
                 };
@@ -2427,7 +2470,7 @@ namespace RaceMode
             if (_cfg.StartIRacing && File.Exists(_cfg.IRacingUI) && !IsRunning("iRacingUI") && !IsRunning(Monitor.SimName)) waiting.Add("iRacing");
             var stillOpen = new List<string>();
             if (_cfg.CloseApps && secs >= 6.5)
-                stillOpen = _close.Where(n => !ProtectedFromClose(n) && !_leftOpen.ContainsKey(n) && IsRunning(n)).ToList();
+                stillOpen = _close.Where(n => !ProtectedFromClose(n) && !_leftOpen.ContainsKey(n) && !_reopened.Contains(n) && IsRunning(n)).ToList();
 
             if (secs >= 6.5 && waiting.Count == 0 && stillOpen.Count == 0) { FinishActivation(new List<string>()); return; }
             if (secs >= 45)
@@ -2447,7 +2490,8 @@ namespace RaceMode
         {
             _confirmTimer.Stop();
             _issues.Clear(); _issues.AddRange(problems);
-            foreach (var kv in _leftOpen) if (IsRunning(kv.Key)) _issues.Add(FriendlyApp(kv.Key) + " " + kv.Value);
+            foreach (var kv in _leftOpen) if (!ProtectedFromClose(kv.Key) && IsRunning(kv.Key)) _issues.Add(FriendlyApp(kv.Key) + " " + kv.Value);
+            foreach (var n in _reopened) if (!ProtectedFromClose(n) && IsRunning(n) && !_issues.Contains(FriendlyApp(n) + " reopened itself")) _issues.Add(FriendlyApp(n) + " reopened itself");
             if (_notInstalled.Count > 0) _issues.Add(string.Join(", ", _notInstalled.ToArray()) + " not installed");
             _confirmedRunning.Clear();
             foreach (var i in ExpectedApps()) if (IsRunning(i.ProcessName)) _confirmedRunning.Add(i.ProcessName);
@@ -2609,6 +2653,20 @@ namespace RaceMode
                 var label = item != null ? item.Name : name;
                 AddIssue(label + " stopped");
             }
+            // An app left open (save prompt, admin) that has since closed, or is now protected (e.g. OBS once
+            // Streaming is on), is no longer a problem: drop its issue.
+            bool cleared = false;
+            foreach (var kv in _leftOpen.ToList())
+            {
+                bool prot = ProtectedFromClose(kv.Key);
+                if (!prot && IsRunning(kv.Key)) continue;
+                _leftOpen.Remove(kv.Key);
+                _issues.Remove(FriendlyApp(kv.Key) + " " + kv.Value);
+                if (!prot && !_closed.Contains(kv.Key)) _closed.Add(kv.Key);
+                _mon.Event(prot ? "Left " + kv.Key + " open: it's protected now" : kv.Key + " was closed after all");
+                cleared = true;
+            }
+            if (cleared) { _activation = NeedsALook(); SetPhase(_issues.Count == 0 ? "active" : "issues"); }
             if (_cfg.Streaming && _cfg.VramCheck && !_vramWarned && _simSeen)
             {
                 var s = _mon.Live;
