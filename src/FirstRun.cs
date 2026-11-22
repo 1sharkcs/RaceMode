@@ -170,7 +170,7 @@ namespace RaceMode
             var t = (FrameworkElement)SetupFlow.Text(it.Name, FoundSubtitle(it));
             t.VerticalAlignment = VerticalAlignment.Center; t.ToolTip = it.Path;
             g.Children.Add(t);
-            var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "Add", FontSize = 12, Padding = new Thickness(10, 3, 10, 3), MinHeight = 0, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "Add", FontSize = 12, Padding = new Thickness(12, 5, 12, 5), MinHeight = 28, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
             System.Windows.Automation.AutomationProperties.SetName(b, "Add " + it.Name);
             b.Click += (s, e) => add();
             Grid.SetColumn(b, 1); g.Children.Add(b);
@@ -190,7 +190,7 @@ namespace RaceMode
             foreach (var f in found)
             {
                 var item = f;
-                var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "+ " + item.Name, FontSize = 12, Padding = new Thickness(10, 3, 10, 3), MinHeight = 0, Margin = new Thickness(0, 0, 8, 6), ToolTip = item.Path };
+                var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "+ " + item.Name, FontSize = 12, Padding = new Thickness(12, 5, 12, 5), MinHeight = 28, Margin = new Thickness(0, 0, 8, 6), ToolTip = item.Path };
                 System.Windows.Automation.AutomationProperties.SetName(b, "Add " + item.Name + " to the Launch list");
                 b.Click += (s, e) => AddFoundLaunch(item, true);
                 panel.Children.Add(b);
