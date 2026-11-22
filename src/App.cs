@@ -70,6 +70,8 @@ namespace RaceMode
         public bool WindowMaximized;
         // The side menu folded to icons by its own button (Layout.cs); under 760 px wide it is icons only anyway.
         public bool NavCollapsed;
+        // Appearance (Theme.cs): "System" follows Windows' app mode, or "Dark" / "Light".
+        public string Theme = "System";
         // Updates (Updater.cs): check every 12 hours; test versions = GitHub pre-releases from the dev branch.
         public bool UpdateCheck = true, UpdateTestVersions = false;
         public bool TrayOnClose = true, TrayHintShown = false;
@@ -270,6 +272,10 @@ namespace RaceMode
                 try { File.WriteAllText(System.IO.Path.Combine(Shell.Data, "selftest.refused.txt"), "Refused: no selftest.ok next to the exe. Run --selftest only in an isolated copy with a throwaway config.json."); } catch { }
                 return;
             }
+            // --snapshot ... theme=light|dark: that theme for this run, whatever the config and Windows say (Theme.cs)
+            if (mode == "--snapshot")
+                foreach (var a in args.Skip(3))
+                    if (a == "theme=light" || a == "theme=dark" || a == "theme=flip") Shell.ThemeArg = a == "theme=light" ? "Light" : "Dark";
             var shell = new Shell();
             // Sign-out, restart or shutdown: really close (turn off, save, write the summary) instead of hiding to the tray.
             app.SessionEnding += (s2, e2) => shell.PrepareQuit();
@@ -351,6 +357,14 @@ namespace RaceMode
                 {
                     var tabs = shell.Window.FindName("Tabs") as TabControl; if (tabs != null) tabs.SelectedIndex = tab;
                     if (args.Length >= 5 && args[4] == "on") shell.PreviewOn();
+                    // "setup": the first-run questions over the window, as on a new PC (without touching config.json)
+                    if (args.Length >= 5 && args[4] == "setup") shell.StartFirstRun();
+                    if (args.Contains("theme=flip"))
+                    {
+                        var ft = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
+                        ft.Tick += (fs, fe) => { ft.Stop(); shell.SwitchThemeForSnapshot("Light"); };
+                        ft.Start();
+                    }
                     if (args.Length >= 5 && args[4].Contains("wide")) { shell.Window.Width = ArgInt(args, 5, 1600, 1100, 3840); shell.Window.Height = 900; }
                     // size=WIDTHxHEIGHT anywhere after the tab: any window size, to check the layout at it
                     foreach (var a in args.Skip(4))
@@ -445,6 +459,7 @@ namespace RaceMode
 
             var migrated = DataDirs.MigrateIfNeeded(Data);
             LoadConfig();
+            InitTheme();   // Theme.cs: the palette (System / Dark / Light) before anything is drawn
             RestoreWindowSize();
             BindUi();
             if (migrated != null) Tick(migrated);
@@ -554,6 +569,7 @@ namespace RaceMode
             if (string.IsNullOrWhiteSpace(c.IRacingUI)) c.IRacingUI = new Config().IRacingUI;
             if (c.DisplayGuard == null) c.DisplayGuard = new DisplayGuardConfig();
             if (c.DisplayGuard.IniPath == null) c.DisplayGuard.IniPath = "";
+            c.Theme = Palette.Normalize(c.Theme);
         }
 
         void SaveConfig()
@@ -783,6 +799,7 @@ namespace RaceMode
             Get<CheckBox>("OptAutostart").IsChecked = Installer.StartsWithWindows;
             Get<CheckBox>("OptAutostart").Checked += (s, e) => SetAutostart(true);
             Get<CheckBox>("OptAutostart").Unchecked += (s, e) => SetAutostart(false);
+            BindThemeChoice();   // Settings > Windows > Appearance (Theme.cs)
             Get<ListBox>("LaunchList").AddHandler(ToggleButton.CheckedEvent, new RoutedEventHandler((s, e) => SaveConfig()));
             Get<ListBox>("LaunchList").AddHandler(ToggleButton.UncheckedEvent, new RoutedEventHandler((s, e) => SaveConfig()));
 
@@ -1039,14 +1056,14 @@ namespace RaceMode
             var commitHot = s.CommitLimitGB > 0 && s.CommitGB > s.CommitLimitGB * 0.9;
             var ramHot = s.RamTotalGB > 0 && s.RamUsedGB > s.RamTotalGB * 0.9;
             SetMeter("RamBar", s.RamTotalGB > 0 ? 100.0 * s.RamUsedGB / s.RamTotalGB : double.NaN, 100, ramHot || commitHot);
-            Get<TextBlock>("RamSub").Foreground = commitHot ? (Brush)Window.Resources["Warn"] : (Brush)Window.Resources["Faint"];
+            Palette.Ref(Get<TextBlock>("RamSub"), TextBlock.ForegroundProperty, commitHot ? "Warn" : "Faint");
             // FPS (the small panel's first number): words while iRacing isn't giving any
             int fcap = FpsCap();
             bool hasFps = !double.IsNaN(s.Fps);
             bool slow = hasFps && fcap > 0 && s.Fps < fcap - 5;
             SetRun("FpsVal", hasFps ? N0(s.Fps) : "");
             SetRun("FpsUnit", hasFps ? " fps" : _fpsWait);
-            var fv = Window.FindName("FpsVal") as Run; if (fv != null) fv.Foreground = (Brush)Window.Resources[slow ? "Warn" : "Ink"];
+            var fv = Window.FindName("FpsVal") as Run; if (fv != null) fv.SetResourceReference(System.Windows.Documents.TextElement.ForegroundProperty, slow ? "Warn" : "Ink");
             SetText("FpsSub", !hasFps ? "for iRacing" : slow ? "Below cap " + fcap : (s.SimContext == "replay" ? "Replay" : fcap > 0 ? "Cap " + fcap : "iRacing"));
             FeedDashboard(s);
             SyncSmall();
@@ -1058,7 +1075,7 @@ namespace RaceMode
             if (bar == null) return;
             bar.Maximum = max;
             bar.Value = double.IsNaN(value) ? 0 : Math.Max(0, Math.Min(max, value));
-            bar.Foreground = hot ? (Brush)Window.Resources["Warn"] : (Brush)Window.Resources["Ink"];
+            bar.SetResourceReference(Control.ForegroundProperty, hot ? "Warn" : "Ink");
         }
 
         // CPU temperature comes from HWiNFO's Gadget registry values. Explain what is missing instead of a bare "--".
@@ -1085,7 +1102,7 @@ namespace RaceMode
             if (!double.IsNaN(s.CpuTemp))
             {
                 SetText("CpuTempSub", s.CpuMHz > 0 ? (s.CpuMHz / 1000).ToString("0.00", CultureInfo.InvariantCulture) + " GHz" : "");
-                if (sub != null) { sub.Foreground = (Brush)Window.Resources["Faint"]; sub.TextDecorations = null; }
+                if (sub != null) { sub.SetResourceReference(TextBlock.ForegroundProperty, "Faint"); sub.TextDecorations = null; }
                 if (bar != null) bar.Visibility = _compact ? Visibility.Collapsed : Visibility.Visible;
                 if (cell != null) { cell.Cursor = null; cell.ToolTip = "CPU package temperature, from HWiNFO"; }
                 return;
@@ -1094,7 +1111,7 @@ namespace RaceMode
             SetRun("CpuTempVal", "");
             SetRun("CpuTempUnit", "Not set up");
             if (bar != null) bar.Visibility = _shape != SmallShape.None ? Visibility.Collapsed : Visibility.Hidden;   // the small panel has no bars (and no gap for one)
-            if (sub != null) { sub.Foreground = (Brush)Window.Resources["Ink"]; sub.TextDecorations = TextDecorations.Underline; }
+            if (sub != null) { sub.SetResourceReference(TextBlock.ForegroundProperty, "Ink"); sub.TextDecorations = TextDecorations.Underline; }
             if (cell != null) cell.Cursor = Cursors.Hand;
             if ((DateTime.Now - _hwinfoCheckedAt).TotalSeconds >= 5)
             {
@@ -1841,7 +1858,7 @@ namespace RaceMode
             var t = Get<TextBlock>("GraphicsStatus");
             if (t == null) return;
             t.Text = _graphicsLine;
-            t.Foreground = _graphicsOk || _graphicsPending ? (Brush)Window.Resources["Dim"] : (Brush)Window.Resources["Warn"];
+            t.SetResourceReference(TextBlock.ForegroundProperty, _graphicsOk || _graphicsPending ? "Dim" : "Warn");
         }
 
         // ---------------- window: maximise, remembered size (the layout itself is in Layout.cs) ----------------
@@ -2047,8 +2064,8 @@ namespace RaceMode
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });
                 g.ColumnDefinitions.Add(new ColumnDefinition());
                 g.Children.Add(new TextBlock { Text = label, Style = (Style)Window.Resources["Sub"] });
-                var v = new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, FontSize = 12, LineHeight = 17,
-                                        Foreground = value.Contains("<<") ? (Brush)Window.Resources["Warn"] : (Brush)Window.Resources["Ink"] };
+                var v = new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, FontSize = 12, LineHeight = 17 };
+                v.SetResourceReference(TextBlock.ForegroundProperty, value.Contains("<<") ? "Warn" : "Ink");
                 Grid.SetColumn(v, 1); g.Children.Add(v);
                 box.Children.Add(g);
             }
@@ -2291,10 +2308,13 @@ namespace RaceMode
             var def = AdvDefault(k, g, raceBase);
             var current = pinned ?? def;
 
-            var tag = new Border { BorderBrush = (Brush)Window.Resources["Line"], BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
+            var tagText = new TextBlock { Text = "Custom", Style = (Style)Window.Resources["Caption"] };
+            tagText.SetResourceReference(TextBlock.ForegroundProperty, "Dim");
+            var tag = new Border { BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
                                    Padding = new Thickness(6, 0, 6, 1), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
-                                   Child = new TextBlock { Text = "Custom", Style = (Style)Window.Resources["Caption"], Foreground = (Brush)Window.Resources["Dim"] },
+                                   Child = tagText,
                                    Visibility = pinned != null && (k.IsSlider || _advPhoto) ? Visibility.Visible : Visibility.Collapsed };
+            tag.SetResourceReference(Border.BorderBrushProperty, "Line");
             var title = new StackPanel { Orientation = Orientation.Horizontal };
             title.Children.Add(new TextBlock { Text = k.label ?? k.key });
             title.Children.Add(tag);
@@ -2369,12 +2389,12 @@ namespace RaceMode
             if (dot == null) return;
             if (phase == "off")
             {
-                dot.Fill = new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x60));
+                dot.SetResourceReference(Shape.FillProperty, "DotOff");
                 var hc = Get<System.Windows.Controls.Primitives.UniformGrid>("HeroChecks");
                 if (hc != null) { hc.Children.Clear(); hc.Visibility = Visibility.Collapsed; }
             }
-            else if (phase == "turning") dot.Fill = (Brush)Window.Resources["Dim"];
-            else dot.Fill = (Brush)Window.Resources[phase == "issues" ? "Warn" : "Live"];
+            else if (phase == "turning") dot.SetResourceReference(Shape.FillProperty, "Dim");
+            else dot.SetResourceReference(Shape.FillProperty, phase == "issues" ? "Warn" : "Live");
         }
 
         // Apps that should be running once Race Mode is on (enabled, installed, with a process name to check).
@@ -2652,11 +2672,11 @@ namespace RaceMode
             var g = new Grid { Margin = new Thickness(0, 3, 10, 3) };
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             g.ColumnDefinitions.Add(new ColumnDefinition());
-            var dot = new Ellipse { Width = 6, Height = 6, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 1, 8, 0),
-                                    Fill = brushKey == "Off" ? new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x60)) : (Brush)Window.Resources[brushKey] };
+            var dot = new Ellipse { Width = 6, Height = 6, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 1, 8, 0) };
+            dot.SetResourceReference(Shape.FillProperty, brushKey == "Off" ? "DotOff" : brushKey);
             var t = new TextBlock { FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
-            t.Inlines.Add(new Run(name + "  ") { Foreground = (Brush)Window.Resources["Ink"] });
-            t.Inlines.Add(new Run(state) { Foreground = brushKey == "Warn" ? (Brush)Window.Resources["Warn"] : (Brush)Window.Resources["Dim"] });
+            t.Inlines.Add(Palette.Run(name + "  ", "Ink"));
+            t.Inlines.Add(Palette.Run(state, brushKey == "Warn" ? "Warn" : "Dim"));
             Grid.SetColumn(t, 1);
             g.Children.Add(dot); g.Children.Add(t);
             System.Windows.Automation.AutomationProperties.SetName(g, name + ": " + state);

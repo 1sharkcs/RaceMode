@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -203,10 +203,11 @@ namespace RaceMode
             r.RailTop = new RowDefinition { Height = new GridLength(9) }; rail.RowDefinitions.Add(r.RailTop);
             rail.RowDefinitions.Add(new RowDefinition { Height = new GridLength(10) });
             rail.RowDefinitions.Add(new RowDefinition());
-            var line = (Brush)res["Line"];
-            r.Up = new Border { Width = 1, Background = line, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 3) };
+            r.Up = new Border { Width = 1, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 3) };
+            r.Up.SetResourceReference(Border.BackgroundProperty, "Line");
             r.Dot = new Ellipse { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            r.Down = new Border { Width = 1, Background = line, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 3, 0, 0) };
+            r.Down = new Border { Width = 1, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 3, 0, 0) };
+            r.Down.SetResourceReference(Border.BackgroundProperty, "Line");
             Grid.SetRow(r.Dot, 1); Grid.SetRow(r.Down, 2);
             rail.Children.Add(r.Up); rail.Children.Add(r.Dot); rail.Children.Add(r.Down);
             grid.Children.Add(rail);
@@ -230,9 +231,9 @@ namespace RaceMode
             var res = Window.Resources;
             bool off = v.State == StOff;
             r.Title.Text = v.Name;
-            r.Title.Foreground = (Brush)res[off ? "Dim" : "Ink"];
+            r.Title.SetResourceReference(TextBlock.ForegroundProperty, off ? "Dim" : "Ink");
             r.Line.Text = v.Line;
-            r.Line.Foreground = (Brush)res[v.State == StLook ? "Warn" : off ? "Faint" : "Dim"];
+            r.Line.SetResourceReference(TextBlock.ForegroundProperty, v.State == StLook ? "Warn" : off ? "Faint" : "Dim");
             StyleDot(r.Dot, v.State, 10);
 
             // one compact line per app: a small dot, the name, and its state in words
@@ -255,8 +256,8 @@ namespace RaceMode
                 StyleDot((Ellipse)row.Children[0], a.State, 6);
                 var tb = (TextBlock)row.Children[1];
                 tb.Inlines.Clear();
-                tb.Inlines.Add(new Run(a.Name + "  ") { Foreground = (Brush)res["Ink"] });
-                tb.Inlines.Add(new Run(a.Words) { Foreground = (Brush)res[a.State == StLook ? "Warn" : "Dim"] });
+                tb.Inlines.Add(Palette.Run(a.Name + "  ", "Ink"));
+                tb.Inlines.Add(Palette.Run(a.Words, a.State == StLook ? "Warn" : "Dim"));
             }
             r.Apps.Visibility = v.Apps.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             r.Weight = 1 + 0.4 * v.Apps.Count;
@@ -273,17 +274,17 @@ namespace RaceMode
             if (state == StTodo)
             {
                 dot.Width = size; dot.Height = size;
-                dot.Fill = Brushes.Transparent; dot.Stroke = (Brush)res["Dim"]; dot.StrokeThickness = size >= 10 ? 1.5 : 1.2;
+                dot.Fill = Brushes.Transparent; dot.SetResourceReference(Shape.StrokeProperty, "Dim"); dot.StrokeThickness = size >= 10 ? 1.5 : 1.2;
             }
             else if (state == StOff)
             {
                 dot.Width = size * 0.6; dot.Height = size * 0.6;
-                dot.Fill = new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x60));
+                dot.SetResourceReference(Shape.FillProperty, "DotOff");
             }
             else
             {
                 dot.Width = size; dot.Height = size;
-                dot.Fill = (Brush)res[state];
+                dot.SetResourceReference(Shape.FillProperty, state);
             }
         }
 

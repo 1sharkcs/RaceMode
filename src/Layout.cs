@@ -140,7 +140,7 @@ namespace RaceMode
             string word = phase == "off" ? "Off" : phase == "turning" ? "Turning on…" : phase == "issues" ? "Needs a look" : "Ready to race";
             t.Text = word;
             // the state word is the loud line of the block (status first); amber when something needs a look
-            t.Foreground = (Brush)Window.Resources[phase == "issues" ? "Warn" : "Ink"];
+            t.SetResourceReference(TextBlock.ForegroundProperty, phase == "issues" ? "Warn" : "Ink");
             // the block itself: graphite while off, a quiet red tint while on (red here means on, nothing else)
             var block = Get<Border>("NavStatus");
             if (block != null)
@@ -148,10 +148,10 @@ namespace RaceMode
                 // on the Overview the page's own switch card is the red thing; two reds saying the same words competed
                 var openTabs = Get<TabControl>("Tabs");
                 bool on = phase != "off" && !(openTabs != null && openTabs.SelectedIndex == 0);
-                block.Background = on ? new SolidColorBrush(Color.FromRgb(0x2A, 0x1A, 0x1A)) : (Brush)Window.Resources["Card"];
-                block.BorderBrush = on ? new SolidColorBrush(Color.FromRgb(0x5A, 0x24, 0x20)) : (Brush)Window.Resources["Hairline"];
+                block.SetResourceReference(Border.BackgroundProperty, on ? "OnTint" : "Card");
+                block.SetResourceReference(Border.BorderBrushProperty, on ? "OnEdge" : "Hairline");
             }
-            dot.Fill = phase == "off" ? new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x60)) : (Brush)Window.Resources[phase == "turning" ? "Dim" : phase == "issues" ? "Warn" : "Live"];
+            dot.SetResourceReference(Shape.FillProperty, phase == "off" ? "DotOff" : phase == "turning" ? "Dim" : phase == "issues" ? "Warn" : "Live");
             // what needs a look is spelled out in the tooltip, and the words open the Overview, where the checklist is
             string detail = phase == "issues" && _issues.Count > 0 ? NeedsALook() + ". Click to see the checklist." : "Race Mode: " + word.ToLowerInvariant() + ".";
             var sw = Get<ToggleButton>("NavSwitch");

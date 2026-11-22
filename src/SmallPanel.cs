@@ -90,18 +90,19 @@ namespace RaceMode
                 g.ColumnDefinitions.Add(new ColumnDefinition());
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                left.Children.Add(new TextBlock { Text = labels[i], FontSize = 13, Foreground = (Brush)Window.Resources["Dim"] });
+                var lab = new TextBlock { Text = labels[i], FontSize = 13 }; lab.SetResourceReference(TextBlock.ForegroundProperty, "Dim"); left.Children.Add(lab);
                 d.Sub = new TextBlock { Style = (Style)Window.Resources["Caption"], Margin = new Thickness(0, 2, 8, 0), TextTrimming = TextTrimming.CharacterEllipsis };
                 left.Children.Add(d.Sub);
                 g.Children.Add(left);
-                d.Val = new Run { FontFamily = (FontFamily)Window.Resources["Display"], FontSize = 24, Foreground = (Brush)Window.Resources["Ink"] };
-                d.Unit = new Run { FontSize = 12, Foreground = (Brush)Window.Resources["Dim"] };
+                d.Val = new Run { FontFamily = (FontFamily)Window.Resources["Display"], FontSize = 24 }; d.Val.SetResourceReference(TextElement.ForegroundProperty, "Ink");
+                d.Unit = new Run { FontSize = 12 }; d.Unit.SetResourceReference(TextElement.ForegroundProperty, "Dim");
                 var num = new TextBlock { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, TextAlignment = TextAlignment.Right };
                 Typography.SetNumeralAlignment(num, FontNumeralAlignment.Tabular);
                 num.Inlines.Add(d.Val); num.Inlines.Add(d.Unit);
                 Grid.SetColumn(num, 1); g.Children.Add(num);
                 d.Box = new Border { Child = g, Padding = new Thickness(16, 8, 16, 8), Background = Brushes.Transparent,
-                                     BorderBrush = (Brush)Window.Resources["Hairline"], BorderThickness = new Thickness(0, 0, 0, i < defs.Length - 1 ? 1 : 0) };
+                                     BorderThickness = new Thickness(0, 0, 0, i < defs.Length - 1 ? 1 : 0) };
+                d.Box.SetResourceReference(Border.BorderBrushProperty, "Hairline");
                 AutomationProperties.SetName(d.Box, labels[i]);
                 if (d.CellName == "CpuTempCell")
                 {
@@ -159,7 +160,7 @@ namespace RaceMode
         void SmallPhase(string phase)
         {
             var st = Get<TextBlock>("StatusText"); if (st == null) return;
-            st.Foreground = (Brush)Window.Resources[phase == "issues" && _shape != SmallShape.None ? "Warn" : "Dim"];
+            st.SetResourceReference(TextBlock.ForegroundProperty, phase == "issues" && _shape != SmallShape.None ? "Warn" : "Dim");
             if ((_shape == SmallShape.Column || _shape == SmallShape.Card) && phase != _colPhase) { _colPhase = phase; ApplyLayout(); }   // on or off changes how many charts fit
         }
 
@@ -219,7 +220,7 @@ namespace RaceMode
                 {
                     int cx = i % cols, cy = i / cols;
                     cells[i].BorderThickness = new Thickness(0, 0, cx < cols - 1 && i < cells.Count - 1 ? 1 : 0, cy < rows - 1 ? 1 : 0);
-                    cells[i].BorderBrush = (Brush)Window.Resources["Hairline"];
+                    cells[i].SetResourceReference(Border.BorderBrushProperty, "Hairline");
                     cells[i].Padding = new Thickness(cx == 0 ? 14 : 10, v, 8, v);
                 }
                 double size = strip ? (h >= 165 ? (w >= 1500 ? 34 : 28) : 24) : 22;

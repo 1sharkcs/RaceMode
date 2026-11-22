@@ -47,20 +47,21 @@ namespace RaceMode
         int _kbAge = -1;   // keyboard read-out position (seconds back), -1 = none
         public FrameworkElement Element;
         public Border Cell;
-        Brush _inkB, _dimB;
+        static readonly DependencyProperty Fg = TextBlock.ForegroundProperty;
 
         public void SetPlotHeight(double h) { if (_canvas != null) _canvas.Height = h; PlotHeight = h; }
 
         public FrameworkElement Build(ResourceDictionary res)
         {
-            var ink = (Brush)res["Ink"]; var faint = (Brush)res["Faint"];
-            _warnB = (Brush)res["Warn"]; _faintB = faint; _inkB = ink; _dimB = (Brush)res["Dim"];
+            // colours are live references to the theme tokens (Theme.cs), so an open chart follows a theme change
             var head = new Grid();
             head.ColumnDefinitions.Add(new ColumnDefinition());
             head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             head.Children.Add(new TextBlock { Text = Label, Style = (Style)res["StatLabel"], VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 8, 3), TextTrimming = TextTrimming.CharacterEllipsis });
-            _val = new TextBlock { FontFamily = (FontFamily)res["Display"], FontSize = ValueSize, Foreground = ink, Text = "--", VerticalAlignment = VerticalAlignment.Bottom };
-            _unit = new TextBlock { Text = Unit, FontSize = 12, Foreground = (Brush)res["Dim"], Margin = new Thickness(4, 0, 0, 3), VerticalAlignment = VerticalAlignment.Bottom };
+            _val = new TextBlock { FontFamily = (FontFamily)res["Display"], FontSize = ValueSize, Text = "--", VerticalAlignment = VerticalAlignment.Bottom };
+            _val.SetResourceReference(Fg, "Ink");
+            _unit = new TextBlock { Text = Unit, FontSize = 12, Margin = new Thickness(4, 0, 0, 3), VerticalAlignment = VerticalAlignment.Bottom };
+            _unit.SetResourceReference(Fg, "Dim");
             var vs = new StackPanel { Orientation = Orientation.Horizontal };
             // the strip's cap, after its words ("Waiting for iRacing   cap 145"); only shown folded
             _capNote = new TextBlock { Style = (Style)res["Caption"], Margin = new Thickness(12, 0, 0, 3), VerticalAlignment = VerticalAlignment.Bottom, Visibility = Visibility.Collapsed };
@@ -70,16 +71,23 @@ namespace RaceMode
             _canvas = new Canvas { Height = PlotHeight, Margin = new Thickness(0, 10, 0, 0), Background = Brushes.Transparent, ClipToBounds = true, Cursor = Cursors.Cross };
             _empty = new TextBlock { Style = (Style)res["Caption"], HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed, IsHitTestVisible = false, Margin = new Thickness(0, 10, 0, 0) };
             // baseline: the one recessive axis mark
-            var baseLine = new Border { Height = 1, Background = (Brush)res["Hairline"], VerticalAlignment = VerticalAlignment.Bottom };
-            _ref = new Line { Stroke = faint, StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 3, 3 }, Visibility = Visibility.Collapsed, SnapsToDevicePixels = true };
+            var baseLine = new Border { Height = 1, VerticalAlignment = VerticalAlignment.Bottom };
+            baseLine.SetResourceReference(Border.BackgroundProperty, "Hairline");
+            _ref = new Line { StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 3, 3 }, Visibility = Visibility.Collapsed, SnapsToDevicePixels = true };
             _refText = new TextBlock { Style = (Style)res["Caption"], Text = RefLabel, Visibility = Visibility.Collapsed };
-            _line = new Path { Stroke = ink, StrokeThickness = 2, StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round };
-            _cross = new Line { Stroke = faint, StrokeThickness = 1, Visibility = Visibility.Collapsed };
-            _dot = new Ellipse { Width = 8, Height = 8, Fill = ink, Stroke = (Brush)res["Card"], StrokeThickness = 2, Visibility = Visibility.Collapsed };
+            _line = new Path { StrokeThickness = 2, StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round };
+            _cross = new Line { StrokeThickness = 1, Visibility = Visibility.Collapsed };
+            _dot = new Ellipse { Width = 8, Height = 8, StrokeThickness = 2, Visibility = Visibility.Collapsed };
+            _ref.SetResourceReference(Shape.StrokeProperty, "Faint");          // reference line (cap, threshold)
+            _line.SetResourceReference(Shape.StrokeProperty, "Ink");           // the line: Ink, never a signal colour
+            _cross.SetResourceReference(Shape.StrokeProperty, "Faint");        // hover crosshair
+            _dot.SetResourceReference(Shape.FillProperty, "Ink");              // hover dot, ringed in the card colour
+            _dot.SetResourceReference(Shape.StrokeProperty, "Card");
             _canvas.Children.Add(_ref); _canvas.Children.Add(_refText); _canvas.Children.Add(_line); _canvas.Children.Add(_cross); _canvas.Children.Add(_dot);
             // the fix for a reading that isn't set up ("Open HWiNFO"): right under its words in the head, at any plot height
-            _action = new TextBlock { FontSize = 12, Foreground = ink, TextDecorations = TextDecorations.Underline, HorizontalAlignment = HorizontalAlignment.Right,
+            _action = new TextBlock { FontSize = 12, TextDecorations = TextDecorations.Underline, HorizontalAlignment = HorizontalAlignment.Right,
                                       VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 1, 0, 0), Visibility = Visibility.Collapsed, Cursor = Cursors.Hand };
+            _action.SetResourceReference(Fg, "Ink");
             var plot = new Grid(); plot.Children.Add(_canvas); plot.Children.Add(baseLine); plot.Children.Add(_empty); plot.Children.Add(_action);
             _plot = plot;
             _canvas.SizeChanged += (s, e) => Render();
@@ -92,7 +100,8 @@ namespace RaceMode
             stack.Children.Add(head); stack.Children.Add(_sub); stack.Children.Add(plot);
             var card = Boxed
                 ? new Border { Style = (Style)res["Group"], Padding = new Thickness(16, 12, 16, 12), Child = stack }
-                : new Border { Background = Brushes.Transparent, BorderBrush = (Brush)res["Hairline"], Padding = new Thickness(16, 12, 16, 12), Child = stack };
+                : new Border { Background = Brushes.Transparent, Padding = new Thickness(16, 12, 16, 12), Child = stack };
+            if (!Boxed) card.SetResourceReference(Border.BorderBrushProperty, "Hairline");
             card.Focusable = true; card.FocusVisualStyle = (Style)res[Boxed ? "FocusRing" : "FocusRingInset"];
             Cell = card;
             System.Windows.Automation.AutomationProperties.SetName(card, ChartName());
@@ -207,14 +216,14 @@ namespace RaceMode
             if (double.IsNaN(v))
             {
                 var words = IdleWords == null ? "" : IdleWords();
-                _val.Text = words.Length > 0 ? "" : "--"; _val.Foreground = (Brush)_line.Stroke;
+                _val.Text = words.Length > 0 ? "" : "--"; _val.SetResourceReference(Fg, "Ink");
                 _unit.Text = words.Length > 0 ? words : Unit;
                 // not set up: the fix sits right under those words; the sub-line keeps its height so the plots line up
                 bool action = fix && words.Length > 0;
                 _action.Text = action ? Idle() : ""; _action.Visibility = action ? Visibility.Visible : Visibility.Collapsed;
                 System.Windows.Automation.AutomationProperties.SetHelpText(Cell, action ? words + ". Press Enter: " + Idle() + "." : "");
                 bool inPlot = _empty.Visibility == Visibility.Visible;
-                _sub.Text = inPlot || action ? " " : Idle(); _sub.Foreground = DimOf();
+                _sub.Text = inPlot || action ? " " : Idle(); _sub.SetResourceReference(Fg, "Faint");
                 return;
             }
             _action.Visibility = Visibility.Collapsed;
@@ -222,15 +231,12 @@ namespace RaceMode
             _unit.Text = Unit;
             bool hot = IsHot(v);
             _val.Text = Format(Show(v));
-            _val.Foreground = hot ? WarnOf() : (Brush)_line.Stroke;
+            _val.SetResourceReference(Fg, hot ? "Warn" : "Ink");
             var note = Note();
             _sub.Text = hot ? HotWord(v) + (string.IsNullOrEmpty(note) ? "" : " · " + note) : note;
-            _sub.Foreground = hot ? WarnOf() : DimOf();
+            _sub.SetResourceReference(Fg, hot ? "Warn" : "Faint");
         }
 
-        Brush _warnB, _faintB;
-        Brush WarnOf() { return _warnB; }
-        Brush DimOf() { return _faintB; }
 
         // Point at the chart to read one moment: crosshair, dot, and "23 s ago: 142 fps" in the sub-line.
         void Hover(double x)
@@ -243,10 +249,10 @@ namespace RaceMode
             var px = X(age, w);
             _hovering = true;
             _cross.X1 = px; _cross.X2 = px; _cross.Y1 = 0; _cross.Y2 = h; _cross.Visibility = Visibility.Visible;
-            if (double.IsNaN(v)) { _dot.Visibility = Visibility.Collapsed; _sub.Text = (age == 0 ? "Now" : age + " s ago") + ": no reading"; _sub.Foreground = DimOf(); return; }
+            if (double.IsNaN(v)) { _dot.Visibility = Visibility.Collapsed; _sub.Text = (age == 0 ? "Now" : age + " s ago") + ": no reading"; _sub.SetResourceReference(Fg, "Faint"); return; }
             Canvas.SetLeft(_dot, px - 4); Canvas.SetTop(_dot, Y(v, h) - 4); _dot.Visibility = Visibility.Visible;
             _sub.Text = (age == 0 ? "Now" : age + " s ago") + ": " + Format(Show(v)) + (Unit.Length > 0 ? " " + Unit.Trim() : "") + (IsHot(v) ? " · " + HotWord(v) : "");
-            _sub.Foreground = IsHot(v) ? WarnOf() : (Brush)_line.Stroke;
+            _sub.SetResourceReference(Fg, IsHot(v) ? "Warn" : "Ink");
         }
     }
 }

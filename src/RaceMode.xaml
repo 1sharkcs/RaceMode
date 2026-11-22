@@ -2,17 +2,18 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Race Mode" Width="960" Height="720" MinWidth="420" MinHeight="150"
         WindowStyle="None" ResizeMode="CanResize" WindowStartupLocation="CenterScreen"
-        Background="#121214" BorderBrush="#2C2C30" BorderThickness="1"
+        Background="{DynamicResource Bg}" BorderBrush="{DynamicResource Edge}" BorderThickness="1"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
-        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13" Foreground="#F5F5F7">
+        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13" Foreground="{DynamicResource Ink}">
   <!--
-    Race Mode design tokens (dark only: the app lives next to iRacing in a dim room).
-    Bg #121214 · Card #1D1D20 · Raised #2A2A2E · Hairline #2C2C30 · Line #38383D
-    Ink #F5F5F7 (15.4:1 on Card) · Dim #A1A1A6 (6.5:1) · Faint #98989E (5.9:1 on Card, 4.6:1 on a selected row)
-    Red #FF453A  = Race Mode / enabled state only
-    Warn #FF9F0A = something running hot
-    Live #30D158 = Race Mode on, status dot
+    Race Mode design tokens. Every colour in the window is one of the brushes below, always used as a
+    DynamicResource (or SetResourceReference in code), so the theme can change while the window is open.
+    The values here are the dark theme; Theme.cs holds both palettes and swaps them (Settings > Appearance:
+    System follows Windows' app mode).
+    Dark: Bg #121214 · Card #1D1D20 · Raised #2A2A2E · Hairline #2C2C30 · Line #38383D
+          Ink #F5F5F7 (15.4:1 on Card) · Dim #A1A1A6 (6.5:1) · Faint #98989E (5.9:1 on Card, 4.6:1 on a selected row)
+    Red  = Race Mode / enabled state only · Warn = something running hot · Live = confirmed, status dot
     Type: Segoe UI Variable for UI, Bahnschrift SemiBold for headline + numerals (DIN, dashboard lettering),
           Cascadia Mono only for paths and log data.
   -->
@@ -32,6 +33,51 @@
     <SolidColorBrush x:Key="Red" Color="#FF453A"/>
     <SolidColorBrush x:Key="Warn" Color="#FF9F0A"/>
     <SolidColorBrush x:Key="Live" Color="#30D158"/>
+    <!-- the rest of the palette: one brush per role that had a bare colour (Theme.cs has the light values) -->
+    <SolidColorBrush x:Key="Edge" Color="#2C2C30"/>          <!-- the window's 1 px border -->
+    <SolidColorBrush x:Key="Soft" Color="#D1D1D6"/>          <!-- long read-only text (session summary) -->
+    <SolidColorBrush x:Key="Field" Color="#141416"/>         <!-- text fields and segmented-control tracks -->
+    <SolidColorBrush x:Key="LineHover" Color="#4A4A50"/>
+    <SolidColorBrush x:Key="LineFocus" Color="#8A8A90"/>
+    <SolidColorBrush x:Key="Selection" Color="#8E8E99"/>
+    <SolidColorBrush x:Key="Button" Color="#2E2E33"/>
+    <SolidColorBrush x:Key="ButtonEdge" Color="#3C3C42"/>
+    <SolidColorBrush x:Key="ButtonHover" Color="#3A3A40"/>
+    <SolidColorBrush x:Key="ButtonPressed" Color="#26262A"/>
+    <SolidColorBrush x:Key="OnInk" Color="#121214"/>         <!-- text on an Ink fill (primary button) -->
+    <SolidColorBrush x:Key="PrimaryHover" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="PrimaryPressed" Color="#D1D1D6"/>
+    <SolidColorBrush x:Key="CaptionHover" Color="#2A2A2E"/>
+    <SolidColorBrush x:Key="CloseHover" Color="#C42B1C"/>    <!-- Windows' own close red, both themes -->
+    <SolidColorBrush x:Key="CloseInk" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Track" Color="#6C6C74"/>         <!-- switch track, off -->
+    <SolidColorBrush x:Key="TrackHover" Color="#7C7C84"/>
+    <SolidColorBrush x:Key="Thumb" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="ThumbEdge" Color="#00000000"/>   <!-- slider thumb outline (none on dark) -->
+    <SolidColorBrush x:Key="OnRed" Color="#FFFFFF"/>         <!-- the tick on a red checkbox -->
+    <SolidColorBrush x:Key="CheckFill" Color="#2A2A2E"/>
+    <SolidColorBrush x:Key="CheckEdge" Color="#6E6E75"/>
+    <SolidColorBrush x:Key="CheckHover" Color="#A1A1A6"/>
+    <SolidColorBrush x:Key="SegOn" Color="#46464C"/>
+    <SolidColorBrush x:Key="SegOnInk" Color="#F5F5F7"/>
+    <SolidColorBrush x:Key="Scroll" Color="#48484D"/>
+    <SolidColorBrush x:Key="RowHover" Color="#26262A"/>
+    <SolidColorBrush x:Key="RowSelected" Color="#2F2F35"/>
+    <SolidColorBrush x:Key="NavHover" Color="#1D1D20"/>
+    <SolidColorBrush x:Key="NavOn" Color="#34343A"/>
+    <SolidColorBrush x:Key="NavOnEdge" Color="#4A4A52"/>
+    <SolidColorBrush x:Key="SliderTrack" Color="#3A3A3F"/>
+    <SolidColorBrush x:Key="Tick" Color="#5A5A60"/>
+    <SolidColorBrush x:Key="DotOff" Color="#5A5A60"/>        <!-- status dot while off / not running -->
+    <SolidColorBrush x:Key="MeterTrack" Color="#303035"/>
+    <SolidColorBrush x:Key="Popup" Color="#2A2A2E"/>         <!-- dropdown list -->
+    <SolidColorBrush x:Key="PopupHover" Color="#3A3A40"/>
+    <SolidColorBrush x:Key="OnTint" Color="#2A1A1A"/>        <!-- the menu's status block while on -->
+    <SolidColorBrush x:Key="OnEdge" Color="#5A2420"/>        <!-- its border, and the switch card's while on -->
+    <SolidColorBrush x:Key="HeroOnTop" Color="#3A1A18"/>     <!-- the switch card's red tint, top left -->
+    <SolidColorBrush x:Key="HeroOnMid" Color="#221B1D"/>     <!-- ... fading out by the middle -->
+    <SolidColorBrush x:Key="TipBg" Color="#FFFFFF"/>         <!-- tooltips (light theme only; dark keeps Windows' own) -->
+    <SolidColorBrush x:Key="TipEdge" Color="#C4C4CA"/>
     <FontFamily x:Key="Mono">Cascadia Mono, Consolas</FontFamily>
     <FontFamily x:Key="Display">Bahnschrift SemiBold, Bahnschrift</FontFamily>
 
@@ -40,7 +86,7 @@
       <Setter Property="Control.Template">
         <Setter.Value>
           <ControlTemplate>
-            <Rectangle Margin="-3" RadiusX="9" RadiusY="9" Stroke="#F5F5F7" StrokeThickness="2" Opacity="0.7"/>
+            <Rectangle Margin="-3" RadiusX="9" RadiusY="9" Stroke="{DynamicResource Ink}" StrokeThickness="2" Opacity="0.7"/>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
@@ -50,7 +96,7 @@
       <Setter Property="Control.Template">
         <Setter.Value>
           <ControlTemplate>
-            <Rectangle Margin="2" RadiusX="7" RadiusY="7" Stroke="#F5F5F7" StrokeThickness="2" Opacity="0.7"/>
+            <Rectangle Margin="2" RadiusX="7" RadiusY="7" Stroke="{DynamicResource Ink}" StrokeThickness="2" Opacity="0.7"/>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
@@ -59,41 +105,41 @@
     <!-- text -->
     <Style x:Key="Sub" TargetType="TextBlock">
       <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Dim}"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
       <Setter Property="LineHeight" Value="17"/>
     </Style>
     <Style x:Key="Caption" TargetType="TextBlock">
       <Setter Property="FontSize" Value="11"/>
-      <Setter Property="Foreground" Value="{StaticResource Faint}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Faint}"/>
     </Style>
     <Style x:Key="SectionHeader" TargetType="TextBlock">
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Dim}"/>
       <Setter Property="Margin" Value="16,0,0,7"/>
     </Style>
     <Style x:Key="StatLabel" TargetType="TextBlock">
       <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Dim}"/>
     </Style>
     <Style x:Key="StatSub" TargetType="TextBlock">
       <Setter Property="FontSize" Value="11"/>
-      <Setter Property="Foreground" Value="{StaticResource Faint}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Faint}"/>
       <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
       <Setter Property="Margin" Value="0,7,0,0"/>
     </Style>
 
     <!-- grouped card -->
     <Style x:Key="Group" TargetType="Border">
-      <Setter Property="Background" Value="{StaticResource Card}"/>
-      <Setter Property="BorderBrush" Value="{StaticResource Hairline}"/>
+      <Setter Property="Background" Value="{DynamicResource Card}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="12"/>
     </Style>
     <Style x:Key="Row" TargetType="Border">
       <Setter Property="Padding" Value="16,12"/>
-      <Setter Property="BorderBrush" Value="{StaticResource Hairline}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Hairline}"/>
       <Setter Property="BorderThickness" Value="0,0,0,1"/>
     </Style>
     <Style x:Key="LastRow" TargetType="Border" BasedOn="{StaticResource Row}">
@@ -102,8 +148,8 @@
 
     <!-- buttons -->
     <Style x:Key="Btn" TargetType="Button">
-      <Setter Property="Foreground" Value="{StaticResource Ink}"/>
-      <Setter Property="Background" Value="#2E2E33"/>
+      <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+      <Setter Property="Background" Value="{DynamicResource Button}"/>
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="Padding" Value="14,6"/>
       <Setter Property="MinHeight" Value="32"/>
@@ -114,12 +160,12 @@
         <Setter.Value>
           <ControlTemplate TargetType="Button">
             <Border x:Name="B" Background="{TemplateBinding Background}" CornerRadius="7" Padding="{TemplateBinding Padding}"
-                    BorderBrush="#3C3C42" BorderThickness="0,1,0,0">
+                    BorderBrush="{DynamicResource ButtonEdge}" BorderThickness="0,1,0,0">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="#3A3A40"/></Trigger>
-              <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="#26262A"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource ButtonHover}"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource ButtonPressed}"/></Trigger>
               <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -129,8 +175,8 @@
 
     <!-- the one main action on a setup page: light on dark, so it reads first without using red (red means "on") -->
     <Style x:Key="PrimaryBtn" TargetType="Button" BasedOn="{StaticResource Btn}">
-      <Setter Property="Foreground" Value="#121214"/>
-      <Setter Property="Background" Value="{StaticResource Ink}"/>
+      <Setter Property="Foreground" Value="{DynamicResource OnInk}"/>
+      <Setter Property="Background" Value="{DynamicResource Ink}"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="Template">
         <Setter.Value>
@@ -139,8 +185,8 @@
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="#FFFFFF"/></Trigger>
-              <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="#D1D1D6"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource PrimaryHover}"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource PrimaryPressed}"/></Trigger>
               <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -152,7 +198,7 @@
     <Style x:Key="CaptionBtn" TargetType="Button">
       <Setter Property="Width" Value="46"/>
       <Setter Property="Height" Value="34"/>
-      <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Dim}"/>
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRingInset}"/>
       <Setter Property="Template">
@@ -163,8 +209,8 @@
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="B" Property="Background" Value="#2A2A2E"/>
-                <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+                <Setter TargetName="B" Property="Background" Value="{DynamicResource CaptionHover}"/>
+                <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -180,8 +226,8 @@
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="B" Property="Background" Value="#C42B1C"/>
-                <Setter Property="Foreground" Value="White"/>
+                <Setter TargetName="B" Property="Background" Value="{DynamicResource CloseHover}"/>
+                <Setter Property="Foreground" Value="{DynamicResource CloseInk}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -197,10 +243,10 @@
         <Setter.Value>
           <ControlTemplate TargetType="ToggleButton">
             <Grid Width="84" Height="48" Background="Transparent">
-              <Border x:Name="Ring" CornerRadius="27" Margin="-4" BorderBrush="{StaticResource Ink}" BorderThickness="2" Opacity="0"/>
-              <Border x:Name="Track" CornerRadius="24" Background="#6C6C74"/>
-              <Border x:Name="TrackOn" CornerRadius="24" Background="{StaticResource Red}" Opacity="0"/>
-              <Ellipse Width="40" Height="40" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0">
+              <Border x:Name="Ring" CornerRadius="27" Margin="-4" BorderBrush="{DynamicResource Ink}" BorderThickness="2" Opacity="0"/>
+              <Border x:Name="Track" CornerRadius="24" Background="{DynamicResource Track}"/>
+              <Border x:Name="TrackOn" CornerRadius="24" Background="{DynamicResource Red}" Opacity="0"/>
+              <Ellipse Width="40" Height="40" Fill="{DynamicResource Thumb}" HorizontalAlignment="Left" Margin="4,0,0,0">
                 <Ellipse.RenderTransform><TranslateTransform x:Name="ThumbX"/></Ellipse.RenderTransform>
                 <Ellipse.Effect><DropShadowEffect BlurRadius="8" ShadowDepth="2" Direction="270" Opacity="0.35"/></Ellipse.Effect>
               </Ellipse>
@@ -228,7 +274,7 @@
                   </BeginStoryboard>
                 </Trigger.ExitActions>
               </Trigger>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="#7C7C84"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="{DynamicResource TrackHover}"/></Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Ring" Property="Opacity" Value="0.7"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -238,7 +284,7 @@
 
     <!-- settings row: label on the left, 42 x 26 switch on the right -->
     <Style x:Key="SwitchRow" TargetType="CheckBox">
-      <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -249,10 +295,10 @@
               <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
               <ContentPresenter VerticalAlignment="Center" Margin="0,0,16,0"/>
               <Grid Grid.Column="1" Width="42" Height="26" VerticalAlignment="Center">
-                <Border x:Name="Ring" CornerRadius="16" Margin="-3" BorderBrush="{StaticResource Ink}" BorderThickness="2" Opacity="0"/>
-                <Border x:Name="Track" CornerRadius="13" Background="#6C6C74"/>
-                <Border x:Name="TrackOn" CornerRadius="13" Background="{StaticResource Red}" Opacity="0"/>
-                <Ellipse Width="22" Height="22" Fill="White" HorizontalAlignment="Left" Margin="2,0,0,0">
+                <Border x:Name="Ring" CornerRadius="16" Margin="-3" BorderBrush="{DynamicResource Ink}" BorderThickness="2" Opacity="0"/>
+                <Border x:Name="Track" CornerRadius="13" Background="{DynamicResource Track}"/>
+                <Border x:Name="TrackOn" CornerRadius="13" Background="{DynamicResource Red}" Opacity="0"/>
+                <Ellipse Width="22" Height="22" Fill="{DynamicResource Thumb}" HorizontalAlignment="Left" Margin="2,0,0,0">
                   <Ellipse.RenderTransform><TranslateTransform x:Name="ThumbX"/></Ellipse.RenderTransform>
                   <Ellipse.Effect><DropShadowEffect BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/></Ellipse.Effect>
                 </Ellipse>
@@ -281,7 +327,7 @@
                   </BeginStoryboard>
                 </Trigger.ExitActions>
               </Trigger>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="#7C7C84"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="{DynamicResource TrackHover}"/></Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Ring" Property="Opacity" Value="0.7"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -297,17 +343,17 @@
         <Setter.Value>
           <ControlTemplate TargetType="CheckBox">
             <Grid Width="28" Height="28" Background="Transparent">
-              <Border x:Name="Box" Width="18" Height="18" CornerRadius="5" Background="#2A2A2E" BorderBrush="#6E6E75" BorderThickness="1">
-                <Path x:Name="Tick" Data="M3.5,9 L7.2,12.5 L14.5,5" Stroke="White" StrokeThickness="2"
+              <Border x:Name="Box" Width="18" Height="18" CornerRadius="5" Background="{DynamicResource CheckFill}" BorderBrush="{DynamicResource CheckEdge}" BorderThickness="1">
+                <Path x:Name="Tick" Data="M3.5,9 L7.2,12.5 L14.5,5" Stroke="{DynamicResource OnRed}" StrokeThickness="2"
                       StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
               </Border>
             </Grid>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="#A1A1A6"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource CheckHover}"/></Trigger>
               <Trigger Property="IsChecked" Value="True">
                 <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
-                <Setter TargetName="Box" Property="Background" Value="{StaticResource Red}"/>
-                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Red}"/>
+                <Setter TargetName="Box" Property="Background" Value="{DynamicResource Red}"/>
+                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Red}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -317,7 +363,7 @@
 
     <!-- small segmented control (log interval) -->
     <Style x:Key="Seg" TargetType="RadioButton">
-      <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Dim}"/>
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
@@ -328,10 +374,10 @@
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{StaticResource Ink}"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource Ink}"/></Trigger>
               <Trigger Property="IsChecked" Value="True">
-                <Setter TargetName="B" Property="Background" Value="#46464C"/>
-                <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+                <Setter TargetName="B" Property="Background" Value="{DynamicResource SegOn}"/>
+                <Setter Property="Foreground" Value="{DynamicResource SegOnInk}"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
               </Trigger>
             </ControlTemplate.Triggers>
@@ -342,7 +388,7 @@
 
     <!-- in-page index link (Settings): plain Dim text that scrolls to a group; hover lightens like a menu row -->
     <Style x:Key="JumpLink" TargetType="Button">
-      <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Dim}"/>
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
@@ -354,10 +400,10 @@
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="B" Property="Background" Value="{StaticResource Card}"/>
-                <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+                <Setter TargetName="B" Property="Background" Value="{DynamicResource NavHover}"/>
+                <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
               </Trigger>
-              <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="{StaticResource Raised}"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource Raised}"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
@@ -365,11 +411,11 @@
     </Style>
 
     <Style TargetType="TextBox">
-      <Setter Property="Background" Value="#141416"/>
-      <Setter Property="Foreground" Value="{StaticResource Ink}"/>
-      <Setter Property="BorderBrush" Value="{StaticResource Line}"/>
-      <Setter Property="CaretBrush" Value="{StaticResource Ink}"/>
-      <Setter Property="SelectionBrush" Value="#8E8E99"/>
+      <Setter Property="Background" Value="{DynamicResource Field}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
+      <Setter Property="CaretBrush" Value="{DynamicResource Ink}"/>
+      <Setter Property="SelectionBrush" Value="{DynamicResource Selection}"/>
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="Padding" Value="8,5"/>
       <Setter Property="MinHeight" Value="32"/>
@@ -381,8 +427,8 @@
               <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
             </Border>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="BorderBrush" Value="#4A4A50"/></Trigger>
-              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="B" Property="BorderBrush" Value="#8A8A90"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource LineHover}"/></Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource LineFocus}"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
@@ -395,7 +441,7 @@
         <Track.Thumb>
           <Thumb>
             <Thumb.Template>
-              <ControlTemplate TargetType="Thumb"><Border CornerRadius="3" Background="#48484D" Margin="1,0"/></ControlTemplate>
+              <ControlTemplate TargetType="Thumb"><Border CornerRadius="3" Background="{DynamicResource Scroll}" Margin="1,0"/></ControlTemplate>
             </Thumb.Template>
           </Thumb>
         </Track.Thumb>
@@ -406,7 +452,7 @@
         <Track.Thumb>
           <Thumb>
             <Thumb.Template>
-              <ControlTemplate TargetType="Thumb"><Border CornerRadius="3" Background="#48484D" Margin="0,1"/></ControlTemplate>
+              <ControlTemplate TargetType="Thumb"><Border CornerRadius="3" Background="{DynamicResource Scroll}" Margin="0,1"/></ControlTemplate>
             </Thumb.Template>
           </Thumb>
         </Track.Thumb>
@@ -430,12 +476,12 @@
 
     <!-- inset list: rounded card, rounded row highlights, no stripes -->
     <Style TargetType="ListBox">
-      <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
       <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ListBox">
-            <Border Background="{StaticResource Card}" BorderBrush="{StaticResource Hairline}" BorderThickness="1" CornerRadius="12" Padding="5">
+            <Border Background="{DynamicResource Card}" BorderBrush="{DynamicResource Hairline}" BorderThickness="1" CornerRadius="12" Padding="5">
               <ScrollViewer Focusable="False"><ItemsPresenter/></ScrollViewer>
             </Border>
           </ControlTemplate>
@@ -452,8 +498,8 @@
                     <ContentPresenter/>
                   </Border>
                   <ControlTemplate.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Row" Property="Background" Value="#26262A"/></Trigger>
-                    <Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="#2F2F35"/></Trigger>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource RowHover}"/></Trigger>
+                    <Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource RowSelected}"/></Trigger>
                   </ControlTemplate.Triggers>
                 </ControlTemplate>
               </Setter.Value>
@@ -479,7 +525,7 @@
       </Setter>
     </Style>
     <Style x:Key="NavItem" TargetType="ListBoxItem">
-      <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Dim}"/>
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRingInset}"/>
@@ -493,19 +539,19 @@
                 <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
               </Border>
               <!-- the current row's marker: a short Ink bar inside its left edge (the fill alone was about 1.3:1) -->
-              <Border x:Name="Bar" Width="3" Height="16" CornerRadius="1.5" Background="{StaticResource Ink}" HorizontalAlignment="Left"
+              <Border x:Name="Bar" Width="3" Height="16" CornerRadius="1.5" Background="{DynamicResource Ink}" HorizontalAlignment="Left"
                       VerticalAlignment="Center" Margin="4,0,0,0" Visibility="Collapsed" IsHitTestVisible="False"/>
             </Grid>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="B" Property="Background" Value="{StaticResource Card}"/>
-                <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+                <Setter TargetName="B" Property="Background" Value="{DynamicResource NavHover}"/>
+                <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
               </Trigger>
               <Trigger Property="IsSelected" Value="True">
-                <Setter TargetName="B" Property="Background" Value="#34343A"/>
-                <Setter TargetName="B" Property="BorderBrush" Value="#4A4A52"/>
+                <Setter TargetName="B" Property="Background" Value="{DynamicResource NavOn}"/>
+                <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource NavOnEdge}"/>
                 <Setter TargetName="Bar" Property="Visibility" Value="Visible"/>
-                <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+                <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
               </Trigger>
             </ControlTemplate.Triggers>
@@ -522,10 +568,10 @@
         <Setter.Value>
           <ControlTemplate TargetType="ToggleButton">
             <Grid Width="42" Height="28" Background="Transparent">
-              <Border x:Name="Ring" CornerRadius="16" Margin="-3,-2" BorderBrush="{StaticResource Ink}" BorderThickness="2" Opacity="0"/>
-              <Border x:Name="Track" CornerRadius="13" Margin="0,1" Background="#6C6C74"/>
-              <Border x:Name="TrackOn" CornerRadius="13" Margin="0,1" Background="{StaticResource Red}" Opacity="0"/>
-              <Ellipse Width="22" Height="22" Fill="White" HorizontalAlignment="Left" Margin="2,0,0,0">
+              <Border x:Name="Ring" CornerRadius="16" Margin="-3,-2" BorderBrush="{DynamicResource Ink}" BorderThickness="2" Opacity="0"/>
+              <Border x:Name="Track" CornerRadius="13" Margin="0,1" Background="{DynamicResource Track}"/>
+              <Border x:Name="TrackOn" CornerRadius="13" Margin="0,1" Background="{DynamicResource Red}" Opacity="0"/>
+              <Ellipse Width="22" Height="22" Fill="{DynamicResource Thumb}" HorizontalAlignment="Left" Margin="2,0,0,0">
                 <Ellipse.RenderTransform><TranslateTransform x:Name="ThumbX"/></Ellipse.RenderTransform>
                 <Ellipse.Effect><DropShadowEffect BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/></Ellipse.Effect>
               </Ellipse>
@@ -553,7 +599,7 @@
                   </BeginStoryboard>
                 </Trigger.ExitActions>
               </Trigger>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="#7C7C84"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="{DynamicResource TrackHover}"/></Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Ring" Property="Opacity" Value="0.7"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -564,7 +610,7 @@
     <!-- sections: the side menu picks one (Layout.cs), so the tab bar itself is never shown. Each section's long
          name (its Tag) is the page title; Overview has none. -->
     <Style TargetType="TabItem">
-      <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
       <Setter Property="Template">
         <Setter.Value><ControlTemplate TargetType="TabItem"/></Setter.Value>
       </Setter>
@@ -575,7 +621,7 @@
           <ControlTemplate TargetType="TabControl">
             <DockPanel>
               <StackPanel DockPanel.Dock="Top" IsItemsHost="True" Visibility="Collapsed"/>
-              <TextBlock x:Name="PageTitle" DockPanel.Dock="Top" FontFamily="{StaticResource Display}" FontSize="22" Foreground="{StaticResource Ink}"
+              <TextBlock x:Name="PageTitle" DockPanel.Dock="Top" FontFamily="{StaticResource Display}" FontSize="22" Foreground="{DynamicResource Ink}"
                          Margin="16,0,16,14" Text="{Binding SelectedItem.Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
               <!-- PART_SelectedContentHost: without this name, UI Automation (screen readers) can't see any section's content -->
               <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"/>
@@ -617,15 +663,15 @@
             <Grid>
               <Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
               <Track x:Name="PART_Track" Grid.Row="0">
-                <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource SliderStep}" Background="{StaticResource Ink}" Command="Slider.DecreaseLarge"/></Track.DecreaseRepeatButton>
-                <Track.IncreaseRepeatButton><RepeatButton Style="{StaticResource SliderStep}" Background="#3A3A3F" Command="Slider.IncreaseLarge"/></Track.IncreaseRepeatButton>
+                <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource SliderStep}" Background="{DynamicResource Ink}" Command="Slider.DecreaseLarge"/></Track.DecreaseRepeatButton>
+                <Track.IncreaseRepeatButton><RepeatButton Style="{StaticResource SliderStep}" Background="{DynamicResource SliderTrack}" Command="Slider.IncreaseLarge"/></Track.IncreaseRepeatButton>
                 <Track.Thumb>
                   <Thumb Width="22" Height="22">
                     <Thumb.Template>
                       <ControlTemplate TargetType="Thumb">
                         <Grid>
-                          <Ellipse x:Name="Ring" Margin="-4" Stroke="{StaticResource Ink}" StrokeThickness="2" Opacity="0"/>
-                          <Ellipse Fill="White"/>
+                          <Ellipse x:Name="Ring" Margin="-4" Stroke="{DynamicResource Ink}" StrokeThickness="2" Opacity="0"/>
+                          <Ellipse Margin="-1" Fill="{DynamicResource ThumbEdge}"/><Ellipse Fill="{DynamicResource Thumb}"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                           <DataTrigger Binding="{Binding IsKeyboardFocused, RelativeSource={RelativeSource AncestorType=Slider}}" Value="True">
@@ -637,7 +683,7 @@
                   </Thumb>
                 </Track.Thumb>
               </Track>
-              <TickBar Grid.Row="1" Placement="Bottom" Height="5" Margin="11,2,11,0" Fill="#5A5A60"
+              <TickBar Grid.Row="1" Placement="Bottom" Height="5" Margin="11,2,11,0" Fill="{DynamicResource Tick}"
                        Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" TickFrequency="{TemplateBinding TickFrequency}"/>
             </Grid>
             <ControlTemplate.Triggers>
@@ -650,7 +696,7 @@
 
     <!-- dropdown (Advanced editor values): button graphite, dark popup, 32 px tall -->
     <Style TargetType="ComboBoxItem">
-      <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
@@ -660,7 +706,7 @@
               <ContentPresenter/>
             </Border>
             <ControlTemplate.Triggers>
-              <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="B" Property="Background" Value="#3A3A40"/></Trigger>
+              <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource PopupHover}"/></Trigger>
               <Trigger Property="IsSelected" Value="True"><Setter Property="FontWeight" Value="SemiBold"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -668,7 +714,7 @@
       </Setter>
     </Style>
     <Style TargetType="ComboBox">
-      <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="MinHeight" Value="32"/>
       <Setter Property="Cursor" Value="Hand"/>
@@ -681,11 +727,11 @@
               <ToggleButton Focusable="False" ClickMode="Press" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                 <ToggleButton.Template>
                   <ControlTemplate TargetType="ToggleButton">
-                    <Border x:Name="B" Background="#2E2E33" CornerRadius="7" BorderBrush="#3C3C42" BorderThickness="0,1,0,0">
-                      <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" Data="M0,0 L4,4 L8,0" Stroke="{StaticResource Dim}" StrokeThickness="1.5"/>
+                    <Border x:Name="B" Background="{DynamicResource Button}" CornerRadius="7" BorderBrush="{DynamicResource ButtonEdge}" BorderThickness="0,1,0,0">
+                      <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" Data="M0,0 L4,4 L8,0" Stroke="{DynamicResource Dim}" StrokeThickness="1.5"/>
                     </Border>
                     <ControlTemplate.Triggers>
-                      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="#3A3A40"/></Trigger>
+                      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource ButtonHover}"/></Trigger>
                     </ControlTemplate.Triggers>
                   </ControlTemplate>
                 </ToggleButton.Template>
@@ -693,7 +739,7 @@
               <ContentPresenter IsHitTestVisible="False" Margin="12,0,32,0" VerticalAlignment="Center"
                                 Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
               <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="None">
-                <Border Background="{StaticResource Raised}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8" Padding="2,3"
+                <Border Background="{DynamicResource Popup}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Padding="2,3"
                         MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="320" Margin="0,4,0,0">
                   <ScrollViewer VerticalScrollBarVisibility="Auto"><ItemsPresenter/></ScrollViewer>
                 </Border>
@@ -709,7 +755,7 @@
 
     <!-- disclosure row (Advanced settings): chevron turns 90° in 150 ms; instant when animations are off -->
     <Style x:Key="Disclosure" TargetType="ToggleButton">
-      <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
       <Setter Property="FontSize" Value="13"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRingInset}"/>
@@ -721,7 +767,7 @@
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <ContentPresenter VerticalAlignment="Center" Margin="0,0,16,0"/>
-                <Path Grid.Column="1" Data="M0,0 L5,5 L0,10" Stroke="{StaticResource Dim}" StrokeThickness="1.6" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                <Path Grid.Column="1" Data="M0,0 L5,5 L0,10" Stroke="{DynamicResource Dim}" StrokeThickness="1.6" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
                   <Path.RenderTransform><RotateTransform x:Name="Turn" Angle="0"/></Path.RenderTransform>
                 </Path>
               </Grid>
@@ -743,13 +789,13 @@
       <Setter Property="Minimum" Value="0"/>
       <Setter Property="Maximum" Value="100"/>
       <Setter Property="Value" Value="0"/>
-      <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
       <Setter Property="Margin" Value="0,8,0,0"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ProgressBar">
             <Grid>
-              <Border x:Name="PART_Track" CornerRadius="2" Background="#303035"/>
+              <Border x:Name="PART_Track" CornerRadius="2" Background="{DynamicResource MeterTrack}"/>
               <Border x:Name="PART_Indicator" CornerRadius="2" Background="{TemplateBinding Foreground}" HorizontalAlignment="Left"/>
             </Grid>
           </ControlTemplate>
@@ -782,15 +828,15 @@
         <!-- the switch block reads as status first: the light in the icon column, the state word in Ink under a quiet
              "Race Mode" label, the switch at the right. Graphite while off, a quiet red tint while on (SideMenu.cs).
              Icon-only, the switch is centred with the light under it. -->
-        <Border x:Name="NavStatus" Background="{StaticResource Card}" BorderBrush="{StaticResource Hairline}" BorderThickness="1"
+        <Border x:Name="NavStatus" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Hairline}" BorderThickness="1"
                 CornerRadius="8" Padding="12,9,9,9" Margin="0,0,0,14">
           <Grid x:Name="NavStatusGrid">
             <Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-            <Ellipse x:Name="NavDot" Width="8" Height="8" Fill="#5A5A60" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Ellipse x:Name="NavDot" Width="8" Height="8" Fill="{DynamicResource DotOff}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             <StackPanel x:Name="NavStatusWords" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0" Background="Transparent">
-              <TextBlock Text="Race Mode" Foreground="{StaticResource Dim}" FontSize="12"/>
-              <TextBlock x:Name="NavState" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,0" Foreground="{StaticResource Ink}" Text="Off" TextTrimming="CharacterEllipsis"/>
+              <TextBlock Text="Race Mode" Foreground="{DynamicResource Dim}" FontSize="12"/>
+              <TextBlock x:Name="NavState" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,0" Foreground="{DynamicResource Ink}" Text="Off" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
             <ToggleButton x:Name="NavSwitch" Grid.Column="2" Style="{StaticResource SmallSwitch}" VerticalAlignment="Center"
                           IsChecked="{Binding IsChecked, ElementName=Switch, Mode=TwoWay}"
@@ -800,7 +846,7 @@
         <ListBox x:Name="Nav" Grid.Row="1" Style="{StaticResource NavList}" ItemContainerStyle="{StaticResource NavItem}" VerticalAlignment="Top"/>
         <!-- names or icons only, by hand (remembered); under 760 px there is no room for names and it hides -->
         <Button x:Name="NavCollapse" Grid.Row="2" Width="36" Height="28" Margin="5,8,0,0" HorizontalAlignment="Left"
-                Foreground="{StaticResource Dim}" Cursor="Hand" FocusVisualStyle="{StaticResource FocusRing}"
+                Foreground="{DynamicResource Dim}" Cursor="Hand" FocusVisualStyle="{StaticResource FocusRing}"
                 AutomationProperties.Name="Collapse menu" ToolTip="Collapse menu">
           <Button.Template>
             <ControlTemplate TargetType="Button">
@@ -809,10 +855,10 @@
               </Border>
               <ControlTemplate.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                  <Setter TargetName="B" Property="Background" Value="{StaticResource Card}"/>
-                  <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+                  <Setter TargetName="B" Property="Background" Value="{DynamicResource NavHover}"/>
+                  <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
                 </Trigger>
-                <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="#26262A"/></Trigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource ButtonPressed}"/></Trigger>
               </ControlTemplate.Triggers>
             </ControlTemplate>
           </Button.Template>
@@ -829,7 +875,7 @@
             <!-- one step in the steps view: read-only, the whole row opens the page where the step is set up.
                  Hover is a lighter graphite, the focus ring sits inside the row. -->
             <Style x:Key="StepRow" TargetType="Button">
-              <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+              <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
               <Setter Property="Cursor" Value="Hand"/>
               <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRingInset}"/>
               <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -840,8 +886,8 @@
                       <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                     </Border>
                     <ControlTemplate.Triggers>
-                      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="{StaticResource Raised}"/></Trigger>
-                      <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="#26262A"/></Trigger>
+                      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource Raised}"/></Trigger>
+                      <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="{DynamicResource ButtonPressed}"/></Trigger>
                     </ControlTemplate.Triggers>
                   </ControlTemplate>
                 </Setter.Value>
@@ -859,35 +905,17 @@
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <!-- hero: the one job of this window -->
                 <Border x:Name="Hero" CornerRadius="16" BorderThickness="1" Padding="16,22,22,22">
-                  <!-- off: Card Graphite. On: it warms to a red tint from the top left, in the 240 ms the thumb takes
-                       (the colours below are animated, To-only, so switching back mid-way is smooth). -->
-                  <Border.Background>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                      <GradientStop Color="#1D1D20" Offset="0"/>
-                      <GradientStop Color="#1D1D20" Offset="0.55"/>
-                      <GradientStop Color="#1D1D20" Offset="1"/>
-                    </LinearGradientBrush>
-                  </Border.Background>
-                  <Border.BorderBrush><SolidColorBrush Color="#2C2C30"/></Border.BorderBrush>
-                  <Border.Style>
-                    <Style TargetType="Border">
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsChecked, ElementName=Switch}" Value="True">
-                          <DataTrigger.EnterActions><BeginStoryboard><Storyboard><ColorAnimation Storyboard.TargetProperty="Background.GradientStops[0].Color" To="#3A1A18" Duration="0:0:0.24"><ColorAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></ColorAnimation.EasingFunction></ColorAnimation><ColorAnimation Storyboard.TargetProperty="Background.GradientStops[1].Color" To="#221B1D" Duration="0:0:0.24"><ColorAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></ColorAnimation.EasingFunction></ColorAnimation><ColorAnimation Storyboard.TargetProperty="BorderBrush.Color" To="#5A2420" Duration="0:0:0.24"><ColorAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></ColorAnimation.EasingFunction></ColorAnimation></Storyboard></BeginStoryboard></DataTrigger.EnterActions>
-                          <DataTrigger.ExitActions><BeginStoryboard><Storyboard><ColorAnimation Storyboard.TargetProperty="Background.GradientStops[0].Color" To="#1D1D20" Duration="0:0:0.24"><ColorAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></ColorAnimation.EasingFunction></ColorAnimation><ColorAnimation Storyboard.TargetProperty="Background.GradientStops[1].Color" To="#1D1D20" Duration="0:0:0.24"><ColorAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></ColorAnimation.EasingFunction></ColorAnimation><ColorAnimation Storyboard.TargetProperty="BorderBrush.Color" To="#2C2C30" Duration="0:0:0.24"><ColorAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></ColorAnimation.EasingFunction></ColorAnimation></Storyboard></BeginStoryboard></DataTrigger.ExitActions>
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Border.Style>
+                  <!-- off: Card. On: it warms to a red tint from the top left (HeroOnTop, HeroOnMid, OnEdge), in the 240 ms
+                       the thumb takes. Its brushes are built and animated in Theme.cs, so the tint follows the theme. -->
                   <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
                       <!-- Set from code: "Race Mode is off" / "Turning on…" / "Race Mode is on" (App.cs SetPhase) -->
-                      <TextBlock x:Name="Headline" FontFamily="{StaticResource Display}" FontSize="28" Foreground="{StaticResource Ink}" Text="Race Mode is off"/>
+                      <TextBlock x:Name="Headline" FontFamily="{StaticResource Display}" FontSize="28" Foreground="{DynamicResource Ink}" Text="Race Mode is off"/>
                       <Grid Margin="1,8,0,0">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                        <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="#5A5A60" VerticalAlignment="Top" Margin="0,5,9,0"/>
-                        <TextBlock x:Name="StatusText" Grid.Column="1" FontSize="13" Foreground="{StaticResource Dim}" TextWrapping="Wrap" LineHeight="18"
+                        <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="{DynamicResource DotOff}" VerticalAlignment="Top" Margin="0,5,9,0"/>
+                        <TextBlock x:Name="StatusText" Grid.Column="1" FontSize="13" Foreground="{DynamicResource Dim}" TextWrapping="Wrap" LineHeight="18"
                                    AutomationProperties.LiveSetting="Polite"
                                    Text="Turn it on before you race."/>
                       </Grid>
@@ -903,42 +931,42 @@
                 <Border x:Name="StatsStrip" Grid.Row="1" Margin="0,12,0,0" Style="{StaticResource Group}" CornerRadius="14">
                   <UniformGrid x:Name="Telemetry" Columns="5">
                     <!-- FPS: only in the small panel's shapes (SmallPanel.cs); collapsed everywhere else. No data = words. -->
-                    <Border x:Name="FpsCell" Visibility="Collapsed" Padding="16,14,12,14" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,1,0" AutomationProperties.Name="FPS">
+                    <Border x:Name="FpsCell" Visibility="Collapsed" Padding="16,14,12,14" BorderBrush="{DynamicResource Hairline}" BorderThickness="0,0,1,0" AutomationProperties.Name="FPS">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Style="{StaticResource StatLabel}" Text="FPS"/>
-                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="FpsVal" Text="" FontFamily="{StaticResource Display}" FontSize="28"/><Run x:Name="FpsUnit" Text="Waiting" FontSize="12" Foreground="{StaticResource Dim}"/></TextBlock>
+                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="FpsVal" Text="" FontFamily="{StaticResource Display}" FontSize="28"/><Run x:Name="FpsUnit" Text="Waiting" FontSize="12" Foreground="{DynamicResource Dim}"/></TextBlock>
                         <TextBlock x:Name="FpsSub" Style="{StaticResource StatSub}" Text="for iRacing" ToolTip="Frames per second in iRacing. It shows up once you're in a session."/>
                       </StackPanel>
                     </Border>
-                    <Border Padding="16,14,12,14" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,1,0" AutomationProperties.Name="CPU">
+                    <Border Padding="16,14,12,14" BorderBrush="{DynamicResource Hairline}" BorderThickness="0,0,1,0" AutomationProperties.Name="CPU">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Style="{StaticResource StatLabel}" Text="CPU"/>
-                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="CpuVal" Text="--" FontFamily="{StaticResource Display}" FontSize="28"/><Run Text=" %" FontSize="12" Foreground="{StaticResource Dim}"/></TextBlock>
+                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="CpuVal" Text="--" FontFamily="{StaticResource Display}" FontSize="28"/><Run Text=" %" FontSize="12" Foreground="{DynamicResource Dim}"/></TextBlock>
                         <ProgressBar x:Name="CpuBar" Style="{StaticResource Meter}"/>
                         <TextBlock x:Name="CpuSub" Style="{StaticResource StatSub}" Text="Reading…" ToolTip="Your busiest single CPU core. iRacing usually maxes out one core before anything else."/>
                       </StackPanel>
                     </Border>
-                    <Border x:Name="CpuTempCell" Padding="14,14,12,14" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,1,0" Background="Transparent"
+                    <Border x:Name="CpuTempCell" Padding="14,14,12,14" BorderBrush="{DynamicResource Hairline}" BorderThickness="0,0,1,0" Background="Transparent"
                             Focusable="True" FocusVisualStyle="{StaticResource FocusRingInset}" AutomationProperties.Name="CPU temperature">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Style="{StaticResource StatLabel}" Text="CPU temp"/>
-                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="CpuTempVal" Text="--" FontFamily="{StaticResource Display}" FontSize="28"/><Run x:Name="CpuTempUnit" Text=" °C" FontSize="12" Foreground="{StaticResource Dim}"/></TextBlock>
+                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="CpuTempVal" Text="--" FontFamily="{StaticResource Display}" FontSize="28"/><Run x:Name="CpuTempUnit" Text=" °C" FontSize="12" Foreground="{DynamicResource Dim}"/></TextBlock>
                         <ProgressBar x:Name="CpuTempBar" Style="{StaticResource Meter}"/>
                         <TextBlock x:Name="CpuTempSub" Style="{StaticResource StatSub}" Text="Reading…"/>
                       </StackPanel>
                     </Border>
-                    <Border Padding="14,14,12,14" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,1,0" AutomationProperties.Name="GPU">
+                    <Border Padding="14,14,12,14" BorderBrush="{DynamicResource Hairline}" BorderThickness="0,0,1,0" AutomationProperties.Name="GPU">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Style="{StaticResource StatLabel}" Text="GPU"/>
-                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="GpuVal" Text="--" FontFamily="{StaticResource Display}" FontSize="28"/><Run Text=" %" FontSize="12" Foreground="{StaticResource Dim}"/></TextBlock>
+                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="GpuVal" Text="--" FontFamily="{StaticResource Display}" FontSize="28"/><Run Text=" %" FontSize="12" Foreground="{DynamicResource Dim}"/></TextBlock>
                         <ProgressBar x:Name="GpuBar" Style="{StaticResource Meter}"/>
                         <TextBlock x:Name="GpuSub" Style="{StaticResource StatSub}" Text="Reading…"/>
                       </StackPanel>
                     </Border>
-                    <Border Padding="14,14,12,14" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,1,0" AutomationProperties.Name="GPU temp">
+                    <Border Padding="14,14,12,14" BorderBrush="{DynamicResource Hairline}" BorderThickness="0,0,1,0" AutomationProperties.Name="GPU temp">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Style="{StaticResource StatLabel}" Text="GPU temp"/>
-                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="GpuTempVal" Text="--" FontFamily="{StaticResource Display}" FontSize="28"/><Run x:Name="GpuTempUnit" Text=" °C" FontSize="12" Foreground="{StaticResource Dim}"/></TextBlock>
+                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="GpuTempVal" Text="--" FontFamily="{StaticResource Display}" FontSize="28"/><Run x:Name="GpuTempUnit" Text=" °C" FontSize="12" Foreground="{DynamicResource Dim}"/></TextBlock>
                         <ProgressBar x:Name="GpuTempBar" Style="{StaticResource Meter}"/>
                         <TextBlock x:Name="GpuTempSub" Style="{StaticResource StatSub}" Text="Reading…" ToolTip="Video memory in use on your graphics card. iRacing, OBS and Discord all share it."/>
                       </StackPanel>
@@ -946,7 +974,7 @@
                     <Border Padding="14,14,14,14" AutomationProperties.Name="Free RAM">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Style="{StaticResource StatLabel}" Text="Free RAM"/>
-                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="RamVal" Text="--" FontFamily="{StaticResource Display}" FontSize="28"/><Run Text=" GB" FontSize="12" Foreground="{StaticResource Dim}"/></TextBlock>
+                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="RamVal" Text="--" FontFamily="{StaticResource Display}" FontSize="28"/><Run Text=" GB" FontSize="12" Foreground="{DynamicResource Dim}"/></TextBlock>
                         <ProgressBar x:Name="RamBar" Style="{StaticResource Meter}"/>
                         <TextBlock x:Name="RamSub" Style="{StaticResource StatSub}" Text="Reading…" ToolTip="Memory in use, out of all Windows can hand out (page file included). Close to full means stutter or crashes."/>
                       </StackPanel>
@@ -1017,8 +1045,8 @@
                       <CheckBox Style="{StaticResource Check}" IsChecked="{Binding Enabled, Mode=TwoWay}" VerticalAlignment="Center"
                                 AutomationProperties.Name="{Binding Name}"/>
                       <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                        <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{StaticResource Ink}"/>
-                        <TextBlock Text="{Binding Detail}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{StaticResource Faint}"
+                        <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{DynamicResource Ink}"/>
+                        <TextBlock Text="{Binding Detail}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{DynamicResource Faint}"
                                    TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding Detail}"/>
                       </StackPanel>
                     </Grid>
@@ -1080,7 +1108,7 @@
                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <TextBox x:Name="NewCloseBox" ToolTip="The app's name as Task Manager shows it on the Details tab, without .exe" AutomationProperties.Name="App to close"/>
-                <TextBlock x:Name="NewCloseHint" Text="App name, e.g. steam" Foreground="{StaticResource Faint}" FontSize="13" Margin="11,0,0,0"
+                <TextBlock x:Name="NewCloseHint" Text="App name, e.g. steam" Foreground="{DynamicResource Faint}" FontSize="13" Margin="11,0,0,0"
                            VerticalAlignment="Center" IsHitTestVisible="False" TextTrimming="CharacterEllipsis">
                   <TextBlock.Style>
                     <Style TargetType="TextBlock">
@@ -1134,8 +1162,8 @@
                       <CheckBox Style="{StaticResource Check}" IsChecked="{Binding Enabled, Mode=TwoWay}" VerticalAlignment="Center"
                                 AutomationProperties.Name="{Binding Name}"/>
                       <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                        <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{StaticResource Ink}"/>
-                        <TextBlock Text="{Binding Detail}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{StaticResource Faint}"
+                        <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{DynamicResource Ink}"/>
+                        <TextBlock Text="{Binding Detail}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{DynamicResource Faint}"
                                    TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding Detail}"/>
                       </StackPanel>
                     </Grid>
@@ -1164,9 +1192,9 @@
                 <Border Style="{StaticResource Row}">
                   <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <Ellipse x:Name="ObsDot" Width="8" Height="8" Fill="#5A5A60" VerticalAlignment="Top" Margin="0,5,10,0"/>
+                    <Ellipse x:Name="ObsDot" Width="8" Height="8" Fill="{DynamicResource DotOff}" VerticalAlignment="Top" Margin="0,5,10,0"/>
                     <StackPanel Grid.Column="1">
-                      <TextBlock x:Name="ObsTitle" Text="Stream stats" Foreground="{StaticResource Ink}"/>
+                      <TextBlock x:Name="ObsTitle" Text="Stream stats" Foreground="{DynamicResource Ink}"/>
                       <TextBlock x:Name="ObsSub" Style="{StaticResource Sub}" TextWrapping="Wrap" Text="Turn on Streaming to see dropped frames and bitrate from OBS."/>
                     </StackPanel>
                     <Button x:Name="ObsEnableBtn" Grid.Column="2" Style="{StaticResource Btn}" Content="Turn On OBS Stats" Margin="12,0,0,0" Visibility="Collapsed"
@@ -1177,7 +1205,7 @@
                   <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <StackPanel>
-                      <TextBlock Text="Race Mode inside OBS" Foreground="{StaticResource Ink}"/>
+                      <TextBlock Text="Race Mode inside OBS" Foreground="{DynamicResource Ink}"/>
                       <TextBlock Style="{StaticResource Sub}" TextWrapping="Wrap" Text="A small panel with FPS, temperatures, stream health and the on/off switch.&#x0a;1. Click Copy Dock Link.&#x0a;2. In OBS: Docks &gt; Custom Browser Docks.&#x0a;3. Name it Race Mode, paste the link, Apply."/>
                     </StackPanel>
                     <Button x:Name="DockLinkBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Copy Dock Link" Margin="12,0,0,0" IsEnabled="False" ToolTipService.ShowOnDisabled="True"
@@ -1188,7 +1216,7 @@
                   <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <StackPanel>
-                      <TextBlock Text="Stream test" Foreground="{StaticResource Ink}"/>
+                      <TextBlock Text="Stream test" Foreground="{DynamicResource Ink}"/>
                       <TextBlock x:Name="StreamTestText" Style="{StaticResource Sub}" TextWrapping="Wrap" Text="10 minutes while you drive: 5 without streaming, then 5 streaming. Shows what streaming costs you in FPS, and how healthy the stream is."/>
                     </StackPanel>
                     <Button x:Name="StreamTestBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Start Test" Margin="12,0,0,0"/>
@@ -1244,7 +1272,7 @@
                         <TextBlock Text="Replay quality"/>
                         <TextBlock x:Name="PhotoLevelSub" Style="{StaticResource Sub}" Text="Used while Photo mode is on."/>
                       </StackPanel>
-                      <Border Grid.Column="1" Background="#141416" CornerRadius="8" Padding="2" VerticalAlignment="Center">
+                      <Border Grid.Column="1" Background="{DynamicResource Field}" CornerRadius="8" Padding="2" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
                           <RadioButton x:Name="PhotoLvl1" Style="{StaticResource Seg}" GroupName="PhotoLevel" Content="Race look"/>
                           <RadioButton x:Name="PhotoLvl2" Style="{StaticResource Seg}" GroupName="PhotoLevel" Content="Better"/>
@@ -1282,11 +1310,11 @@
                     </StackPanel>
                   </ToggleButton>
                   <StackPanel x:Name="AdvPanel" Visibility="Collapsed">
-                    <Border BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="16,12">
+                    <Border BorderBrush="{DynamicResource Hairline}" BorderThickness="0,1,0,0" Padding="16,12">
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <TextBlock x:Name="AdvSummary" Style="{StaticResource Sub}" VerticalAlignment="Center" Margin="0,0,16,0"/>
-                        <Border Grid.Column="1" Background="#141416" CornerRadius="8" Padding="2">
+                        <Border Grid.Column="1" Background="{DynamicResource Field}" CornerRadius="8" Padding="2">
                           <StackPanel Orientation="Horizontal">
                             <RadioButton x:Name="AdvRace" Style="{StaticResource Seg}" GroupName="AdvMode" Content="Racing" IsChecked="True"/>
                             <RadioButton x:Name="AdvPhoto" Style="{StaticResource Seg}" GroupName="AdvMode" Content="Replays"/>
@@ -1294,10 +1322,10 @@
                         </Border>
                       </Grid>
                     </Border>
-                    <Border BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="16,10,16,12">
+                    <Border BorderBrush="{DynamicResource Hairline}" BorderThickness="0,1,0,0" Padding="16,10,16,12">
                       <Grid>
                         <TextBox x:Name="AdvSearch" AutomationProperties.Name="Find a setting" ToolTip="Type part of a setting's name or what it does"/>
-                        <TextBlock Text="Find a setting, e.g. shadows" Foreground="{StaticResource Faint}" FontSize="13" Margin="11,0,0,0"
+                        <TextBlock Text="Find a setting, e.g. shadows" Foreground="{DynamicResource Faint}" FontSize="13" Margin="11,0,0,0"
                                    VerticalAlignment="Center" IsHitTestVisible="False">
                           <TextBlock.Style>
                             <Style TargetType="TextBlock">
@@ -1322,7 +1350,7 @@
         <TabItem Header="Settings" Tag="Settings">
           <DockPanel>
             <!-- a short index of the groups (one column only; Pages.cs hides it when the groups sit in two columns) -->
-            <Border x:Name="SetIndex" DockPanel.Dock="Top" Margin="0,-6,4,14" Padding="6,0,0,6" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1">
+            <Border x:Name="SetIndex" DockPanel.Dock="Top" Margin="0,-6,4,14" Padding="6,0,0,6" BorderBrush="{DynamicResource Hairline}" BorderThickness="0,0,0,1">
             <WrapPanel x:Name="SetIndexLinks" AutomationProperties.Name="Jump to">
               <Button Style="{StaticResource JumpLink}" Content="Racing monitor" Tag="SetHdrMonitor"/>
               <Button Style="{StaticResource JumpLink}" Content="Turning on" Tag="SetHdrOn"/>
@@ -1342,7 +1370,7 @@
                   <Border Style="{StaticResource Group}">
                     <Border Style="{StaticResource LastRow}">
                       <StackPanel>
-                        <TextBlock Text="Keep iRacing on this screen" Foreground="{StaticResource Ink}"/>
+                        <TextBlock Text="Keep iRacing on this screen" Foreground="{DynamicResource Ink}"/>
                         <TextBlock x:Name="MonitorSub" Style="{StaticResource Sub}" Text="Before each race, Race Mode checks that iRacing will open on this screen and fill it, as a borderless window. Any fix is made while iRacing is closed. Your FPS cap is left alone."/>
                         <ComboBox x:Name="MonitorPick" Margin="0,10,0,0" AutomationProperties.Name="Racing monitor"/>
                       </StackPanel>
@@ -1364,7 +1392,7 @@
                           <Grid Margin="0,10,0,0">
                             <TextBox x:Name="LowerBox" FontFamily="{StaticResource Mono}" FontSize="12"
                                      ToolTip="App names as Task Manager shows them on the Details tab, without .exe, separated by commas" AutomationProperties.Name="Background apps to slow down"/>
-                            <TextBlock Text="App names, e.g. Discord, Spotify" Foreground="{StaticResource Faint}" FontSize="12" Margin="11,0,0,0"
+                            <TextBlock Text="App names, e.g. Discord, Spotify" Foreground="{DynamicResource Faint}" FontSize="12" Margin="11,0,0,0"
                                        VerticalAlignment="Center" IsHitTestVisible="False">
                               <TextBlock.Style>
                                 <Style TargetType="TextBlock">
@@ -1410,11 +1438,28 @@
                     <Border Style="{StaticResource Row}">
                       <CheckBox x:Name="OptTray" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Keep running in the tray when closed"/><TextBlock Style="{StaticResource Sub}" Text="Closing the window keeps Race Mode running in the system tray, next to the clock. Right-click its icon to turn it on or off, or to quit."/></StackPanel></CheckBox>
                     </Border>
+                    <!-- light or dark (Theme.cs); System follows Windows' app mode and changes with it -->
+                    <Border Style="{StaticResource Row}">
+                      <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                          <TextBlock Text="Appearance" Foreground="{DynamicResource Ink}"/>
+                          <TextBlock Style="{StaticResource Sub}" Text="System follows the light or dark mode set in Windows."/>
+                        </StackPanel>
+                        <Border Grid.Column="1" Background="{DynamicResource Field}" CornerRadius="8" Padding="2" VerticalAlignment="Center">
+                          <StackPanel Orientation="Horizontal" AutomationProperties.Name="Appearance">
+                            <RadioButton x:Name="ThemeSystem" Style="{StaticResource Seg}" GroupName="Theme" Content="System" AutomationProperties.Name="Appearance: System"/>
+                            <RadioButton x:Name="ThemeDark" Style="{StaticResource Seg}" GroupName="Theme" Content="Dark" AutomationProperties.Name="Appearance: Dark"/>
+                            <RadioButton x:Name="ThemeLight" Style="{StaticResource Seg}" GroupName="Theme" Content="Light" AutomationProperties.Name="Appearance: Light"/>
+                          </StackPanel>
+                        </Border>
+                      </Grid>
+                    </Border>
                     <Border Style="{StaticResource Row}">
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <StackPanel VerticalAlignment="Center">
-                          <TextBlock Text="Setup" Foreground="{StaticResource Ink}"/>
+                          <TextBlock Text="Setup" Foreground="{DynamicResource Ink}"/>
                           <TextBlock Style="{StaticResource Sub}" Text="Answer the first-run questions again: your racing monitor, the apps to start and close, and CPU temperature."/>
                         </StackPanel>
                         <Button x:Name="RerunSetupBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Run Setup Again" Margin="12,0,0,0" VerticalAlignment="Center"/>
@@ -1428,10 +1473,10 @@
                         </Button.Template>
                         <Grid>
                           <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                          <TextBlock Text="Power plan" VerticalAlignment="Center" Foreground="{StaticResource Ink}"/>
-                          <TextBlock x:Name="PowerText" Grid.Column="1" Text="--" Foreground="{StaticResource Dim}" TextAlignment="Right"
+                          <TextBlock Text="Power plan" VerticalAlignment="Center" Foreground="{DynamicResource Ink}"/>
+                          <TextBlock x:Name="PowerText" Grid.Column="1" Text="--" Foreground="{DynamicResource Dim}" TextAlignment="Right"
                                      TextWrapping="Wrap" Margin="16,0,0,0" VerticalAlignment="Center"/>
-                          <Path Grid.Column="2" Data="M0,0 L4,4 L0,8" Stroke="{StaticResource Faint}" StrokeThickness="1.5" Margin="10,0,0,0"
+                          <Path Grid.Column="2" Data="M0,0 L4,4 L0,8" Stroke="{DynamicResource Faint}" StrokeThickness="1.5" Margin="10,0,0,0"
                                 VerticalAlignment="Center" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
                         </Grid>
                       </Button>
@@ -1445,7 +1490,7 @@
                         <Grid>
                           <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                           <StackPanel VerticalAlignment="Center">
-                            <TextBlock x:Name="VersionText" Text="Race Mode" Foreground="{StaticResource Ink}"/>
+                            <TextBlock x:Name="VersionText" Text="Race Mode" Foreground="{DynamicResource Ink}"/>
                             <TextBlock x:Name="UpdateText" Style="{StaticResource Sub}" Text="Not checked yet"/>
                           </StackPanel>
                           <Button x:Name="UpdateBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Check Now" Margin="12,0,0,0" VerticalAlignment="Center"/>
@@ -1473,14 +1518,14 @@
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition x:Name="LogSumRow" Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <Grid Margin="0,0,0,8">
               <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <TextBlock Text="Last session" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Dim}" VerticalAlignment="Center" Margin="16,0,0,0"/>
+              <TextBlock Text="Last session" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Dim}" VerticalAlignment="Center" Margin="16,0,0,0"/>
               <Button x:Name="OpenLogsBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Open Log Folder" Margin="0,0,8,0"/>
               <Button x:Name="CopySummaryBtn" Grid.Column="2" Style="{StaticResource Btn}" Content="Copy Summary" IsEnabled="False"/>
             </Grid>
-            <TextBox x:Name="SummaryBox" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Background="{StaticResource Card}"
-                     BorderBrush="{StaticResource Hairline}" Padding="7,6" VerticalContentAlignment="Top"
+            <TextBox x:Name="SummaryBox" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Background="{DynamicResource Card}"
+                     BorderBrush="{DynamicResource Hairline}" Padding="7,6" VerticalContentAlignment="Top"
                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" FontSize="13"
-                     Foreground="#D1D1D6" VerticalAlignment="Top" AutomationProperties.Name="Last session summary" Text="No race logged yet. Turn Race Mode on before you race, and a summary of the session appears here."/>
+                     Foreground="{DynamicResource Soft}" VerticalAlignment="Top" AutomationProperties.Name="Last session summary" Text="No race logged yet. Turn Race Mode on before you race, and a summary of the session appears here."/>
             <TextBlock x:Name="LogOptsHdr" Grid.Row="2" Style="{StaticResource SectionHeader}" Text="Logging" Margin="16,22,0,7"/>
             <Border x:Name="LogOpts" Grid.Row="3" Style="{StaticResource Group}" VerticalAlignment="Top">
               <StackPanel>
@@ -1491,7 +1536,7 @@
                   <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBlock Text="Take a reading every" VerticalAlignment="Center"/>
-                    <Border Grid.Column="1" Background="#141416" CornerRadius="8" Padding="2" BorderBrush="{StaticResource Hairline}" BorderThickness="1">
+                    <Border Grid.Column="1" Background="{DynamicResource Field}" CornerRadius="8" Padding="2" BorderBrush="{DynamicResource Hairline}" BorderThickness="1">
                       <StackPanel Orientation="Horizontal">
                         <RadioButton x:Name="Int1" Style="{StaticResource Seg}" GroupName="Int" Content="1 s"/>
                         <RadioButton x:Name="Int2" Style="{StaticResource Seg}" GroupName="Int" Content="2 s"/>
@@ -1514,7 +1559,7 @@
 
     <!-- activity line -->
     <Grid x:Name="FooterHost" Grid.Row="2">
-      <Border x:Name="Footer" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="24,7,36,8">
+      <Border x:Name="Footer" BorderBrush="{DynamicResource Hairline}" BorderThickness="0,1,0,0" Padding="24,7,36,8">
         <Border.Style>
           <Style TargetType="Border">
             <Style.Triggers>
@@ -1537,7 +1582,7 @@
                   AutomationProperties.Name="Undo the last remove" Margin="12,0,0,0" ToolTip="Put it back">
             <Button.Template>
               <ControlTemplate TargetType="Button">
-                <Border Background="Transparent" Padding="2,0"><TextBlock Text="Undo" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Ink}" TextDecorations="Underline"/></Border>
+                <Border Background="Transparent" Padding="2,0"><TextBlock Text="Undo" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" TextDecorations="Underline"/></Border>
               </ControlTemplate>
             </Button.Template>
           </Button>
@@ -1550,7 +1595,7 @@
       <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
         <Image x:Name="AppIcon" Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Race Mode icon"/>
-        <TextBlock Text="Race Mode" FontSize="12" Foreground="{StaticResource Dim}" VerticalAlignment="Center"/>
+        <TextBlock Text="Race Mode" FontSize="12" Foreground="{DynamicResource Dim}" VerticalAlignment="Center"/>
       </StackPanel>
       <!-- small panel and back (Layout.cs ToggleSmall) -->
       <Button x:Name="SmallBtn" Grid.Column="1" ToolTip="Small panel: the switch, FPS and the live numbers" AutomationProperties.Name="Small panel">
@@ -1576,12 +1621,12 @@
     </Grid>
 
     <!-- setup (install and first-run questions, Setup.cs): covers everything below the title bar; pages are built in code -->
-    <Border x:Name="SetupOverlay" Grid.Row="1" Grid.RowSpan="2" Background="{StaticResource Bg}" Visibility="Collapsed">
+    <Border x:Name="SetupOverlay" Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource Bg}" Visibility="Collapsed">
       <Grid Margin="20,6,20,20" MaxWidth="560">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <StackPanel Margin="16,0,16,0">
           <TextBlock x:Name="SetupStep" Style="{StaticResource Caption}" Text=""/>
-          <TextBlock x:Name="SetupTitle" FontFamily="{StaticResource Display}" FontSize="26" Foreground="{StaticResource Ink}" Margin="0,4,0,0" TextWrapping="Wrap" Text=""/>
+          <TextBlock x:Name="SetupTitle" FontFamily="{StaticResource Display}" FontSize="26" Foreground="{DynamicResource Ink}" Margin="0,4,0,0" TextWrapping="Wrap" Text=""/>
           <TextBlock x:Name="SetupIntro" Style="{StaticResource Sub}" FontSize="13" Margin="0,8,0,0" TextWrapping="Wrap" Text=""/>
         </StackPanel>
         <ScrollViewer Grid.Row="1" Margin="0,18,0,0" VerticalScrollBarVisibility="Auto" Focusable="False">

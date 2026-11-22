@@ -126,21 +126,21 @@ namespace RaceMode
             var dot = Get<Ellipse>("ObsDot");
             var ws = on && !o.Connected ? Obs.ReadSettings() : null;
             bool needsEnable = on && Obs.Installed && ws != null && !ws.Enabled;
-            string title, sub; Brush fill;
-            if (!on) { title = "Stream stats"; sub = "Turn on Streaming to see dropped frames and bitrate from OBS."; fill = Grey; }
-            else if (!Obs.Installed) { title = "OBS isn't installed"; sub = "Race Mode reads stream stats from OBS Studio."; fill = Grey; }
-            else if (needsEnable) { title = "OBS's remote control is off"; sub = "Race Mode needs it to see stream stats. Close OBS, then click Turn On OBS Stats."; fill = (Brush)Window.FindResource("Warn"); }
-            else if (!o.Connected) { title = "Stream stats"; sub = o.Status; fill = Grey; }
-            else if (!o.Streaming) { title = "OBS is connected"; sub = "Not streaming right now."; fill = (Brush)Window.FindResource("Live"); }
+            string title, sub, fill;   // fill: the dot's colour token
+            if (!on) { title = "Stream stats"; sub = "Turn on Streaming to see dropped frames and bitrate from OBS."; fill = "DotOff"; }
+            else if (!Obs.Installed) { title = "OBS isn't installed"; sub = "Race Mode reads stream stats from OBS Studio."; fill = "DotOff"; }
+            else if (needsEnable) { title = "OBS's remote control is off"; sub = "Race Mode needs it to see stream stats. Close OBS, then click Turn On OBS Stats."; fill = "Warn"; }
+            else if (!o.Connected) { title = "Stream stats"; sub = o.Status; fill = "DotOff"; }
+            else if (!o.Streaming) { title = "OBS is connected"; sub = "Not streaming right now."; fill = "Live"; }
             else
             {
                 title = o.Reconnecting ? "OBS is reconnecting" : "Streaming";
                 sub = (double.IsNaN(o.Kbps) ? "bitrate --" : N0(o.Kbps) + " kbps") + " · dropped " + Frames(o.NetDropped, o.NetTotal) +
                       " · lagged " + Frames(o.RenderSkipped + o.EncodeSkipped, o.RenderTotal + o.EncodeTotal);
-                fill = o.Reconnecting || (o.NetTotal > 0 && o.NetDropped * 100.0 / o.NetTotal >= 1) ? (Brush)Window.FindResource("Warn") : (Brush)Window.FindResource("Live");
+                fill = o.Reconnecting || (o.NetTotal > 0 && o.NetDropped * 100.0 / o.NetTotal >= 1) ? "Warn" : "Live";
             }
             SetText("ObsTitle", title); SetText("ObsSub", sub);
-            if (dot != null) dot.Fill = fill;
+            if (dot != null) dot.SetResourceReference(Shape.FillProperty, fill);
             Get<Button>("ObsEnableBtn").Visibility = needsEnable ? Visibility.Visible : Visibility.Collapsed;
 
             if (ObsDock.Running)
@@ -164,7 +164,6 @@ namespace RaceMode
         }
 
         static object Num(double d) { return double.IsNaN(d) || double.IsInfinity(d) ? null : (object)Math.Round(d, 1); }
-        static readonly Brush Grey = new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x60));
         static string Frames(long d, long t) { return t <= 0 ? "0" : d.ToString("N0", CultureInfo.CurrentCulture) + " (" + (100.0 * d / t).ToString(d > 0 && 100.0 * d / t < 0.1 ? "0.00" : "0.0", CultureInfo.CurrentCulture) + "%)"; }
 
         // ---------------- stream test: 5 minutes without streaming, then 5 minutes streaming ----------------

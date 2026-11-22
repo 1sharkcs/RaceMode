@@ -81,7 +81,8 @@ namespace RaceMode
 
                 // the value: Faint, regular weight even on the current row, so the name stays the loudest thing
                 var dot = new Ellipse { Width = 6, Height = 6, Margin = new Thickness(0, 1, 6, 0), VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
-                var value = new TextBlock { FontSize = 12, FontWeight = FontWeights.Normal, Foreground = (Brush)Window.Resources["Dim"], VerticalAlignment = VerticalAlignment.Center };
+                var value = new TextBlock { FontSize = 12, FontWeight = FontWeights.Normal, VerticalAlignment = VerticalAlignment.Center };
+                value.SetResourceReference(TextBlock.ForegroundProperty, "Dim");
                 var valueBox = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
                 valueBox.Children.Add(dot); valueBox.Children.Add(value);
                 Grid.SetColumn(valueBox, 2); row.Children.Add(valueBox);
@@ -183,12 +184,14 @@ namespace RaceMode
         void SetNavValue(int i, string value, string dotKey, bool pip, string tip)
         {
             _navValue[i].Text = value ?? "";
-            _navValue[i].Foreground = (Brush)Window.Resources[dotKey == "Warn" ? "Warn" : "Dim"];   // Dim: Faint fell to 4.3:1 on the current row
+            _navValue[i].SetResourceReference(TextBlock.ForegroundProperty, dotKey == "Warn" ? "Warn" : "Dim");   // Dim: Faint fell to 4.3:1 on the current row
             // 12 px Segoe like a caption: these are read at rest, not glanced at mid-race (Bahnschrift sat high on the row)
             _navValue[i].Visibility = value == null ? Visibility.Collapsed : Visibility.Visible;
-            var brush = dotKey == null ? null : (Brush)Window.Resources[dotKey];
-            _navValueDot[i].Fill = brush; _navValueDot[i].Visibility = brush == null ? Visibility.Collapsed : Visibility.Visible;
-            _navPip[i].Fill = brush; _navPip[i].Visibility = pip && brush != null && !_navWithNames ? Visibility.Visible : Visibility.Collapsed;
+            bool dot = dotKey != null;
+            if (dot) { _navValueDot[i].SetResourceReference(Shape.FillProperty, dotKey); _navPip[i].SetResourceReference(Shape.FillProperty, dotKey); }
+            else { _navValueDot[i].Fill = null; _navPip[i].Fill = null; }
+            _navValueDot[i].Visibility = dot ? Visibility.Visible : Visibility.Collapsed;
+            _navPip[i].Visibility = pip && dot && !_navWithNames ? Visibility.Visible : Visibility.Collapsed;
             _navRows[i].ToolTip = NavNames[i] + (tip != null ? ": " + tip : "") + "  (Ctrl+" + (i + 1) + ")";
             AutomationProperties.SetHelpText(_navRows[i], tip ?? "");
         }
