@@ -71,11 +71,12 @@ namespace RaceMode
                 var old = target + ".old";
                 if (File.Exists(old)) File.Delete(old);
                 bool had = File.Exists(target);
+                var was = had ? InstalledVersion() : null;
                 if (had) File.Move(target, old);
                 try { File.Copy(ThisExe, target, false); }
                 catch { if (had && !File.Exists(target)) File.Move(old, target); throw; }
                 try { if (File.Exists(old)) File.Delete(old); } catch { }
-                done.Add((had ? "Updated" : "Installed") + " Race Mode " + Updater.Current + " in " + InstallDir);
+                done.Add(had ? DoneLine(was, Updater.Current) : "Installed Race Mode " + Updater.Current + " in " + InstallDir);
             }
             else done.Add("Race Mode is already in " + InstallDir);
             Directory.CreateDirectory(DataDir);
@@ -92,6 +93,38 @@ namespace RaceMode
             done.Add(startWithWindows ? "Race Mode will start with Windows, in the system tray" : "Race Mode won't start with Windows (you can change this on the Settings tab)");
             Log("install", done);
             return done;
+        }
+
+        // The installed copy's version ("1.0.1", "1.0.2-rc.1"), or null if there's none or it can't be read.
+        public static string InstalledVersion()
+        {
+            try
+            {
+                if (!File.Exists(InstalledExe)) return null;
+                var v = (FileVersionInfo.GetVersionInfo(InstalledExe).ProductVersion ?? "").Trim();
+                return Updater.Parse(v) == null ? null : v;
+            }
+            catch { return null; }
+        }
+
+        // Re-running setup can go back to an older version (README: it swaps a test version for the latest normal
+        // release). Says so before Install is pressed; null when it doesn't go back or a version is unknown ("local").
+        public static string GoingBackNote(string installed, string setup)
+        {
+            if (Updater.Parse(installed) == null || Updater.Parse(setup) == null || Updater.Compare(installed, setup) <= 0) return null;
+            bool test = installed.IndexOf('-') >= 0, normal = setup.IndexOf('-') < 0;
+            return "Race Mode " + installed + (test ? " (a test version)" : "") + " is installed. Installing goes back to " + setup +
+                   (test && normal ? ", the latest normal release" : "") + "; your settings are kept.";
+        }
+
+        // The finished page's first line when setup replaced an installed copy.
+        public static string DoneLine(string installed, string setup)
+        {
+            if (Updater.Parse(installed) == null || Updater.Parse(setup) == null) return "Updated Race Mode " + setup + " in " + InstallDir;
+            int c = Updater.Compare(installed, setup);
+            if (c > 0) return "Went back to Race Mode " + setup + " (from " + installed + ")";
+            if (c < 0) return "Updated Race Mode from " + installed + " to " + setup;
+            return "Reinstalled Race Mode " + setup;
         }
 
         public static void WriteUninstallEntry(string exe)
@@ -456,6 +489,7 @@ namespace RaceMode
             // shortcut they deleted isn't brought back. A first install starts with: shortcut yes, start with Windows no.
             bool reinstall = File.Exists(Installer.InstalledExe);
             bool desktop = !reinstall || File.Exists(Installer.DesktopLnk), autostart = reinstall && Installer.RunsAtStartup(Installer.InstalledExe);
+            var goingBack = reinstall ? Installer.GoingBackNote(Installer.InstalledVersion(), Updater.Current) : null;
             List<string> result = null; string error = null;
             var pages = new List<SetupPage>();
             pages.Add(new SetupPage
@@ -480,7 +514,8 @@ namespace RaceMode
                     var acb = SetupFlow.Switch("Start Race Mode with Windows", "Starts in the system tray, next to the clock, when you sign in, so it's ready before a race. You can change this later on the Settings tab.", autostart);
                     acb.Checked += (s, e) => autostart = true; acb.Unchecked += (s, e) => autostart = false;
                     var errEl = error == null ? null : SetupFlow.Group(SetupFlow.Status("Install didn't finish", error, false));
-                    return SetupFlow.Stack(errEl, checks, SetupFlow.Group(dcb, acb));
+                    var backEl = goingBack == null ? null : SetupFlow.Group(SetupFlow.Status("This installs an older version", goingBack, null));
+                    return SetupFlow.Stack(errEl, backEl, checks, SetupFlow.Group(dcb, acb));
                 },
                 OnNext = () =>
                 {
@@ -491,7 +526,7 @@ namespace RaceMode
             });
             pages.Add(new SetupPage
             {
-                Title = reinstall ? "Race Mode is updated" : "Race Mode is installed",
+                Title = goingBack != null ? "Went back to Race Mode " + Updater.Current : reinstall ? "Race Mode is updated" : "Race Mode is installed",
                 Intro = reinstall ? "Your settings were kept. Open it to carry on where you left off." : "The next screens help you set it up. It takes about a minute.",
                 NextText = "Open Race Mode", CanSkip = false, CanGoBack = false,
                 Build = () => SetupFlow.Group((result ?? new List<string>()).Select(l => SetupFlow.Status(l, null, true)).ToArray()),

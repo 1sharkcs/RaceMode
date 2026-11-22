@@ -54,7 +54,7 @@ namespace RaceMode
         public bool CloseApps = true, LaunchApps = true, StartIRacing = true, SimHighPriority = true;
         public bool LowerBackground = true, GpuWarning = true, AutoOff = true, Logging = true;
         public int LogIntervalSec = 2;
-        public string IRacingUI = @"C:\Program Files (x86)\iRacing\ui\iRacingUI.exe";
+        public string IRacingUI = InstallFinder.IRacingUI();     // where iRacing is installed (registry), else the default folder
         public DisplayGuardConfig DisplayGuard = new DisplayGuardConfig();
         public string GraphicsMode = "Race";                    // "Race" or "Photo" (GraphicsPresets.cs)
         public bool Streaming = false, StreamBoost = true, VramCheck = true;
@@ -76,7 +76,7 @@ namespace RaceMode
 
         public static LaunchItem DefaultObs()
         {
-            return new LaunchItem { Name = "OBS Studio", Path = @"C:\Program Files\obs-studio\bin\64bit\obs64.exe", Args = "", ProcessName = "obs64", Enabled = true };
+            return new LaunchItem { Name = "OBS Studio", Path = InstallFinder.ObsExe() ?? InstallFinder.DefaultObs, Args = "", ProcessName = "obs64", Enabled = true };
         }
 
         public static Config Defaults()
@@ -84,16 +84,36 @@ namespace RaceMode
             // First run on a new PC: nothing to close or slow down, and only race apps that are actually
             // installed go on the Launch list. The screen check stays off until a racing monitor is picked
             // (Settings tab), so a friend's iRacing screen settings are never changed by someone else's defaults.
+            // Only quick default-path checks here (this runs on the UI thread); the full scan of Start menu
+            // shortcuts and Settings > Apps runs in the background later (Shell.StartLaunchScan).
+            List<LaunchItem> quick;
+            try { quick = LaunchScan.Find(AppScan.Apps, new string[0], null, null, LaunchScan.Budget); } catch { quick = null; }
+            return Defaults(quick);
+        }
+
+        // detected: race apps a LaunchScan found (null: only the fixed default paths).
+        public static Config Defaults(IEnumerable<LaunchItem> detected)
+        {
             var c = new Config { SetupDone = false };
             c.DisplayGuard = new DisplayGuardConfig { KeepFpsCap = false };
-            foreach (var it in KnownRaceApps())
-                if (File.Exists(it.Path)) c.Launch.Add(it);
+            c.Launch.AddRange(KnownRaceApps(detected));
             c.StreamLaunch.Add(DefaultObs());
             return c;
         }
 
-        // Common sim-racing helpers at their default install paths. Only the ones found are added.
-        static IEnumerable<LaunchItem> KnownRaceApps()
+        // Race apps on this PC: the detected ones first, then the fixed default paths below for apps the detection
+        // didn't find (one item per app). Only items whose exe exists are returned.
+        public static List<LaunchItem> KnownRaceApps(IEnumerable<LaunchItem> detected)
+        {
+            var list = (detected ?? new LaunchItem[0]).Where(i => i != null && File.Exists(i.Path)).ToList();
+            List<KnownApp> apps; try { apps = AppScan.Apps; } catch { apps = new List<KnownApp>(); }
+            var fixedFound = FixedRaceApps().Where(i => File.Exists(i.Path)).ToList();
+            foreach (var it in LaunchScan.NotListed(apps, fixedFound, list)) list.Add(it);
+            return list;
+        }
+
+        // Common sim-racing helpers at their default install paths (the fallback when detection finds nothing).
+        static IEnumerable<LaunchItem> FixedRaceApps()
         {
             var x86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
             yield return new LaunchItem { Name = "SimHub", Path = System.IO.Path.Combine(x86, @"SimHub\SimHubWPF.exe"), ProcessName = "SimHubWPF", Enabled = true };
@@ -240,6 +260,7 @@ namespace RaceMode
                     return;
                 }
                 _showSignal = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, @"Local\RaceMode.Show" + sfx);
+                if (!afterUpdate) Updater.NoticeEarlierUpdate();   // an update installed while on, starting only now
             }
             // Tests: read a fake iRacing telemetry map (see tests\IrsdkTests.cs) instead of the real one.
             for (int i = 1; i + 1 < args.Length; i++)
@@ -514,7 +535,8 @@ namespace RaceMode
             if (c.GraphicsPhoto != null) c.GraphicsPhoto.Level = Math.Max(0, Math.Min(3, c.GraphicsPhoto.Level));
             c.Close =c.Close.Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).ToList();
             c.Lower = c.Lower.Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).ToList();
-            if (string.IsNullOrWhiteSpace(c.IRacingUI)) c.IRacingUI = new Config().IRacingUI;
+            // Older configs saved the default folder: if iRacing isn't there, look up where it is installed.
+            if (string.IsNullOrWhiteSpace(c.IRacingUI) || !File.Exists(c.IRacingUI)) c.IRacingUI = InstallFinder.IRacingUI();
             if (c.DisplayGuard == null) c.DisplayGuard = new DisplayGuardConfig();
             if (c.DisplayGuard.IniPath == null) c.DisplayGuard.IniPath = "";
         }
@@ -585,6 +607,7 @@ namespace RaceMode
             };
             Get<Button>("CloseBtn").Click += (s, e) => Window.Close();
             Window.SourceInitialized += (s, e) => RoundCorners();
+            HookMaximiseFit();   // maximised = the monitor's free area, so the taskbar stays visible
             LoadAppIcon();
             Get<Border>("CpuTempCell").MouseLeftButtonUp += (s, e) => CpuTempAction();
             Get<Border>("CpuTempCell").KeyDown += (s, e) => { if (e.Key == Key.Enter || e.Key == Key.Space) { CpuTempAction(); e.Handled = true; } };
@@ -614,6 +637,8 @@ namespace RaceMode
             }));
 
             foreach (var i in _cfg.Launch) _launch.Add(i);
+            _launch.CollectionChanged += (s, e) => RefreshLaunchSuggest();   // "Found on your PC" leaves out what's listed
+            StartLaunchScan();
             foreach (var c in _cfg.Close) _close.Add(c);
             foreach (var i in _cfg.StreamLaunch) _stream.Add(i);
             Get<ListBox>("LaunchList").ItemsSource = _launch;
@@ -1009,15 +1034,7 @@ namespace RaceMode
         bool _hwinfoRunning;
         static string HwinfoExe
         {
-            get
-            {
-                foreach (var root in new[] { Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 })
-                {
-                    var p = System.IO.Path.Combine(Environment.GetFolderPath(root), @"HWiNFO64\HWiNFO64.EXE");
-                    if (File.Exists(p)) return p;
-                }
-                return @"C:\Program Files\HWiNFO64\HWiNFO64.EXE";
-            }
+            get { return InstallFinder.HwinfoExe(); }   // registry first, then Program Files (x86 too), then the default path
         }
 
         void RefreshCpuTempHint(LiveStats s)
@@ -1201,7 +1218,7 @@ namespace RaceMode
 
             _on = true; _simSeen = false; _uiSeen = false; _simBoosted = false; _goneTicks = 0; _lowered.Clear(); _boosted.Clear();
             _simLoggedPid = -1; _prioNoted.Clear();
-            _onAt = DateTime.Now; _issues.Clear(); _started.Clear(); _alreadyOpen.Clear(); _closed.Clear(); _notInstalled.Clear();
+            _onAt = DateTime.Now; _issues.Clear(); _started.Clear(); _alreadyOpen.Clear(); _closed.Clear(); _notInstalled.Clear(); _leftOpen.Clear(); _reopened.Clear(); _runId++;
             _forced = 0; _confirmedRunning.Clear(); _vramWarned = false; _activation = "Turning on…";
             SetPhase("turning");
             try
@@ -1318,6 +1335,24 @@ namespace RaceMode
             return MessageBox.Show(Window, msg, "Race Mode", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
         }
 
+        // Apps Race Mode chose to leave open after asking (process name -> why), so turning on doesn't wait for them.
+        readonly Dictionary<string, string> _leftOpen = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // Apps that came straight back after closing (process names), kept apart so FinishActivation lists them again.
+        readonly List<string> _reopened = new List<string>();
+        int _runId;   // +1 on every TurnOn, so a timer from an earlier run does nothing
+
+        public enum PidState { Gone, Close, Window, Admin }
+
+        // Which pids may be force-closed: only those of apps with no pid left open. If any pid of an app still shows
+        // a window (maybe a "Save changes?" prompt) or runs as administrator, none of that app's pids are killed,
+        // because killing a helper can take the open document down with it.
+        public static List<int> PidsToKill(IDictionary<int, string> pids, IDictionary<int, PidState> states)
+        {
+            var held = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in states) if ((kv.Value == PidState.Window || kv.Value == PidState.Admin) && pids.ContainsKey(kv.Key)) held.Add(pids[kv.Key]);
+            return states.Where(kv => kv.Value == PidState.Close && pids.ContainsKey(kv.Key) && !held.Contains(pids[kv.Key])).Select(kv => kv.Key).OrderBy(k => k).ToList();
+        }
+
         void CloseApps()
         {
             var names = _close.Where(n => !ProtectedFromClose(n)).ToList();
@@ -1332,7 +1367,7 @@ namespace RaceMode
                     if (steam.Length > 0)
                     {
                         string exe = null; try { exe = steam[0].MainModule.FileName; } catch { }
-                        if (exe == null) exe = @"C:\Program Files (x86)\Steam\steam.exe";
+                        if (exe == null) exe = InstallFinder.SteamExe();
                         try { Process.Start(new ProcessStartInfo(exe, "-shutdown") { UseShellExecute = true }); asked.Add("steam"); _closed.Add("steam"); _mon.Event("Asked Steam to shut down"); } catch { }
                     }
                     foreach (var p in steam) p.Dispose();
@@ -1347,6 +1382,7 @@ namespace RaceMode
             }
             if (asked.Count == 0) { Tick("Nothing on the Close list was running"); return; }
             Tick("Closing " + asked.Count + " app" + (asked.Count == 1 ? "" : "s") + "…");
+            int run = _runId;
             var later = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
             _killTimer = later;
             later.Tick += (s, e) =>
@@ -1357,8 +1393,12 @@ namespace RaceMode
                 int forced = 0;
                 var waiting = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
                 var denied = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+                const string adminWhy = "runs as administrator, so Windows doesn't let Race Mode close it";
+                // Pass 1: what each pid is doing now. Nothing is closed yet.
+                var states = new Dictionary<int, PidState>();
                 foreach (var kv in pids)
                 {
+                    states[kv.Key] = PidState.Gone;
                     if (ProtectedFromClose(kv.Value)) continue;   // protected since (Streaming turned on, added to Launch)
                     Process p;
                     try { p = Process.GetProcessById(kv.Key); } catch { continue; }   // already gone
@@ -1367,16 +1407,33 @@ namespace RaceMode
                         if (p.HasExited || !string.Equals(p.ProcessName, kv.Value, StringComparison.OrdinalIgnoreCase)) continue;   // gone, or the id was reused
                         // runs as administrator: Windows doesn't let Race Mode close it
                         bool locked = false; try { var h = p.Handle; } catch (System.ComponentModel.Win32Exception) { locked = true; }
-                        if (locked) { denied.Add(FriendlyApp(kv.Value)); continue; }
+                        if (locked) { states[kv.Key] = PidState.Admin; denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = adminWhy; continue; }
                         // still showing a window: probably a "Save changes?" prompt, so it's left for the user
-                        if (p.MainWindowHandle != IntPtr.Zero) { waiting.Add(FriendlyApp(kv.Value)); continue; }
+                        if (p.MainWindowHandle != IntPtr.Zero) { states[kv.Key] = PidState.Window; waiting.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = "is still open: it may be asking you to save"; continue; }
+                        states[kv.Key] = PidState.Close;
+                    }
+                    catch (System.ComponentModel.Win32Exception) { states[kv.Key] = PidState.Admin; denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = adminWhy; }
+                    catch { }
+                    finally { p.Dispose(); }
+                }
+                // Pass 2: force-close only apps with nothing left open (see PidsToKill).
+                foreach (var id in PidsToKill(pids, states))
+                {
+                    var name = pids[id];
+                    Process p;
+                    try { p = Process.GetProcessById(id); } catch { continue; }
+                    try
+                    {
+                        if (p.HasExited || !string.Equals(p.ProcessName, name, StringComparison.OrdinalIgnoreCase)) continue;
                         p.Kill(); forced++;
                     }
-                    catch (System.ComponentModel.Win32Exception) { denied.Add(FriendlyApp(kv.Value)); }
+                    catch (System.ComponentModel.Win32Exception) { denied.Add(FriendlyApp(name)); _leftOpen[name] = adminWhy; }
                     catch { }
                     finally { p.Dispose(); }
                 }
                 _forced += forced;
+                // Apps left open on purpose (save prompt, admin) were asked to close but didn't: don't count them as closed.
+                _closed.RemoveAll(n => _leftOpen.ContainsKey(n));
                 if (forced > 0) _mon.Event("Force-closed " + forced + " leftover processes");
                 if (waiting.Count > 0) _mon.Event("Left open (still showing a window): " + string.Join(", ", waiting.ToArray()));
                 if (denied.Count > 0) _mon.Event("Couldn't close (runs as administrator): " + string.Join(", ", denied.ToArray()));
@@ -1390,16 +1447,25 @@ namespace RaceMode
                 recheck.Tick += (s2, e2) =>
                 {
                     recheck.Stop();
-                    if (!_on) return;
+                    if (!_on || run != _runId) return;   // turned off, or a timer from an earlier run
                     var back = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var name in asked.Where(n => !string.Equals(n, "steam", StringComparison.OrdinalIgnoreCase) && !ProtectedFromClose(n)))
+                    var backNames = new List<string>();
+                    // Apps left open on purpose (save prompt, admin) never closed, so they didn't "come back".
+                    foreach (var name in asked.Where(n => !string.Equals(n, "steam", StringComparison.OrdinalIgnoreCase) && !ProtectedFromClose(n) && !_leftOpen.ContainsKey(n)))
                         foreach (var p in Mine(name))
                         {
-                            try { if (!pids.ContainsKey(p.Id) && AppScan.BelongsTo(name, AppScan.ImagePath(p.Id))) back.Add(FriendlyApp(name)); } catch { }
+                            try { if (!pids.ContainsKey(p.Id) && AppScan.BelongsTo(name, AppScan.ImagePath(p.Id))) { back.Add(FriendlyApp(name)); if (!backNames.Contains(name)) backNames.Add(name); } } catch { }
                             finally { p.Dispose(); }
                         }
                     if (back.Count == 0) return;
                     _mon.Event("Reopened by itself after closing: " + string.Join(", ", back.ToArray()));
+                    foreach (var n in backNames) if (!_reopened.Contains(n)) _reopened.Add(n);
+                    // Still confirming: FinishActivation lists them from _reopened. Already confirmed: add them now.
+                    if (_confirmTimer.IsEnabled == false)
+                    {
+                        foreach (var b in back) if (!_issues.Contains(b + " reopened itself")) _issues.Add(b + " reopened itself");
+                        _activation = NeedsALook(); SetPhase("issues"); UpdateStatus();
+                    }
                     Tick(string.Join(", ", back.ToArray()) + (back.Count == 1 ? " reopened itself" : " reopened themselves") +
                          " (a background service starts it again). Turn off its start-with-Windows option in its own settings, or take it off the Close list");
                 };
@@ -1474,7 +1540,18 @@ namespace RaceMode
             if (m.Primary) where = " · main screen";
             else if (main != null) where = m.X + m.Width <= main.X ? " · left of main" : m.X >= main.X + main.Width ? " · right of main" : m.Y + m.Height <= main.Y ? " · above main" : m.Y >= main.Y + main.Height ? " · below main" : "";
             bool twin = _pickMonitors != null && _pickMonitors.Count(x => x.Width == m.Width && x.Height == m.Height && x.Hz == m.Hz) > 1;
-            return "Screen " + (m.Index + 1) + " · " + m.Width + " × " + m.Height + " · " + m.Hz + " Hz" + where + (twin && !string.IsNullOrEmpty(m.MonitorId) ? "  (" + m.MonitorId + ")" : "");
+            return "Screen " + (m.Index + 1) + " · " + m.Width + " × " + m.Height + " · " + m.Hz + " Hz" + where
+                + (DisplayGuard.LooksJoined(m) ? " · looks like joined screens (Surround or Eyefinity)" : "")
+                + (twin && !string.IsNullOrEmpty(m.MonitorId) ? "  (" + m.MonitorId + ")" : "");
+        }
+
+        // Rows of three same-size screens side by side, offered after the single screens.
+        List<List<MonitorInfo>> _pickTriples = new List<List<MonitorInfo>>();
+
+        static string TripleLabel(List<MonitorInfo> row)
+        {
+            return "Three screens side by side · screens " + string.Join(", ", row.Select(m => (m.Index + 1).ToString()).ToArray())
+                + " · 3 × " + row[0].Width + " × " + row[0].Height + " · " + row.Min(m => m.Hz) + " Hz";
         }
 
         void FillMonitorPick()
@@ -1484,19 +1561,26 @@ namespace RaceMode
             try
             {
                 try { _pickMonitors = DisplayGuard.ListMonitors(); } catch { _pickMonitors = new List<MonitorInfo>(); }
+                try { _pickTriples = DisplayGuard.TripleRows(_pickMonitors); } catch { _pickTriples = new List<List<MonitorInfo>>(); }
                 box.Items.Clear();
                 box.Items.Add("Don't check (leave iRacing's screen settings alone)");
                 int sel = 0;
                 var g = _cfg.DisplayGuard;
+                bool triple = g != null && g.Enabled && g.IsTriple;
                 foreach (var m in _pickMonitors)
                 {
                     box.Items.Add(MonitorLabel(m));
-                    if (sel == 0 && g != null && g.Enabled && !string.IsNullOrEmpty(g.MonitorId) && (m.MonitorId ?? "").IndexOf(g.MonitorId, StringComparison.OrdinalIgnoreCase) >= 0) sel = box.Items.Count - 1;
+                    if (sel == 0 && !triple && g != null && g.Enabled && !string.IsNullOrEmpty(g.MonitorId) && (m.MonitorId ?? "").IndexOf(g.MonitorId, StringComparison.OrdinalIgnoreCase) >= 0) sel = box.Items.Count - 1;
+                }
+                foreach (var row in _pickTriples)
+                {
+                    box.Items.Add(TripleLabel(row));
+                    if (sel == 0 && triple && Enumerable.Range(0, 3).All(k => (row[k].MonitorId ?? "").IndexOf(g.Triple[k], StringComparison.OrdinalIgnoreCase) >= 0)) sel = box.Items.Count - 1;
                 }
                 // The picked monitor is switched off right now: keep the choice and say so.
                 if (sel == 0 && g != null && g.Enabled && !string.IsNullOrEmpty(g.MonitorId))
                 {
-                    box.Items.Add("Your racing monitor (" + g.MonitorId + ") · not connected right now");
+                    box.Items.Add(triple ? "Your three racing screens · not all connected side by side right now" : "Your racing monitor (" + g.MonitorId + ") · not connected right now");
                     sel = box.Items.Count - 1;
                 }
                 box.SelectedIndex = sel;
@@ -1511,14 +1595,28 @@ namespace RaceMode
             int i = box.SelectedIndex;
             var g = _cfg.DisplayGuard ?? (_cfg.DisplayGuard = new DisplayGuardConfig());
             if (i <= 0) { g.Enabled = false; SaveConfig(); _guardSig = null; Tick("Screen check off: iRacing's screen settings are left alone"); UpdateStatus(); return; }
-            if (i > _pickMonitors.Count) return;   // the "not connected" entry: nothing changes
-            var m = _pickMonitors[i - 1];
-            if (string.IsNullOrEmpty(m.MonitorId) || m.Width <= 0 || m.Height <= 0 || m.Hz <= 0) { Tick("Couldn't read that screen's details, so nothing changed"); FillMonitorPick(); return; }
-            g.MonitorId = m.MonitorId; g.Width = m.Width; g.Height = m.Height; g.RefreshRate = m.Hz;
+            if (i > _pickMonitors.Count + _pickTriples.Count) return;   // the "not connected" entry: nothing changes
+            string label;
+            if (i > _pickMonitors.Count)
+            {
+                var row = _pickTriples[i - 1 - _pickMonitors.Count];
+                if (row.Any(x => string.IsNullOrEmpty(x.MonitorId) || x.Hz <= 0)) { Tick("Couldn't read those screens' details, so nothing changed"); FillMonitorPick(); return; }
+                g.Triple = row.Select(x => x.MonitorId).ToList();
+                g.MonitorId = row[1].MonitorId; g.Width = row[0].Width; g.Height = row[0].Height; g.RefreshRate = row.Min(x => x.Hz);
+                label = TripleLabel(row);
+            }
+            else
+            {
+                var m = _pickMonitors[i - 1];
+                if (string.IsNullOrEmpty(m.MonitorId) || m.Width <= 0 || m.Height <= 0 || m.Hz <= 0) { Tick("Couldn't read that screen's details, so nothing changed"); FillMonitorPick(); return; }
+                g.Triple = null;
+                g.MonitorId = m.MonitorId; g.Width = m.Width; g.Height = m.Height; g.RefreshRate = m.Hz;
+                label = MonitorLabel(m);
+            }
             g.Enabled = true;
             SaveConfig();
             _guardSig = null;
-            Tick("Racing monitor set to " + MonitorLabel(m) + (g.EnforcesFpsCap ? ", FPS cap kept at " + g.FpsLimit : ""));
+            Tick("Racing monitor set to " + label + (g.EnforcesFpsCap ? ", FPS cap kept at " + g.FpsLimit : ""));
             CheckDisplay("monitor picked", true);
             UpdateStatus();
         }
@@ -1649,7 +1747,7 @@ namespace RaceMode
                     // Once per new problem: iRacing can't fix a monitor Windows is running at the wrong mode.
                     MessageBox.Show(Window, r.Warning + ".\n\niRacing runs in a window that fills the screen, so it uses whatever size and refresh rate Windows has set for that monitor. Change it in Windows display settings.", "Race Mode", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
-                else if (r.Changed) Tick("Put iRacing back on the right screen (" + r.Changes.Count + " setting" + (r.Changes.Count == 1 ? "" : "s") + " fixed)");
+                else if (r.Changed) Tick("Put iRacing back " + (_cfg.DisplayGuard.IsTriple ? "across your three screens" : "on the right screen") + " (" + r.Changes.Count + " setting" + (r.Changes.Count == 1 ? "" : "s") + " fixed)");
                 else if (newSkip || (force && r.Skipped)) Tick(r.Message);
             }
             finally { _guardBusy = false; }
@@ -1792,13 +1890,9 @@ namespace RaceMode
         void OnWindowState()
         {
             bool max = Window.WindowState == WindowState.Maximized;
-            // With a custom title bar, Windows lets a maximised window hang over the screen edges by the frame size.
+            // Maximised, the window is exactly the monitor's free area (WindowFit.cs), so nothing hangs over the edges.
             var root = Get<Grid>("Root");
-            if (root != null)
-            {
-                var f = SystemParameters.WindowResizeBorderThickness;
-                root.Margin = max ? new Thickness(f.Left + 2, f.Top + 2, f.Right + 2, f.Bottom + 2) : new Thickness(0);
-            }
+            if (root != null) root.Margin = new Thickness(0);
             var icon = Get<System.Windows.Shapes.Path>("MaxIcon");
             if (icon != null) icon.Data = Geometry.Parse(max ? "M2.5,0.5 H9.5 V7.5 M0.5,2.5 H7.5 V9.5 H0.5 Z" : "M0.5,0.5 H9.5 V9.5 H0.5 Z");
             var btn = Get<Button>("MaxBtn");
@@ -2376,7 +2470,7 @@ namespace RaceMode
             if (_cfg.StartIRacing && File.Exists(_cfg.IRacingUI) && !IsRunning("iRacingUI") && !IsRunning(Monitor.SimName)) waiting.Add("iRacing");
             var stillOpen = new List<string>();
             if (_cfg.CloseApps && secs >= 6.5)
-                stillOpen = _close.Where(n => !ProtectedFromClose(n) && IsRunning(n)).ToList();
+                stillOpen = _close.Where(n => !ProtectedFromClose(n) && !_leftOpen.ContainsKey(n) && !_reopened.Contains(n) && IsRunning(n)).ToList();
 
             if (secs >= 6.5 && waiting.Count == 0 && stillOpen.Count == 0) { FinishActivation(new List<string>()); return; }
             if (secs >= 45)
@@ -2396,6 +2490,8 @@ namespace RaceMode
         {
             _confirmTimer.Stop();
             _issues.Clear(); _issues.AddRange(problems);
+            foreach (var kv in _leftOpen) if (!ProtectedFromClose(kv.Key) && IsRunning(kv.Key)) _issues.Add(FriendlyApp(kv.Key) + " " + kv.Value);
+            foreach (var n in _reopened) if (!ProtectedFromClose(n) && IsRunning(n) && !_issues.Contains(FriendlyApp(n) + " reopened itself")) _issues.Add(FriendlyApp(n) + " reopened itself");
             if (_notInstalled.Count > 0) _issues.Add(string.Join(", ", _notInstalled.ToArray()) + " not installed");
             _confirmedRunning.Clear();
             foreach (var i in ExpectedApps()) if (IsRunning(i.ProcessName)) _confirmedRunning.Add(i.ProcessName);
@@ -2557,6 +2653,20 @@ namespace RaceMode
                 var label = item != null ? item.Name : name;
                 AddIssue(label + " stopped");
             }
+            // An app left open (save prompt, admin) that has since closed, or is now protected (e.g. OBS once
+            // Streaming is on), is no longer a problem: drop its issue.
+            bool cleared = false;
+            foreach (var kv in _leftOpen.ToList())
+            {
+                bool prot = ProtectedFromClose(kv.Key);
+                if (!prot && IsRunning(kv.Key)) continue;
+                _leftOpen.Remove(kv.Key);
+                _issues.Remove(FriendlyApp(kv.Key) + " " + kv.Value);
+                if (!prot && !_closed.Contains(kv.Key)) _closed.Add(kv.Key);
+                _mon.Event(prot ? "Left " + kv.Key + " open: it's protected now" : kv.Key + " was closed after all");
+                cleared = true;
+            }
+            if (cleared) { _activation = NeedsALook(); SetPhase(_issues.Count == 0 ? "active" : "issues"); }
             if (_cfg.Streaming && _cfg.VramCheck && !_vramWarned && _simSeen)
             {
                 var s = _mon.Live;

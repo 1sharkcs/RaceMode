@@ -20,6 +20,8 @@ namespace RaceMode
     {
         public string label, category, why;
         public string[] process, paths, installed;
+        public string[] launch;  // exe names (no .exe) worth starting before a race; empty: not offered for the Launch list
+        public bool Launchable { get { return launch != null && launch.Length > 0; } }
         public bool streaming;   // a streaming tool: kept while Streaming is on, otherwise closable like anything else
         public bool Closable { get { return string.Equals(category, "close", StringComparison.OrdinalIgnoreCase); } }
         public bool ClosableWhen(bool streamingOn) { return Closable || (streaming && !streamingOn); }
@@ -74,7 +76,7 @@ namespace RaceMode
         {
             var list = new JavaScriptSerializer { MaxJsonLength = 4 * 1024 * 1024 }.Deserialize<List<KnownApp>>(json) ?? new List<KnownApp>();
             Func<string[], string[]> clean = x => (x ?? new string[0]).Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).ToArray();
-            foreach (var a in list.Where(a => a != null)) { a.process = clean(a.process); a.paths = clean(a.paths); a.installed = clean(a.installed); }
+            foreach (var a in list.Where(a => a != null)) { a.process = clean(a.process); a.paths = clean(a.paths); a.installed = clean(a.installed); a.launch = clean(a.launch); }
             _apps = list.Where(a => a != null && !string.IsNullOrWhiteSpace(a.label) && a.process.Length > 0).ToList();
             _byName = null;
         }

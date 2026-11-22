@@ -82,12 +82,125 @@ namespace RaceMode
         static string LaunchWhy(LaunchItem it)
         {
             var name = !string.IsNullOrEmpty(it.ProcessName) ? it.ProcessName : SafeFileName(it.Path);
-            var app = AppScan.Apps.FirstOrDefault(a => a.process.Contains(name, StringComparer.OrdinalIgnoreCase));
+            var app = AppScan.Apps.FirstOrDefault(a => a.process.Contains(name, StringComparer.OrdinalIgnoreCase) || (a.launch != null && a.launch.Contains(name, StringComparer.OrdinalIgnoreCase)));
             return app == null ? null : Cap(app.why);
         }
+        string LaunchPageIntro()
+        {
+            if (_launch.Count > 0)
+            {
+                // "found" only for what the scan of this PC turned up, not for apps the user added themselves
+                int fromScan = _launchFound == null ? 0 : _launch.Count(l => _launchFound.Any(f => string.Equals(f.Path, l.Path, StringComparison.OrdinalIgnoreCase)));
+                return "When you turn Race Mode on, it opens the ticked apps for you." +
+                    (fromScan == 0 ? "" : fromScan == _launch.Count ? " These race apps were found on your PC." : " Some of them were found on your PC.");
+            }
+            return LaunchSuggestions().Count > 0 ? "When you turn Race Mode on, it opens the apps you add here. Add the race apps you use from the ones found on your PC."
+                 : "When you turn Race Mode on, it opens the apps you add here. Race Mode didn't find any race apps it knows; add the ones you use, or skip this for now.";
+        }
+
+        // ---------------- race apps found on this PC (for the Launch list) ----------------
+        List<LaunchItem> _launchFound;   // null until the background scan has finished
+        bool _launchScanning;
+
+        // Looks for installed race apps (Start menu shortcuts, Settings > Apps) on a background thread. On a fresh
+        // config, before setup is finished, the ones it finds in Program Files, %LOCALAPPDATA%\Programs or the app's
+        // own default folder are added to the list ticked (copies, so the found list stays as found). Everything
+        // else, and everything found later, is only offered ("Found on your PC"), showing where it is.
+        void StartLaunchScan()
+        {
+            if (_launchScanning) return;
+            _launchScanning = true;
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                List<LaunchItem> found;
+                try { found = LaunchScan.Find(); }
+                catch (Exception ex) { LogCrash(ex); found = new List<LaunchItem>(); }
+                Window.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _launchScanning = false;
+                    _launchFound = found;
+                    if (_freshConfig && _cfg.SetupDone == false)
+                    {
+                        var add = LaunchSuggestions().Where(it => LaunchScan.AutoTick(AppScan.Apps, it)).ToList();
+                        foreach (var it in add) _launch.Add(CopyFound(it));
+                        if (add.Count > 0) SaveConfig();
+                    }
+                    RefreshLaunchSuggest();
+                    if (_firstRun != null && _firstRun.Current == 1) _firstRun.Refresh();
+                }));
+            });
+        }
+
+        // Found race apps that aren't on the Launch list.
+        List<LaunchItem> LaunchSuggestions()
+        {
+            return _launchFound == null ? new List<LaunchItem>() : LaunchScan.NotListed(AppScan.Apps, _launchFound, _launch);
+        }
+
+        void AddFoundLaunch(LaunchItem f, bool say)
+        {
+            if (f == null || LaunchScan.NotListed(AppScan.Apps, new[] { f }, _launch).Count == 0) return;
+            _launch.Add(CopyFound(f));
+            SaveConfig();
+            RefreshLaunchSuggest();
+            if (say) Tick("Added " + f.Name + " to the Launch list");
+        }
+
+        // A ticked Launch item made from a found one (never the same object as in _launchFound).
+        static LaunchItem CopyFound(LaunchItem f)
+        {
+            return new LaunchItem { Name = f.Name, Path = f.Path, Args = f.Args ?? "", ProcessName = f.ProcessName, Enabled = true };
+        }
+
+        // "Dashboards, haptics and telemetry · C:\Program Files (x86)\SimHub": what a found app is for and where it is.
+        static string FoundSubtitle(LaunchItem it)
+        {
+            var why = LaunchWhy(it);
+            string dir; try { dir = System.IO.Path.GetDirectoryName(it.Path ?? ""); } catch { dir = null; }
+            if (string.IsNullOrEmpty(dir)) dir = it.Path;
+            return string.IsNullOrEmpty(why) ? dir : string.IsNullOrEmpty(dir) ? why : why + " · " + dir;
+        }
+
+        // A setup row: the app's name, what it's for and its folder, with an Add button on the right.
+        UIElement SuggestRow(LaunchItem it, Action add)
+        {
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition());
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var t = (FrameworkElement)SetupFlow.Text(it.Name, FoundSubtitle(it));
+            t.VerticalAlignment = VerticalAlignment.Center; t.ToolTip = it.Path;
+            g.Children.Add(t);
+            var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "Add", FontSize = 12, Padding = new Thickness(10, 3, 10, 3), MinHeight = 0, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            System.Windows.Automation.AutomationProperties.SetName(b, "Add " + it.Name);
+            b.Click += (s, e) => add();
+            Grid.SetColumn(b, 1); g.Children.Add(b);
+            return g;
+        }
+
+        // Launch tab: one button per found app above Add App… ("Found on your PC: + SimHub").
+        void RefreshLaunchSuggest()
+        {
+            var panel = Window.FindName("LaunchSuggest") as WrapPanel;
+            if (panel == null) return;
+            panel.Children.Clear();
+            var found = LaunchSuggestions();
+            panel.Visibility = found.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (found.Count == 0) return;
+            panel.Children.Add(new TextBlock { Text = "Found on your PC:", Style = SetupFlow.Res<Style>("Sub"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) });
+            foreach (var f in found)
+            {
+                var item = f;
+                var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "+ " + item.Name, FontSize = 12, Padding = new Thickness(10, 3, 10, 3), MinHeight = 0, Margin = new Thickness(0, 0, 8, 6), ToolTip = item.Path };
+                System.Windows.Automation.AutomationProperties.SetName(b, "Add " + item.Name + " to the Launch list");
+                b.Click += (s, e) => AddFoundLaunch(item, true);
+                panel.Children.Add(b);
+            }
+        }
+
         static string SafeFileName(string p) { try { return System.IO.Path.GetFileNameWithoutExtension(p ?? ""); } catch { return ""; } }
 
-        static string Cap(string s) { return string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1); }
+        // "dashboards" -> "Dashboards", but names that start lower-case stay as they are ("iRacing overlays").
+        static string Cap(string s) { return string.IsNullOrEmpty(s) || (s.Length > 1 && char.IsUpper(s[1])) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1); }
 
         void MaybeStartFirstRun()
         {
@@ -109,7 +222,7 @@ namespace RaceMode
             pages.Add(new SetupPage
             {
                 Title = "Which screen do you race on?",
-                Intro = "Before each race, Race Mode makes sure iRacing opens on this screen and fills it (as a borderless window), and fixes that while iRacing is closed. Your FPS cap stays as it is.",
+                Intro = "Before each race, Race Mode makes sure iRacing opens on this screen, or across your three screens, and fills it as a borderless window. It fixes that while iRacing is closed. Your FPS cap stays as it is.",
                 Build = () =>
                 {
                     FillMonitorPick();
@@ -122,8 +235,13 @@ namespace RaceMode
                     if (src.SelectedIndex > 0) pick.SelectedIndex = src.SelectedIndex - 1;
                     else if (_pickMonitors.Count > 0) { pick.SelectedIndex = SuggestRacingMonitor(); suggested = true; }
                     else pick.SelectedIndex = pick.Items.Count - 1;
+                    // iRacing is already set up for three screens and three sit side by side: those are the pick.
+                    bool tripleSuggested = suggested && _pickTriples.Count == 1 && DisplayGuard.IniNumMonitors(IniPath()) == 3;
+                    if (tripleSuggested) pick.SelectedIndex = _pickMonitors.Count;
+                    string why = !suggested ? "" : tripleSuggested ? "Your three screens are picked, because iRacing is set up for three. "
+                        : _pickMonitors.Count == 1 ? "Your only screen is picked. " : "Your biggest screen is picked. ";
                     return SetupFlow.Group(SetupFlow.Stack(SetupFlow.Text("Racing monitor",
-                        (suggested ? (_pickMonitors.Count == 1 ? "Your only screen is picked. " : "Your biggest screen is picked. ") : "") + "Choose \"Don't check\" to leave iRacing's screen settings alone."), Pad(pick)));
+                        why + (_pickTriples.Count > 0 && !tripleSuggested ? "Racing on three screens? Pick \"Three screens side by side\". " : "") + "Choose \"Don't check\" to leave iRacing's screen settings alone."), Pad(pick)));
                 },
                 OnNext = () =>
                 {
@@ -136,13 +254,13 @@ namespace RaceMode
             });
 
             // 2. apps to start
-            pages.Add(new SetupPage
+            SetupPage launchPage = null;
+            launchPage = new SetupPage
             {
                 Title = "Apps to start before a race",
-                Intro = _launch.Count > 0 ? "When you turn Race Mode on, it opens the ticked apps for you. These race apps were found on your PC."
-                                          : "When you turn Race Mode on, it opens the apps you add here. Race Mode didn't find any race apps it knows; add the ones you use, or skip this for now.",
                 Build = () =>
                 {
+                    launchPage.Intro = LaunchPageIntro();
                     var rows = new List<UIElement>();
                     foreach (var it in _launch.ToList())
                     {
@@ -151,11 +269,22 @@ namespace RaceMode
                         cb.Checked += (s, e) => { item.Enabled = true; SaveConfig(); };
                         cb.Unchecked += (s, e) => { item.Enabled = false; SaveConfig(); };
                     }
-                    if (rows.Count == 0) rows.Add(SetupFlow.Text("No race apps found", "Add the ones you use, like SimHub or Crew Chief."));
-                    return SetupFlow.Stack(SetupFlow.Group(rows.ToArray()),
+                    if (rows.Count == 0) rows.Add(SetupFlow.Text(_launchFound == null ? "Looking for race apps on this PC…" : "No race apps found",
+                        _launchFound == null ? "This takes a few seconds." : "Add the ones you use, like SimHub or Crew Chief."));
+                    // installed race apps that aren't on the list: one tap adds one (none are ticked for you here)
+                    var found = LaunchSuggestions();
+                    UIElement foundHead = null, foundGroup = null;
+                    if (found.Count > 0)
+                    {
+                        foundHead = SetupFlow.HeadingWithAction("Found on your PC", found.Count > 1 ? "Add All" : null,
+                            () => { foreach (var f in LaunchSuggestions()) AddFoundLaunch(f, false); _firstRun.Refresh(); });
+                        foundGroup = SetupFlow.Group(found.Select(f => { var item = f; return SuggestRow(item, () => { AddFoundLaunch(item, true); _firstRun.Refresh(); }); }).ToArray());
+                    }
+                    return SetupFlow.Stack(SetupFlow.Group(rows.ToArray()), foundHead, foundGroup,
                         SetupFlow.Button("Add App…", () => { AddLaunchApp(); _firstRun.Refresh(); }));
                 }
-            });
+            };
+            pages.Add(launchPage);
 
             // 3. apps to close: open apps (measured for a few seconds) with their memory in a column, heavy apps it
             // doesn't recognise on their own, then installed-but-closed apps folded away. A running total says what
