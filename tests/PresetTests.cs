@@ -41,8 +41,16 @@ class PresetTests
         Check("05 guard keys and the FPS cap untouched", V(ini, "Graphics Options", "DesiredFPSLimit") == capBefore && V(ini, "Graphics Options", "LimitFrameRate") == limBefore, capBefore);
         Check("06 backup written next to the copy", r.Backup != null && File.Exists(r.Backup), r.Backup);
         Check("06b first-ever backup kept separately (never pruned)", File.Exists(ini + ".racemode.first.bak") && File.ReadAllBytes(ini + ".racemode.first.bak").SequenceEqual(File.ReadAllBytes(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"fixtures\live-before-race-preset.ini"))), null);
-        for (int i = 0; i < 7; i++) { GraphicsPresets.Apply(i % 2 == 0 ? "Photo" : "Race", ini, false); System.Threading.Thread.Sleep(1100); }
-        Check("06c after 7 more writes: first backup still there, newest 5 kept", File.Exists(ini + ".racemode.first.bak") && Directory.GetFiles(root, "live.ini.racemode-*.bak").Length == 5, Directory.GetFiles(root, "live.ini.racemode-*.bak").Length.ToString());
+        // Seven older backups are already there (as after seven earlier changes), then one more real change:
+        // the newest five stay, the two real ones among them, and the very first backup is never pruned.
+        // (Placed by hand instead of rewriting the file seven times: the rotation is what is being checked, and
+        // a test that rewrites, renames and deletes the same file over and over looks like ransomware to an antivirus.)
+        for (int i = 1; i <= 7; i++) File.WriteAllText(ini + ".racemode-20200101-00000" + i + "-000.bak", "older backup " + i);
+        var newest = GraphicsPresets.Apply("Photo", ini, false);
+        var kept = Directory.GetFiles(root, "live.ini.racemode-*.bak").Select(Path.GetFileName).OrderBy(n => n, StringComparer.Ordinal).ToList();
+        Check("06c 9 backups after one more write: first backup still there, newest 5 kept", File.Exists(ini + ".racemode.first.bak") && kept.Count == 5
+              && File.Exists(r.Backup) && newest.Backup != null && File.Exists(newest.Backup)
+              && kept[0] == "live.ini.racemode-20200101-000005-000.bak" && !File.Exists(ini + ".racemode-20200101-000004-000.bak"), string.Join(", ", kept.ToArray()));
         GraphicsPresets.Apply("Race", ini, false);
         Check("07 Differences after apply = 0", GraphicsPresets.Differences("Race", ini).Count == 0, null);
 
