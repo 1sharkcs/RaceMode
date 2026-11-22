@@ -64,7 +64,7 @@ namespace RaceMode
 
             // 2. Settings > Apps: the entry's icon if it's the app's exe, else the exe in its folder (or one folder down).
             List<InstalledEntry> entries;
-            try { entries = installed == null ? new List<InstalledEntry>() : (installed() ?? new InstalledEntry[0]).Where(e => e != null && !string.IsNullOrEmpty(e.Name)).Take(MaxEntries).ToList(); }
+            try { entries = installed == null ? new List<InstalledEntry>() : (installed() ?? new InstalledEntry[0]).Where(e => e != null && !string.IsNullOrEmpty(e.Name)).Take(2 * MaxEntries).ToList(); }
             catch { entries = new List<InstalledEntry>(); }
             foreach (var a in list)
             {
@@ -119,7 +119,7 @@ namespace RaceMode
             icon = icon.Trim().Trim('"');
             if (IsExe(icon) && a.launch.Contains(ExeName(icon), StringComparer.OrdinalIgnoreCase) && Exists(icon)) return icon;
             var dir = (e.Location ?? "").Trim().Trim('"');
-            if (dir.Length == 0) return null;
+            if (dir.Length == 0 || InstallFinder.IsNetworkPath(dir)) return null;
             try
             {
                 if (!Directory.Exists(dir)) return null;
@@ -136,35 +136,76 @@ namespace RaceMode
             return null;
         }
 
-        // Settings > Apps entries for this user and the whole PC, 64- and 32-bit.
+        // Settings > Apps entries for the whole PC (64- and 32-bit) first, then this user's. Each hive has its own cap
+        // (MaxEntries entries read), so a flood of entries in one can't push the other's out.
         public static List<InstalledEntry> ReadUninstall()
         {
+            return ReadUninstall(InstallFinder.SubKeys, InstallFinder.Reader);
+        }
+
+        // Public for tests: subKeys(key) and read(key, valueName) as in InstallFinder ("HKLM\..." / "HKCU\..." keys).
+        public static List<InstalledEntry> ReadUninstall(Func<string, string[]> subKeys, Func<string, string, string> read)
+        {
+            const string u = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", uw = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall";
             var list = new List<InstalledEntry>();
-            foreach (var root in new[] { Registry.CurrentUser, Registry.LocalMachine })
-                foreach (var sub in new[] { @"Software\Microsoft\Windows\CurrentVersion\Uninstall", @"Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall" })
-                    try
+            if (subKeys == null || read == null) return list;
+            foreach (var hive in new[] { new[] { @"HKLM\" + u, @"HKLM\" + uw }, new[] { @"HKCU\" + u, @"HKCU\" + uw } })
+            {
+                int n = 0;
+                foreach (var root in hive)
+                {
+                    string[] names;
+                    try { names = subKeys(root) ?? new string[0]; } catch { continue; }
+                    foreach (var name in names)
                     {
-                        using (var k = root.OpenSubKey(sub))
+                        if (++n > MaxEntries) break;
+                        try
                         {
-                            if (k == null) continue;
-                            foreach (var n in k.GetSubKeyNames())
-                            {
-                                if (list.Count >= MaxEntries) return list;
-                                try
-                                {
-                                    using (var e = k.OpenSubKey(n))
-                                    {
-                                        var d = e == null ? null : e.GetValue("DisplayName") as string;
-                                        if (string.IsNullOrEmpty(d)) continue;
-                                        list.Add(new InstalledEntry { Name = d, Icon = e.GetValue("DisplayIcon") as string, Location = e.GetValue("InstallLocation") as string });
-                                    }
-                                }
-                                catch { }
-                            }
+                            var key = root + @"\" + name;
+                            var d = read(key, "DisplayName");
+                            if (string.IsNullOrEmpty(d)) continue;
+                            list.Add(new InstalledEntry { Name = d, Icon = read(key, "DisplayIcon"), Location = read(key, "InstallLocation") });
                         }
+                        catch { }
                     }
-                    catch { }
+                }
+            }
             return list;
+        }
+
+        // Where a found exe may be ticked for you without asking: Program Files (64- and 32-bit), %LOCALAPPDATA%\Programs
+        // and the folders of the app's own catalog paths. A found exe anywhere else is only offered.
+        public static List<string> TrustedRoots(KnownApp app)
+        {
+            var l = new List<string>();
+            try { l.Add(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)); } catch { }
+            try { l.Add(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)); } catch { }
+            try { l.Add(Environment.GetEnvironmentVariable("ProgramW6432")); } catch { }
+            try { var la = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData); if (!string.IsNullOrEmpty(la)) l.Add(Path.Combine(la, "Programs")); } catch { }
+            if (app != null)
+                foreach (var p in app.paths ?? new string[0])
+                    try { l.Add(Path.GetDirectoryName(Environment.ExpandEnvironmentVariables(p))); } catch { }
+            return l.Where(r => !string.IsNullOrEmpty(r) && !InstallFinder.IsNetworkPath(r)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        // True if path is inside one of the folders (after "..", "/" and case are sorted out). Doesn't touch the disk.
+        public static bool IsUnder(string path, IEnumerable<string> roots)
+        {
+            if (string.IsNullOrEmpty(path) || InstallFinder.IsNetworkPath(path)) return false;
+            string full; try { full = Path.GetFullPath(path); } catch { return false; }
+            foreach (var r in roots ?? new string[0])
+            {
+                if (string.IsNullOrEmpty(r)) continue;
+                string root; try { root = Path.GetFullPath(r).TrimEnd('\\') + @"\"; } catch { continue; }
+                if (root.Length > 3 && full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        // A found item that may be ticked for you on a fresh config (see TrustedRoots).
+        public static bool AutoTick(IEnumerable<KnownApp> apps, LaunchItem it)
+        {
+            return it != null && IsUnder(it.Path, TrustedRoots(AppOf(apps, it)));
         }
 
         // The catalog app a Launch item belongs to (by its process name or exe name), or null.
@@ -189,7 +230,7 @@ namespace RaceMode
         }
 
         static bool IsExe(string p) { return !string.IsNullOrEmpty(p) && p.EndsWith(".exe", StringComparison.OrdinalIgnoreCase); }
-        static bool Exists(string p) { try { return File.Exists(p); } catch { return false; } }
+        static bool Exists(string p) { return InstallFinder.LocalFileExists(p); }   // never touches a network path
         static string ExeName(string p) { try { return Path.GetFileNameWithoutExtension(p ?? ""); } catch { return ""; } }
         static bool SafeMatch(string s, string rx)
         {

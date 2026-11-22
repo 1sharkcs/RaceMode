@@ -87,8 +87,14 @@ namespace RaceMode
         }
         string LaunchPageIntro()
         {
-            return _launch.Count > 0 ? "When you turn Race Mode on, it opens the ticked apps for you. These race apps were found on your PC."
-                 : LaunchSuggestions().Count > 0 ? "When you turn Race Mode on, it opens the apps you add here. Add the race apps you use from the ones found on your PC."
+            if (_launch.Count > 0)
+            {
+                // "found" only for what the scan of this PC turned up, not for apps the user added themselves
+                int fromScan = _launchFound == null ? 0 : _launch.Count(l => _launchFound.Any(f => string.Equals(f.Path, l.Path, StringComparison.OrdinalIgnoreCase)));
+                return "When you turn Race Mode on, it opens the ticked apps for you." +
+                    (fromScan == 0 ? "" : fromScan == _launch.Count ? " These race apps were found on your PC." : " Some of them were found on your PC.");
+            }
+            return LaunchSuggestions().Count > 0 ? "When you turn Race Mode on, it opens the apps you add here. Add the race apps you use from the ones found on your PC."
                  : "When you turn Race Mode on, it opens the apps you add here. Race Mode didn't find any race apps it knows; add the ones you use, or skip this for now.";
         }
 
@@ -97,8 +103,9 @@ namespace RaceMode
         bool _launchScanning;
 
         // Looks for installed race apps (Start menu shortcuts, Settings > Apps) on a background thread. On a fresh
-        // config, before setup is finished, what it finds is added ticked (like the default-path ones); otherwise
-        // it's only offered ("Found on your PC").
+        // config, before setup is finished, the ones it finds in Program Files, %LOCALAPPDATA%\Programs or the app's
+        // own default folder are added to the list ticked (copies, so the found list stays as found). Everything
+        // else, and everything found later, is only offered ("Found on your PC"), showing where it is.
         void StartLaunchScan()
         {
             if (_launchScanning) return;
@@ -114,8 +121,8 @@ namespace RaceMode
                     _launchFound = found;
                     if (_freshConfig && _cfg.SetupDone == false)
                     {
-                        var add = LaunchSuggestions();
-                        foreach (var it in add) { it.Enabled = true; _launch.Add(it); }
+                        var add = LaunchSuggestions().Where(it => LaunchScan.AutoTick(AppScan.Apps, it)).ToList();
+                        foreach (var it in add) _launch.Add(CopyFound(it));
                         if (add.Count > 0) SaveConfig();
                     }
                     RefreshLaunchSuggest();
@@ -133,20 +140,34 @@ namespace RaceMode
         void AddFoundLaunch(LaunchItem f, bool say)
         {
             if (f == null || LaunchScan.NotListed(AppScan.Apps, new[] { f }, _launch).Count == 0) return;
-            _launch.Add(new LaunchItem { Name = f.Name, Path = f.Path, Args = f.Args ?? "", ProcessName = f.ProcessName, Enabled = true });
+            _launch.Add(CopyFound(f));
             SaveConfig();
             RefreshLaunchSuggest();
             if (say) Tick("Added " + f.Name + " to the Launch list");
         }
 
-        // A setup row: the app's name and what it's for, with an Add button on the right.
+        // A ticked Launch item made from a found one (never the same object as in _launchFound).
+        static LaunchItem CopyFound(LaunchItem f)
+        {
+            return new LaunchItem { Name = f.Name, Path = f.Path, Args = f.Args ?? "", ProcessName = f.ProcessName, Enabled = true };
+        }
+
+        // "Dashboards, haptics and telemetry · C:\Program Files (x86)\SimHub": what a found app is for and where it is.
+        static string FoundSubtitle(LaunchItem it)
+        {
+            var why = LaunchWhy(it);
+            string dir; try { dir = System.IO.Path.GetDirectoryName(it.Path ?? ""); } catch { dir = null; }
+            if (string.IsNullOrEmpty(dir)) dir = it.Path;
+            return string.IsNullOrEmpty(why) ? dir : string.IsNullOrEmpty(dir) ? why : why + " · " + dir;
+        }
+
+        // A setup row: the app's name, what it's for and its folder, with an Add button on the right.
         UIElement SuggestRow(LaunchItem it, Action add)
         {
             var g = new Grid();
             g.ColumnDefinitions.Add(new ColumnDefinition());
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var why = LaunchWhy(it);
-            var t = (FrameworkElement)SetupFlow.Text(it.Name, string.IsNullOrEmpty(why) ? it.Path : why);
+            var t = (FrameworkElement)SetupFlow.Text(it.Name, FoundSubtitle(it));
             t.VerticalAlignment = VerticalAlignment.Center; t.ToolTip = it.Path;
             g.Children.Add(t);
             var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "Add", FontSize = 12, Padding = new Thickness(10, 3, 10, 3), MinHeight = 0, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
