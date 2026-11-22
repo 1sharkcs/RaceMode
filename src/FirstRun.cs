@@ -170,7 +170,7 @@ namespace RaceMode
             var t = (FrameworkElement)SetupFlow.Text(it.Name, FoundSubtitle(it));
             t.VerticalAlignment = VerticalAlignment.Center; t.ToolTip = it.Path;
             g.Children.Add(t);
-            var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "Add", FontSize = 12, Padding = new Thickness(10, 3, 10, 3), MinHeight = 0, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "Add", FontSize = 12, Padding = new Thickness(12, 5, 12, 5), MinHeight = 28, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
             System.Windows.Automation.AutomationProperties.SetName(b, "Add " + it.Name);
             b.Click += (s, e) => add();
             Grid.SetColumn(b, 1); g.Children.Add(b);
@@ -190,7 +190,7 @@ namespace RaceMode
             foreach (var f in found)
             {
                 var item = f;
-                var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "+ " + item.Name, FontSize = 12, Padding = new Thickness(10, 3, 10, 3), MinHeight = 0, Margin = new Thickness(0, 0, 8, 6), ToolTip = item.Path };
+                var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "+ " + item.Name, FontSize = 12, Padding = new Thickness(12, 5, 12, 5), MinHeight = 28, Margin = new Thickness(0, 0, 8, 6), ToolTip = item.Path };
                 System.Windows.Automation.AutomationProperties.SetName(b, "Add " + item.Name + " to the Launch list");
                 b.Click += (s, e) => AddFoundLaunch(item, true);
                 panel.Children.Add(b);
@@ -222,7 +222,7 @@ namespace RaceMode
             pages.Add(new SetupPage
             {
                 Title = "Which screen do you race on?",
-                Intro = "Before each race, Race Mode makes sure iRacing opens on this screen, or across your three screens, and fills it as a borderless window. It fixes that while iRacing is closed. Your FPS cap stays as it is.",
+                Intro = "Before each race, Race Mode checks that iRacing will open on this screen, or across your three screens, and fill it as a borderless window. Any fix is made while iRacing is closed. Your FPS cap is left alone.",
                 Build = () =>
                 {
                     FillMonitorPick();
@@ -336,7 +336,7 @@ namespace RaceMode
                         parts.Add(SetupFlow.Group(other.Select(a => row(a, true)).ToArray()));
                     }
                     if (known.Count == 0 && other.Count == 0)
-                        parts.Add(SetupFlow.Group(SetupFlow.Text("Nothing heavy is open right now", "You can add apps any time on the Close tab.")));
+                        parts.Add(SetupFlow.Group(SetupFlow.Text("Nothing heavy is open right now", "You can add apps any time under Close.")));
                     parts.Add(total);
                     if (notOpen.Count > 0)
                         parts.Add(SetupFlow.Fold(notOpen.Count + (notOpen.Count == 1 ? " more app" : " more apps") + " on this PC, not open now",
@@ -368,17 +368,17 @@ namespace RaceMode
             pages.Add(new SetupPage
             {
                 Title = "You're set",
-                Intro = "Turn Race Mode on when you're about to race. Your Race graphics start as a copy of your current iRacing graphics; change the quality any time on the Graphics tab.",
+                Intro = "Turn Race Mode on when you're about to race. Your Race graphics start as a copy of your current iRacing graphics; change the quality any time under Graphics.",
                 NextText = "Done", CanSkip = false, QuietNext = true,
                 Build = () =>
                 {
                     bool screen = _cfg.DisplayGuard != null && _cfg.DisplayGuard.Enabled;
                     int starts = _launch.Count(l => l.Enabled), closes = _close.Count;
                     return SetupFlow.Stack(SetupFlow.Group(
-                        SetupFlow.Status(screen ? "Screen check is on" : "Screen check is off", "Settings tab, Racing monitor", screen ? (bool?)true : null),
-                        SetupFlow.Status(starts == 0 ? "No apps start with Race Mode" : starts + (starts == 1 ? " app starts" : " apps start") + " with Race Mode", "Launch tab", starts > 0 ? (bool?)true : null),
-                        SetupFlow.Status(closes == 0 ? "No apps close before a race" : closes + (closes == 1 ? " app closes" : " apps close") + " before a race", "Close tab", closes > 0 ? (bool?)true : null),
-                        SetupFlow.Status(Installer.StartsWithWindows ? "Starts with Windows" : "Starts from its shortcut", "Settings tab, Windows", null)),
+                        SetupFlow.Status(screen ? "Screen check is on" : "Screen check is off", "Settings, Racing monitor", screen ? (bool?)true : null),
+                        SetupFlow.Status(starts == 0 ? "No apps start with Race Mode" : starts + (starts == 1 ? " app starts" : " apps start") + " with Race Mode", "Launch apps", starts > 0 ? (bool?)true : null),
+                        SetupFlow.Status(closes == 0 ? "No apps close before a race" : closes + (closes == 1 ? " app closes" : " apps close") + " before a race", "Close list", closes > 0 ? (bool?)true : null),
+                        SetupFlow.Status(Installer.StartsWithWindows ? "Starts with Windows" : "Starts from its shortcut", "Settings, Windows", null)),
                         SetupFlow.Button("Turn It On Now", () => { _firstRun.Finish(); var sw = Get<ToggleButton>("Switch"); if (sw != null && sw.IsChecked != true) sw.IsChecked = true; }, true));
                 }
             });
@@ -391,9 +391,7 @@ namespace RaceMode
         void FirstRunFinished()
         {
             if (_cfg.SetupDone != true) { _cfg.SetupDone = true; SaveConfig(); }
-            ApplyLayout();
-            // the window may have been maximised or narrowed while setup hid everything
-            var dash = Get<ScrollViewer>("Dash"); if (dash != null) dash.Visibility = _wide ? Visibility.Visible : Visibility.Collapsed;
+            ApplyLayout();   // the window may have been resized while setup hid everything
             if (_on) UpdateStatus();
             else SetText("StatusText", "All set. Flip the switch when you're about to race.");
             Tick("Setup done");
