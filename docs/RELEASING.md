@@ -11,7 +11,7 @@ Nothing is ever pushed straight to `dev` or `main`. Every change arrives in a pu
 
 ## Version numbers
 
-The first public release is `1.0.0`. After that, every update is a 1.x release:
+The first public release is `1.0.1` (the `v1.0.0` tag name was used up by a private test release: once a release is immutable, GitHub never lets its tag name be reused). After that, every update is a 1.x release:
 
 - `1.0.1`, `1.0.2`… bug fixes only.
 - `1.1.0`, `1.2.0`… new features (the work merged into `dev`).
@@ -93,7 +93,7 @@ The repo starts **Private** and only goes Public at the very end, after a releas
 9. Set up the rulesets for `main`, `dev` and the `v*` tags (see One-time GitHub setup above), including **Require review from Code Owners**.
 10. Turn on release immutability: Settings → General → Releases, "Enable release immutability", so a published release's files can't be swapped later.
 11. Pin the actions in `.github/workflows` to full commit SHAs (a pull request into `dev`, with the version as a comment after each SHA).
-12. Tag `v1.0.0` and push the tag.
+12. Tag the first release and push the tag. Never reuse a tag name: with release immutability on, GitHub refuses it.
 13. Check the release: it has `RaceMode.zip`, `RaceMode.zip.sha256` and `install.cmd`; run the install command from the README on a spare PC or account and confirm the updater sees it.
 14. Only then make the repo **Public**.
 
