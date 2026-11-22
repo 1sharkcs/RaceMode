@@ -710,7 +710,7 @@
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
             <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="#5A5A60" VerticalAlignment="Top" Margin="0,5,9,0"/>
             <TextBlock x:Name="StatusText" Grid.Column="1" FontSize="13" Foreground="{StaticResource Dim}" TextWrapping="Wrap" LineHeight="18"
-                       AutomationProperties.LiveSetting="Polite" AutomationProperties.Name="Race Mode status"
+                       AutomationProperties.LiveSetting="Polite"
                        Text="Turn it on before you race."/>
           </Grid>
           <!-- While on: what Race Mode did, two columns (App.cs UpdateStatus / MiniCheck) -->
@@ -1227,7 +1227,7 @@
       <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <TextBlock x:Name="Ticker" Style="{StaticResource Caption}" Text="" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                   AutomationProperties.LiveSetting="Polite" AutomationProperties.Name="Latest activity"/>
+                   AutomationProperties.LiveSetting="Polite"/>
         <!-- shown for 10 s after a Remove (App.cs OfferUndo) -->
         <Button x:Name="UndoBtn" Grid.Column="1" Visibility="Collapsed" Cursor="Hand" FocusVisualStyle="{StaticResource FocusRing}"
                 AutomationProperties.Name="Undo the last remove" Margin="12,0,0,0" ToolTip="Put it back">

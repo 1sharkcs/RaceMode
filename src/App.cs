@@ -1202,7 +1202,7 @@ namespace RaceMode
 
             _on = true; _simSeen = false; _uiSeen = false; _simBoosted = false; _goneTicks = 0; _lowered.Clear(); _boosted.Clear();
             _simLoggedPid = -1; _prioNoted.Clear();
-            _onAt = DateTime.Now; _issues.Clear(); _started.Clear(); _alreadyOpen.Clear(); _closed.Clear(); _notInstalled.Clear();
+            _onAt = DateTime.Now; _issues.Clear(); _started.Clear(); _alreadyOpen.Clear(); _closed.Clear(); _notInstalled.Clear(); _leftOpen.Clear();
             _forced = 0; _confirmedRunning.Clear(); _vramWarned = false; _activation = "Turning on…";
             SetPhase("turning");
             try
@@ -1319,6 +1319,9 @@ namespace RaceMode
             return MessageBox.Show(Window, msg, "Race Mode", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
         }
 
+        // Apps Race Mode chose to leave open after asking (process name -> why), so turning on doesn't wait for them.
+        readonly Dictionary<string, string> _leftOpen = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         void CloseApps()
         {
             var names = _close.Where(n => !ProtectedFromClose(n)).ToList();
@@ -1368,12 +1371,12 @@ namespace RaceMode
                         if (p.HasExited || !string.Equals(p.ProcessName, kv.Value, StringComparison.OrdinalIgnoreCase)) continue;   // gone, or the id was reused
                         // runs as administrator: Windows doesn't let Race Mode close it
                         bool locked = false; try { var h = p.Handle; } catch (System.ComponentModel.Win32Exception) { locked = true; }
-                        if (locked) { denied.Add(FriendlyApp(kv.Value)); continue; }
+                        if (locked) { denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = "runs as administrator, so Windows doesn't let Race Mode close it"; continue; }
                         // still showing a window: probably a "Save changes?" prompt, so it's left for the user
-                        if (p.MainWindowHandle != IntPtr.Zero) { waiting.Add(FriendlyApp(kv.Value)); continue; }
+                        if (p.MainWindowHandle != IntPtr.Zero) { waiting.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = "is still open: it may be asking you to save"; continue; }
                         p.Kill(); forced++;
                     }
-                    catch (System.ComponentModel.Win32Exception) { denied.Add(FriendlyApp(kv.Value)); }
+                    catch (System.ComponentModel.Win32Exception) { denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = "runs as administrator, so Windows doesn't let Race Mode close it"; }
                     catch { }
                     finally { p.Dispose(); }
                 }
@@ -1401,6 +1404,8 @@ namespace RaceMode
                         }
                     if (back.Count == 0) return;
                     _mon.Event("Reopened by itself after closing: " + string.Join(", ", back.ToArray()));
+                    foreach (var b in back) _issues.Add(b + " reopened itself");
+                    if (_confirmTimer.IsEnabled == false) { _activation = NeedsALook(); SetPhase("issues"); UpdateStatus(); }
                     Tick(string.Join(", ", back.ToArray()) + (back.Count == 1 ? " reopened itself" : " reopened themselves") +
                          " (a background service starts it again). Turn off its start-with-Windows option in its own settings, or take it off the Close list");
                 };
@@ -2373,7 +2378,7 @@ namespace RaceMode
             if (_cfg.StartIRacing && File.Exists(_cfg.IRacingUI) && !IsRunning("iRacingUI") && !IsRunning(Monitor.SimName)) waiting.Add("iRacing");
             var stillOpen = new List<string>();
             if (_cfg.CloseApps && secs >= 6.5)
-                stillOpen = _close.Where(n => !ProtectedFromClose(n) && IsRunning(n)).ToList();
+                stillOpen = _close.Where(n => !ProtectedFromClose(n) && !_leftOpen.ContainsKey(n) && IsRunning(n)).ToList();
 
             if (secs >= 6.5 && waiting.Count == 0 && stillOpen.Count == 0) { FinishActivation(new List<string>()); return; }
             if (secs >= 45)
@@ -2393,6 +2398,7 @@ namespace RaceMode
         {
             _confirmTimer.Stop();
             _issues.Clear(); _issues.AddRange(problems);
+            foreach (var kv in _leftOpen) if (IsRunning(kv.Key)) _issues.Add(FriendlyApp(kv.Key) + " " + kv.Value);
             if (_notInstalled.Count > 0) _issues.Add(string.Join(", ", _notInstalled.ToArray()) + " not installed");
             _confirmedRunning.Clear();
             foreach (var i in ExpectedApps()) if (IsRunning(i.ProcessName)) _confirmedRunning.Add(i.ProcessName);
