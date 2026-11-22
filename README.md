@@ -25,7 +25,7 @@ curl -fLo "%TEMP%\racemode-install.cmd" https://github.com/1sharkcs/RaceMode/rel
 
 The installer:
 
-1. Checks your PC has what Race Mode needs (Windows 10 or 11 on an Intel or AMD (x64) PC, with .NET Framework 4.8).
+1. Checks your PC has what Race Mode needs: Windows 10 or 11 on an Intel or AMD (x64) PC, with .NET Framework 4.8. Almost every Windows 10 and 11 PC already has .NET 4.8. If yours doesn't, it asks whether to download Microsoft's installer (116 MB, checked against its known fingerprint before it runs); Windows asks for permission, and you may need to restart and run the command again.
 2. Downloads Race Mode and checks the download against its published checksum.
 3. Opens Race Mode's own setup, which installs it in your user folder. No admin rights are needed.
 4. Adds it to the Start menu, and to Settings > Apps so you can uninstall it there.

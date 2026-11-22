@@ -28,13 +28,10 @@ set NETREL=0
 rem No quotes around the tool paths here: a for /f command that starts with a quote gets its quotes stripped by cmd.
 rem %SystemRoot%\System32 has no spaces, so it's safe unquoted.
 for /f "tokens=3" %%r in ('%SYS%\reg.exe query "HKLM\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full" /v Release 2^>nul ^| %SYS%\find.exe "Release"') do set /a NETREL=%%r
-if %NETREL% lss 528040 (
-  echo Race Mode needs .NET Framework 4.8, which Windows Update normally installs.
-  echo Run Windows Update, or get it from https://dotnet.microsoft.com/download/dotnet-framework/net48
-  goto :fail
-)
 if not exist "%SYS%\curl.exe" (echo This Windows is missing curl. Update Windows, then try again. & goto :fail)
 if not exist "%SYS%\tar.exe" (echo This Windows is missing tar. Update Windows, then try again. & goto :fail)
+if %NETREL% lss 528040 goto :needdotnet
+:havedotnet
 
 rem ---- 2. download into a new, empty folder ----
 set "WORK=%TEMP%\RaceMode-setup-%RANDOM%%RANDOM%"
@@ -74,6 +71,49 @@ if not "%SETUPRC%"=="0" (echo Setup didn't finish, so Race Mode may not be insta
 if not exist "%INST%" (echo Setup was closed before Race Mode was installed. Run this again to install it. & exit /b 1)
 echo Done.
 exit /b 0
+rem ---- .NET Framework 4.8 is missing: offer Microsoft's own installer ----
+rem The file is Microsoft's offline installer at a fixed address. Its SHA-256 is pinned below, so nothing else
+rem can be run in its place. Microsoft's installer then asks Windows for permission (an admin prompt).
+:needdotnet
+set "NETURL=https://download.microsoft.com/download/f/3/a/f3a6af84-da23-40a5-8d1c-49cc10c8e76f/NDP48-x86-x64-AllOS-ENU.exe"
+set "NETSHA=0a3a390c47e639d0f7fc65b21195fee6b7f65b066f80f70c60fab191d14b7e40"
+echo Race Mode needs .NET Framework 4.8, a free part of Windows from Microsoft. This PC doesn't have it yet.
+echo Race Mode can download Microsoft's installer for you (116 MB). Windows will ask for permission to install it,
+echo and you may need to restart your PC afterwards.
+echo.
+"%SYS%\choice.exe" /c YN /n /m "Download and install .NET Framework 4.8 now? [Y/N] "
+if errorlevel 2 goto :nodotnet
+set "NETWORK=%TEMP%\RaceMode-dotnet-%RANDOM%%RANDOM%"
+if exist "%NETWORK%" set "NETWORK=%NETWORK%-%RANDOM%"
+mkdir "%NETWORK%" || (echo Couldn't create a temporary folder. & goto :fail)
+echo Downloading .NET Framework 4.8 from Microsoft...
+"%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 -o "%NETWORK%\ndp48.exe" "%NETURL%" || (echo The download failed. Check your internet connection and try again. & goto :dotnetclean)
+"%SYS%\certutil.exe" -hashfile "%NETWORK%\ndp48.exe" SHA256 | "%SYS%\findstr.exe" /l /i /x /c:"%NETSHA%" >nul || (echo The download isn't Microsoft's .NET Framework 4.8 installer, so it wasn't run. & goto :dotnetclean)
+echo Installing .NET Framework 4.8. Windows will ask for permission; this can take several minutes...
+start "" /wait "%NETWORK%\ndp48.exe" /passive /norestart
+set NETRC=%errorlevel%
+rmdir /s /q "%NETWORK%" >nul 2>&1
+if "%NETRC%"=="3010" goto :dotnetrestart
+if "%NETRC%"=="1641" goto :dotnetrestart
+if not "%NETRC%"=="0" (echo .NET Framework 4.8 didn't install ^(code %NETRC%^). & goto :nodotnet)
+set NETREL=0
+for /f "tokens=3" %%r in ('%SYS%\reg.exe query "HKLM\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full" /v Release 2^>nul ^| %SYS%\find.exe "Release"') do set /a NETREL=%%r
+if %NETREL% lss 528040 goto :dotnetrestart
+echo .NET Framework 4.8 is installed.
+echo.
+goto :havedotnet
+
+:dotnetrestart
+echo .NET Framework 4.8 is installed. Restart your PC, then run the Race Mode install command again.
+goto :fail
+
+:dotnetclean
+rmdir /s /q "%NETWORK%" >nul 2>&1
+
+:nodotnet
+echo You can also get it through Windows Update, or from https://dotnet.microsoft.com/download/dotnet-framework/net48
+goto :fail
+
 
 :dlfail
 echo Download failed. Check your internet connection and try again.
