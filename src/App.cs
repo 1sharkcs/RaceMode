@@ -54,7 +54,7 @@ namespace RaceMode
         public bool CloseApps = true, LaunchApps = true, StartIRacing = true, SimHighPriority = true;
         public bool LowerBackground = true, GpuWarning = true, AutoOff = true, Logging = true;
         public int LogIntervalSec = 2;
-        public string IRacingUI = @"C:\Program Files (x86)\iRacing\ui\iRacingUI.exe";
+        public string IRacingUI = InstallFinder.IRacingUI();     // where iRacing is installed (registry), else the default folder
         public DisplayGuardConfig DisplayGuard = new DisplayGuardConfig();
         public string GraphicsMode = "Race";                    // "Race" or "Photo" (GraphicsPresets.cs)
         public bool Streaming = false, StreamBoost = true, VramCheck = true;
@@ -76,7 +76,7 @@ namespace RaceMode
 
         public static LaunchItem DefaultObs()
         {
-            return new LaunchItem { Name = "OBS Studio", Path = @"C:\Program Files\obs-studio\bin\64bit\obs64.exe", Args = "", ProcessName = "obs64", Enabled = true };
+            return new LaunchItem { Name = "OBS Studio", Path = InstallFinder.ObsExe() ?? InstallFinder.DefaultObs, Args = "", ProcessName = "obs64", Enabled = true };
         }
 
         public static Config Defaults()
@@ -1010,15 +1010,7 @@ namespace RaceMode
         bool _hwinfoRunning;
         static string HwinfoExe
         {
-            get
-            {
-                foreach (var root in new[] { Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 })
-                {
-                    var p = System.IO.Path.Combine(Environment.GetFolderPath(root), @"HWiNFO64\HWiNFO64.EXE");
-                    if (File.Exists(p)) return p;
-                }
-                return @"C:\Program Files\HWiNFO64\HWiNFO64.EXE";
-            }
+            get { return InstallFinder.HwinfoExe(); }   // registry first, then Program Files (x86 too), then the default path
         }
 
         void RefreshCpuTempHint(LiveStats s)
@@ -1336,7 +1328,7 @@ namespace RaceMode
                     if (steam.Length > 0)
                     {
                         string exe = null; try { exe = steam[0].MainModule.FileName; } catch { }
-                        if (exe == null) exe = @"C:\Program Files (x86)\Steam\steam.exe";
+                        if (exe == null) exe = InstallFinder.SteamExe();
                         try { Process.Start(new ProcessStartInfo(exe, "-shutdown") { UseShellExecute = true }); asked.Add("steam"); _closed.Add("steam"); _mon.Event("Asked Steam to shut down"); } catch { }
                     }
                     foreach (var p in steam) p.Dispose();
