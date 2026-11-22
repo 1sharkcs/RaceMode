@@ -197,8 +197,8 @@ namespace RaceMode
         {
             bool on = role != null;
             var face = new Border { Width = Math.Max(8, w), Height = Math.Max(8, h), CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(on ? 2 : 1) };
-            face.SetResourceReference(Border.BackgroundProperty, on ? "SegOn" : "Button");
-            face.SetResourceReference(Border.BorderBrushProperty, on ? "Ink" : "ButtonEdge");
+            face.SetResourceReference(Border.BackgroundProperty, on ? "ScreenTileOn" : "ScreenTile");
+            face.SetResourceReference(Border.BorderBrushProperty, on ? "Ink" : "ScreenTileEdge");
             var words = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
             // the size leads (Windows' own screen numbers aren't available to apps, so none are shown)
             var num = new TextBlock { Text = m.Width + " × " + m.Height, FontFamily = SetupFlow.Res<FontFamily>("Display"), FontSize = h >= 44 && w >= 90 ? 15 : 11, HorizontalAlignment = HorizontalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
@@ -223,8 +223,8 @@ namespace RaceMode
             b.FocusVisualStyle = SetupFlow.Res<Style>("FocusRing");
             if (!on)
             {
-                b.MouseEnter += (s, e) => face.SetResourceReference(Border.BackgroundProperty, "ButtonHover");
-                b.MouseLeave += (s, e) => face.SetResourceReference(Border.BackgroundProperty, "Button");
+                b.MouseEnter += (s, e) => face.SetResourceReference(Border.BackgroundProperty, "ScreenTileHover");
+                b.MouseLeave += (s, e) => face.SetResourceReference(Border.BackgroundProperty, "ScreenTile");
             }
             string what = m.Width + " by " + m.Height + " screen, " + m.Hz + " hertz" + Where(m, ", ", "");
             AutomationProperties.SetName(b, what + (on ? ", " + (role == "iRacing" ? "iRacing opens here" : role + " racing screen") : ""));

@@ -60,6 +60,10 @@
     <SolidColorBrush x:Key="CheckHover" Color="#A1A1A6"/>
     <SolidColorBrush x:Key="SegOn" Color="#46464C"/>
     <SolidColorBrush x:Key="SegOnInk" Color="#F5F5F7"/>
+    <SolidColorBrush x:Key="ScreenTile" Color="#242428"/>     <!-- the screen picture: a screen -->
+    <SolidColorBrush x:Key="ScreenTileEdge" Color="#323237"/>
+    <SolidColorBrush x:Key="ScreenTileHover" Color="#2C2C31"/>
+    <SolidColorBrush x:Key="ScreenTileOn" Color="#34343A"/>   <!-- the picked one -->
     <SolidColorBrush x:Key="Scroll" Color="#48484D"/>
     <SolidColorBrush x:Key="RowHover" Color="#26262A"/>
     <SolidColorBrush x:Key="RowSelected" Color="#2F2F35"/>
