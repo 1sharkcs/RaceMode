@@ -519,7 +519,7 @@ namespace RaceMode
             {
                 int n = HwinfoSetup.Apply();
                 _mon.Event("Switched on HWiNFO's sharing (" + n + " CPU readings added)");
-                Installer.Log("hwinfo", new[] { "sharing switched on, " + n + " CPU readings added" });
+                Installer.Log("hwinfo", new[] { "sharing switched on, " + n + " CPU readings added" }, Shell.Data);
             }
             catch (Exception ex) { LogCrash(ex); Tick("Couldn't change HWiNFO's settings: " + ex.Message); _hwStage = 0; return; }
             _hwStage = 2; _hwStageAt = DateTime.Now;
@@ -548,7 +548,7 @@ namespace RaceMode
                     using (var p = Process.Start(psi)) { p.WaitForExit(10 * 60 * 1000); msg = File.Exists(HwinfoExe) ? "HWiNFO is installed. Now switch on its sharing (steps below)." : "HWiNFO didn't install (winget code " + (p.HasExited ? p.ExitCode.ToString() : "timeout") + "). You can get it from hwinfo.com."; }
                 }
                 catch (Exception ex) { msg = "Couldn't run winget (" + ex.Message + "). You can get HWiNFO from hwinfo.com."; }
-                Window.Dispatcher.BeginInvoke(new Action(() => { _helperBusy = false; _helperError = File.Exists(HwinfoExe) ? null : msg; Tick(msg); Installer.Log("hwinfo", new[] { msg }); if (_helperRender != null) _helperRender(); }));
+                Window.Dispatcher.BeginInvoke(new Action(() => { _helperBusy = false; _helperError = File.Exists(HwinfoExe) ? null : msg; Tick(msg); Installer.Log("hwinfo", new[] { msg }, Shell.Data); if (_helperRender != null) _helperRender(); }));
             });
         }
     }

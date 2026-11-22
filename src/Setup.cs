@@ -226,12 +226,14 @@ namespace RaceMode
         }
 
         // data\setup.log: what install/uninstall did (never secrets), for diagnosing problems.
-        public static void Log(string what, IEnumerable<string> lines)
+        // The helpers (HWiNFO, OBS) pass the running copy's own data folder, so a portable copy logs beside itself.
+        public static void Log(string what, IEnumerable<string> lines, string dir = null)
         {
             try
             {
-                Directory.CreateDirectory(DataDir);
-                File.AppendAllText(Path.Combine(DataDir, "setup.log"),
+                if (string.IsNullOrEmpty(dir)) dir = DataDir;
+                Directory.CreateDirectory(dir);
+                File.AppendAllText(Path.Combine(dir, "setup.log"),
                     DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + "  " + what + " (" + Updater.Current + ")" + Environment.NewLine +
                     string.Concat(lines.Select(l => "  " + l + Environment.NewLine)));
             }
