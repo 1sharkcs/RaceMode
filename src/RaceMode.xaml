@@ -198,7 +198,7 @@
           <ControlTemplate TargetType="ToggleButton">
             <Grid Width="84" Height="48" Background="Transparent">
               <Border x:Name="Ring" CornerRadius="27" Margin="-4" BorderBrush="{StaticResource Ink}" BorderThickness="2" Opacity="0"/>
-              <Border x:Name="Track" CornerRadius="24" Background="#3A3A3F"/>
+              <Border x:Name="Track" CornerRadius="24" Background="#6C6C74"/>
               <Border x:Name="TrackOn" CornerRadius="24" Background="{StaticResource Red}" Opacity="0"/>
               <Ellipse Width="40" Height="40" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0">
                 <Ellipse.RenderTransform><TranslateTransform x:Name="ThumbX"/></Ellipse.RenderTransform>
@@ -213,7 +213,7 @@
                       <DoubleAnimation Storyboard.TargetName="ThumbX" Storyboard.TargetProperty="X" To="36" Duration="0:0:0.24">
                         <DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></DoubleAnimation.EasingFunction>
                       </DoubleAnimation>
-                      <DoubleAnimation Storyboard.TargetName="TrackOn" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18"/>
+                      <DoubleAnimation Storyboard.TargetName="TrackOn" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18"><DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></DoubleAnimation.EasingFunction></DoubleAnimation>
                     </Storyboard>
                   </BeginStoryboard>
                 </Trigger.EnterActions>
@@ -223,12 +223,12 @@
                       <DoubleAnimation Storyboard.TargetName="ThumbX" Storyboard.TargetProperty="X" To="0" Duration="0:0:0.24">
                         <DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></DoubleAnimation.EasingFunction>
                       </DoubleAnimation>
-                      <DoubleAnimation Storyboard.TargetName="TrackOn" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.18"/>
+                      <DoubleAnimation Storyboard.TargetName="TrackOn" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.18"><DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></DoubleAnimation.EasingFunction></DoubleAnimation>
                     </Storyboard>
                   </BeginStoryboard>
                 </Trigger.ExitActions>
               </Trigger>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="#48484E"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="#7C7C84"/></Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Ring" Property="Opacity" Value="0.7"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -250,7 +250,7 @@
               <ContentPresenter VerticalAlignment="Center" Margin="0,0,16,0"/>
               <Grid Grid.Column="1" Width="42" Height="26" VerticalAlignment="Center">
                 <Border x:Name="Ring" CornerRadius="16" Margin="-3" BorderBrush="{StaticResource Ink}" BorderThickness="2" Opacity="0"/>
-                <Border x:Name="Track" CornerRadius="13" Background="#3A3A3F"/>
+                <Border x:Name="Track" CornerRadius="13" Background="#6C6C74"/>
                 <Border x:Name="TrackOn" CornerRadius="13" Background="{StaticResource Red}" Opacity="0"/>
                 <Ellipse Width="22" Height="22" Fill="White" HorizontalAlignment="Left" Margin="2,0,0,0">
                   <Ellipse.RenderTransform><TranslateTransform x:Name="ThumbX"/></Ellipse.RenderTransform>
@@ -266,7 +266,7 @@
                       <DoubleAnimation Storyboard.TargetName="ThumbX" Storyboard.TargetProperty="X" To="16" Duration="0:0:0.2">
                         <DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></DoubleAnimation.EasingFunction>
                       </DoubleAnimation>
-                      <DoubleAnimation Storyboard.TargetName="TrackOn" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.15"/>
+                      <DoubleAnimation Storyboard.TargetName="TrackOn" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.15"><DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></DoubleAnimation.EasingFunction></DoubleAnimation>
                     </Storyboard>
                   </BeginStoryboard>
                 </Trigger.EnterActions>
@@ -276,12 +276,12 @@
                       <DoubleAnimation Storyboard.TargetName="ThumbX" Storyboard.TargetProperty="X" To="0" Duration="0:0:0.2">
                         <DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></DoubleAnimation.EasingFunction>
                       </DoubleAnimation>
-                      <DoubleAnimation Storyboard.TargetName="TrackOn" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15"/>
+                      <DoubleAnimation Storyboard.TargetName="TrackOn" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15"><DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></DoubleAnimation.EasingFunction></DoubleAnimation>
                     </Storyboard>
                   </BeginStoryboard>
                 </Trigger.ExitActions>
               </Trigger>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="#48484E"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="#7C7C84"/></Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Ring" Property="Opacity" Value="0.7"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -334,6 +334,30 @@
                 <Setter Property="Foreground" Value="{StaticResource Ink}"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
               </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- in-page index link (Settings): plain Dim text that scrolls to a group; hover lightens like a menu row -->
+    <Style x:Key="JumpLink" TargetType="Button">
+      <Setter Property="Foreground" Value="{StaticResource Dim}"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="B" CornerRadius="6" Padding="10,5" MinHeight="28" Background="Transparent">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="B" Property="Background" Value="{StaticResource Card}"/>
+                <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="B" Property="Background" Value="{StaticResource Raised}"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
@@ -439,8 +463,10 @@
       </Setter>
     </Style>
 
-    <!-- side menu (Layout.cs): one row per section, an icon and its name. Rows lighten on hover, the current one is
-         filled. Narrow windows show the icons only (the names are their tooltips). -->
+    <!-- side menu (Layout.cs, SideMenu.cs): one row per section, an icon, its name and, at the right edge, a quiet
+         count or state (apps on a list, streaming on, an update ready). Rows lighten on hover, the current one is
+         filled. Narrow windows show the icons only: the names and states are their tooltips, and a state that
+         wants attention shows as a small dot on the icon. -->
     <Style x:Key="NavList" TargetType="ListBox">
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderThickness" Value="0"/>
@@ -458,11 +484,12 @@
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRingInset}"/>
       <Setter Property="Margin" Value="0,0,0,2"/>
+      <Setter Property="Padding" Value="12,8"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ListBoxItem">
-            <Border x:Name="B" CornerRadius="8" Padding="12,8" MinHeight="36" Background="Transparent">
-              <ContentPresenter VerticalAlignment="Center"/>
+            <Border x:Name="B" CornerRadius="8" Padding="{TemplateBinding Padding}" MinHeight="36" Background="Transparent" BorderBrush="Transparent" BorderThickness="1">
+              <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
@@ -470,7 +497,8 @@
                 <Setter Property="Foreground" Value="{StaticResource Ink}"/>
               </Trigger>
               <Trigger Property="IsSelected" Value="True">
-                <Setter TargetName="B" Property="Background" Value="{StaticResource Raised}"/>
+                <Setter TargetName="B" Property="Background" Value="#34343A"/>
+                <Setter TargetName="B" Property="BorderBrush" Value="#4A4A52"/>
                 <Setter Property="Foreground" Value="{StaticResource Ink}"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
               </Trigger>
@@ -487,10 +515,10 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ToggleButton">
-            <Grid Width="42" Height="26" Background="Transparent">
-              <Border x:Name="Ring" CornerRadius="16" Margin="-3" BorderBrush="{StaticResource Ink}" BorderThickness="2" Opacity="0"/>
-              <Border x:Name="Track" CornerRadius="13" Background="#3A3A3F"/>
-              <Border x:Name="TrackOn" CornerRadius="13" Background="{StaticResource Red}" Opacity="0"/>
+            <Grid Width="42" Height="28" Background="Transparent">
+              <Border x:Name="Ring" CornerRadius="16" Margin="-3,-2" BorderBrush="{StaticResource Ink}" BorderThickness="2" Opacity="0"/>
+              <Border x:Name="Track" CornerRadius="13" Margin="0,1" Background="#6C6C74"/>
+              <Border x:Name="TrackOn" CornerRadius="13" Margin="0,1" Background="{StaticResource Red}" Opacity="0"/>
               <Ellipse Width="22" Height="22" Fill="White" HorizontalAlignment="Left" Margin="2,0,0,0">
                 <Ellipse.RenderTransform><TranslateTransform x:Name="ThumbX"/></Ellipse.RenderTransform>
                 <Ellipse.Effect><DropShadowEffect BlurRadius="4" ShadowDepth="1" Direction="270" Opacity="0.3"/></Ellipse.Effect>
@@ -504,7 +532,7 @@
                       <DoubleAnimation Storyboard.TargetName="ThumbX" Storyboard.TargetProperty="X" To="16" Duration="0:0:0.2">
                         <DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></DoubleAnimation.EasingFunction>
                       </DoubleAnimation>
-                      <DoubleAnimation Storyboard.TargetName="TrackOn" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.15"/>
+                      <DoubleAnimation Storyboard.TargetName="TrackOn" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.15"><DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></DoubleAnimation.EasingFunction></DoubleAnimation>
                     </Storyboard>
                   </BeginStoryboard>
                 </Trigger.EnterActions>
@@ -514,12 +542,12 @@
                       <DoubleAnimation Storyboard.TargetName="ThumbX" Storyboard.TargetProperty="X" To="0" Duration="0:0:0.2">
                         <DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></DoubleAnimation.EasingFunction>
                       </DoubleAnimation>
-                      <DoubleAnimation Storyboard.TargetName="TrackOn" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15"/>
+                      <DoubleAnimation Storyboard.TargetName="TrackOn" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15"><DoubleAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></DoubleAnimation.EasingFunction></DoubleAnimation>
                     </Storyboard>
                   </BeginStoryboard>
                 </Trigger.ExitActions>
               </Trigger>
-              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="#48484E"/></Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="Background" Value="#7C7C84"/></Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Ring" Property="Opacity" Value="0.7"/></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -739,13 +767,13 @@
         <TextBlock Text="Race Mode" FontSize="12" Foreground="{StaticResource Dim}" VerticalAlignment="Center"/>
       </StackPanel>
       <!-- small panel and back (Layout.cs ToggleSmall) -->
-      <Button x:Name="SmallBtn" Grid.Column="1" Style="{StaticResource CaptionBtn}" ToolTip="Small panel: just the switch and the live numbers" AutomationProperties.Name="Small panel">
+      <Button x:Name="SmallBtn" Grid.Column="1" Style="{StaticResource CaptionBtn}" ToolTip="Small panel: the switch, FPS and the live numbers" AutomationProperties.Name="Small panel">
         <Path x:Name="SmallIcon" Data="M0.5,0.5 H11.5 V9.5 H0.5 Z M5.5,5.5 H11.5 M5.5,5.5 V9.5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="12" Height="10"/>
       </Button>
       <Button x:Name="MinBtn" Grid.Column="2" Style="{StaticResource CaptionBtn}" ToolTip="Minimize" AutomationProperties.Name="Minimize">
         <Path Data="M0,0.5 L10,0.5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="10" Height="1"/>
       </Button>
-      <Button x:Name="MaxBtn" Grid.Column="3" Style="{StaticResource CaptionBtn}" ToolTip="Maximize: shows the full dashboard" AutomationProperties.Name="Maximize">
+      <Button x:Name="MaxBtn" Grid.Column="3" Style="{StaticResource CaptionBtn}" ToolTip="Maximize" AutomationProperties.Name="Maximize">
         <Path x:Name="MaxIcon" Data="M0.5,0.5 H9.5 V9.5 H0.5 Z" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="10" Height="10"/>
       </Button>
       <Button x:Name="CloseBtn" Grid.Column="4" Style="{StaticResource CloseCaptionBtn}" ToolTip="Close" AutomationProperties.Name="Close window">
@@ -756,7 +784,7 @@
     <!-- everything between the title bar and the activity line. Layout.cs fits it to the window:
          small panel (switch and numbers only) · icon menu · menu with names · and, from 1280 px, the dashboard
          beside whichever section is open. -->
-    <Grid x:Name="Body" Grid.Row="1">
+    <Grid x:Name="Body" Grid.Row="1" Margin="0,0,0,12">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto"/>
         <ColumnDefinition x:Name="MainCol" Width="*"/>
@@ -764,29 +792,34 @@
       </Grid.ColumnDefinitions>
 
       <!-- side menu; under it, the Race Mode switch whenever the Overview (which has the big one) isn't showing -->
-      <DockPanel x:Name="NavRail" Width="208" Margin="12,6,0,0">
-        <Border x:Name="NavStatus" DockPanel.Dock="Bottom" Style="{StaticResource Group}" Padding="12,10" Visibility="Collapsed">
-          <Grid>
-            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <StackPanel x:Name="NavStatusWords" VerticalAlignment="Center" Margin="0,0,10,0">
-              <TextBlock Text="Race Mode" Foreground="{StaticResource Ink}"/>
-              <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                <Ellipse x:Name="NavDot" Width="6" Height="6" Fill="#5A5A60" VerticalAlignment="Center" Margin="0,1,6,0"/>
-                <TextBlock x:Name="NavState" FontSize="12" Foreground="{StaticResource Dim}" Text="Off" TextTrimming="CharacterEllipsis"/>
-              </StackPanel>
+      <DockPanel x:Name="NavRail" Width="208" Margin="12,6,0,0" KeyboardNavigation.TabNavigation="Local">
+        <!-- the switch block: the menu's last row, under a hairline. The status light sits in the icon column and the
+             words line up with the section names; icon-only, the switch is centred with the light under it. -->
+        <Border x:Name="NavStatus" DockPanel.Dock="Bottom" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0"
+                Padding="12,12,12,14" Visibility="Collapsed">
+          <Grid x:Name="NavStatusGrid">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Ellipse x:Name="NavDot" Width="8" Height="8" Fill="#5A5A60" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <StackPanel x:Name="NavStatusWords" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0" Background="Transparent">
+              <TextBlock Text="Race Mode" Foreground="{StaticResource Ink}" FontSize="13"/>
+              <TextBlock x:Name="NavState" FontSize="12" Margin="0,1,0,0" Foreground="{StaticResource Dim}" Text="Off" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
-            <ToggleButton x:Name="NavSwitch" Grid.Column="1" Style="{StaticResource SmallSwitch}" VerticalAlignment="Center"
-                          IsChecked="{Binding IsChecked, ElementName=Switch, Mode=TwoWay}"
+            <ToggleButton x:Name="NavSwitch" Grid.Column="2" Style="{StaticResource SmallSwitch}" VerticalAlignment="Center"
+                          IsChecked="{Binding IsChecked, ElementName=Switch, Mode=TwoWay}" KeyboardNavigation.TabIndex="1"
                           AutomationProperties.Name="Race Mode" ToolTip="Turn Race Mode on or off"/>
           </Grid>
         </Border>
-        <ListBox x:Name="Nav" Style="{StaticResource NavList}" ItemContainerStyle="{StaticResource NavItem}" VerticalAlignment="Top"/>
+        <ListBox x:Name="Nav" Style="{StaticResource NavList}" ItemContainerStyle="{StaticResource NavItem}" VerticalAlignment="Top" KeyboardNavigation.TabIndex="0"/>
       </DockPanel>
 
       <!-- sections -->
-      <TabControl x:Name="Tabs" Grid.Column="1" Margin="20,6,20,0" Background="Transparent" BorderThickness="0">
+      <TabControl x:Name="Tabs" Grid.Column="1" Margin="20,6,20,0" Background="Transparent" BorderThickness="0" KeyboardNavigation.TabNavigation="Local">
         <TabItem Header="Overview">
           <ScrollViewer x:Name="OverScroll" VerticalScrollBarVisibility="Auto" Focusable="False">
+            <Grid>
+              <!-- very wide windows: the page stops growing at 2000 px and stays at the left -->
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="2000"/></Grid.ColumnDefinitions>
             <StackPanel x:Name="OverPanel" Margin="0,0,4,0">
               <!-- stacked; side by side when the page is wide enough (Layout.cs) -->
               <Grid x:Name="OverTop">
@@ -794,22 +827,22 @@
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <!-- hero: the one job of this window -->
                 <Border x:Name="Hero" CornerRadius="16" BorderThickness="1" Padding="16,22,22,22">
+                  <!-- off: Card Graphite. On: it warms to a red tint from the top left, in the 240 ms the thumb takes
+                       (the colours below are animated, To-only, so switching back mid-way is smooth). -->
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#1D1D20" Offset="0"/>
+                      <GradientStop Color="#1D1D20" Offset="0.55"/>
+                      <GradientStop Color="#1D1D20" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                  <Border.BorderBrush><SolidColorBrush Color="#2C2C30"/></Border.BorderBrush>
                   <Border.Style>
                     <Style TargetType="Border">
-                      <Setter Property="Background" Value="{StaticResource Card}"/>
-                      <Setter Property="BorderBrush" Value="{StaticResource Hairline}"/>
                       <Style.Triggers>
                         <DataTrigger Binding="{Binding IsChecked, ElementName=Switch}" Value="True">
-                          <Setter Property="Background">
-                            <Setter.Value>
-                              <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#3A1A18" Offset="0"/>
-                                <GradientStop Color="#221B1D" Offset="0.55"/>
-                                <GradientStop Color="#1D1D20" Offset="1"/>
-                              </LinearGradientBrush>
-                            </Setter.Value>
-                          </Setter>
-                          <Setter Property="BorderBrush" Value="#5A2420"/>
+                          <DataTrigger.EnterActions><BeginStoryboard><Storyboard><ColorAnimation Storyboard.TargetProperty="Background.GradientStops[0].Color" To="#3A1A18" Duration="0:0:0.24"><ColorAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></ColorAnimation.EasingFunction></ColorAnimation><ColorAnimation Storyboard.TargetProperty="Background.GradientStops[1].Color" To="#221B1D" Duration="0:0:0.24"><ColorAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></ColorAnimation.EasingFunction></ColorAnimation><ColorAnimation Storyboard.TargetProperty="BorderBrush.Color" To="#5A2420" Duration="0:0:0.24"><ColorAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></ColorAnimation.EasingFunction></ColorAnimation></Storyboard></BeginStoryboard></DataTrigger.EnterActions>
+                          <DataTrigger.ExitActions><BeginStoryboard><Storyboard><ColorAnimation Storyboard.TargetProperty="Background.GradientStops[0].Color" To="#1D1D20" Duration="0:0:0.24"><ColorAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></ColorAnimation.EasingFunction></ColorAnimation><ColorAnimation Storyboard.TargetProperty="Background.GradientStops[1].Color" To="#1D1D20" Duration="0:0:0.24"><ColorAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></ColorAnimation.EasingFunction></ColorAnimation><ColorAnimation Storyboard.TargetProperty="BorderBrush.Color" To="#2C2C30" Duration="0:0:0.24"><ColorAnimation.EasingFunction><ExponentialEase EasingMode="EaseOut" Exponent="6"/></ColorAnimation.EasingFunction></ColorAnimation></Storyboard></BeginStoryboard></DataTrigger.ExitActions>
                         </DataTrigger>
                       </Style.Triggers>
                     </Style>
@@ -837,6 +870,14 @@
                 <!-- live telemetry -->
                 <Border x:Name="StatsStrip" Grid.Row="1" Margin="0,12,0,0" Style="{StaticResource Group}" CornerRadius="14">
                   <UniformGrid x:Name="Telemetry" Columns="5">
+                    <!-- FPS: only in the small panel's shapes (SmallPanel.cs); collapsed everywhere else. No data = words. -->
+                    <Border x:Name="FpsCell" Visibility="Collapsed" Padding="16,14,12,14" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,1,0" AutomationProperties.Name="FPS">
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Style="{StaticResource StatLabel}" Text="FPS"/>
+                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="FpsVal" Text="" FontFamily="{StaticResource Display}" FontSize="28"/><Run x:Name="FpsUnit" Text="Waiting" FontSize="12" Foreground="{StaticResource Dim}"/></TextBlock>
+                        <TextBlock x:Name="FpsSub" Style="{StaticResource StatSub}" Text="for iRacing" ToolTip="Frames per second in iRacing. It shows up once you're in a session."/>
+                      </StackPanel>
+                    </Border>
                     <Border Padding="16,14,12,14" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,1,0" AutomationProperties.Name="CPU">
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Style="{StaticResource StatLabel}" Text="CPU"/>
@@ -875,31 +916,42 @@
                         <TextBlock Style="{StaticResource StatLabel}" Text="Free RAM"/>
                         <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular"><Run x:Name="RamVal" Text="--" FontFamily="{StaticResource Display}" FontSize="28"/><Run Text=" GB" FontSize="12" Foreground="{StaticResource Dim}"/></TextBlock>
                         <ProgressBar x:Name="RamBar" Style="{StaticResource Meter}"/>
-                        <TextBlock x:Name="RamSub" Style="{StaticResource StatSub}" Text="Reading…" ToolTip="All the memory apps have asked for, including the page file, out of the most Windows can hand out. Close to full means stutter or crashes."/>
+                        <TextBlock x:Name="RamSub" Style="{StaticResource StatSub}" Text="Reading…" ToolTip="Memory in use, out of all Windows can hand out (page file included). Close to full means stutter or crashes."/>
                       </StackPanel>
                     </Border>
                   </UniformGrid>
                 </Border>
+                <!-- the moment's second piece, beside the switch card (or under it when narrow): while on, the
+                     checklist (what Race Mode did); while off, the last session (how it went). Overview.cs -->
+                <Border x:Name="OverAside" Grid.Row="1" Margin="0,20,0,0"/>
               </Grid>
               <!-- the dashboard sits here on the Overview; beside the other sections it moves to DashSide -->
-              <Border x:Name="DashHere" Margin="0,22,0,0">
+              <Border x:Name="DashHere" Margin="0,28,0,0">
                 <StackPanel x:Name="DashBody">
                   <Grid Margin="16,0,0,7">
                     <TextBlock Style="{StaticResource SectionHeader}" Margin="0" Text="Live · last 60 seconds"/>
                     <TextBlock x:Name="DashHint" Style="{StaticResource Caption}" HorizontalAlignment="Right" Margin="0,0,16,0" Text="Point at a chart, or use the arrow keys on it, to see any moment"/>
                   </Grid>
-                  <UniformGrid x:Name="ChartGrid" Columns="3"/>
-                  <UniformGrid x:Name="DashBottom" Columns="2" Margin="-7,7,-7,0">
+                  <!-- FPS leads; the rest are small multiples in one card, a column per part (CPU, GPU, memory) -->
+                  <Grid x:Name="LiveGrid">
+                    <Grid.ColumnDefinitions><ColumnDefinition x:Name="FpsCol"/><ColumnDefinition x:Name="SmallCol" Width="0"/></Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Border x:Name="FpsHost"/>
+                    <Border x:Name="SmallCard" Grid.Row="1" Margin="0,12,0,0" Style="{StaticResource Group}">
+                      <UniformGrid x:Name="ChartGrid" Columns="3"/>
+                    </Border>
+                  </Grid>
+                  <UniformGrid x:Name="DashBottom" Columns="2" Margin="-7,28,-7,0">
                     <!-- DockPanels, so both cards are as tall as the taller one -->
-                    <DockPanel Margin="7,0,7,14">
-                      <TextBlock DockPanel.Dock="Top" Style="{StaticResource SectionHeader}" Text="Race Mode checklist"/>
-                      <Border Style="{StaticResource Group}" Padding="16,10">
-                        <StackPanel x:Name="Checklist"/>
+                    <DockPanel x:Name="CheckBlock" Margin="7,0,7,14">
+                      <TextBlock x:Name="CheckHead" DockPanel.Dock="Top" Style="{StaticResource SectionHeader}" Text="Race Mode checklist"/>
+                      <Border Style="{StaticResource Group}" Padding="16,8">
+                        <UniformGrid x:Name="Checklist" Columns="1" VerticalAlignment="Top" Margin="0,0,-24,0"/>
                       </Border>
                     </DockPanel>
-                    <DockPanel Margin="7,0,7,14">
+                    <DockPanel x:Name="LastBlock" Margin="7,0,7,14">
                       <TextBlock DockPanel.Dock="Top" Style="{StaticResource SectionHeader}" Text="Last session"/>
-                      <Border Style="{StaticResource Group}" Padding="16,10">
+                      <Border Style="{StaticResource Group}" Padding="16,8">
                         <StackPanel x:Name="LastSession"/>
                       </Border>
                     </DockPanel>
@@ -907,74 +959,124 @@
                 </StackPanel>
               </Border>
             </StackPanel>
+            </Grid>
           </ScrollViewer>
         </TabItem>
 
+        <!-- Sections 1-6 share one measure: content is at most 720 px wide (a star column with a MaxWidth), so rows,
+             switches and descriptions stay readable on a wide window. Settings and Logs go to two columns on wide
+             pages (Pages.cs). Lists are as tall as their rows, up to the page, with their buttons right under them. -->
         <TabItem Header="Launch" Tag="Launch apps">
-          <DockPanel>
-            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Sub}" Margin="16,0,16,12"
-                       Text="Started when Race Mode turns on. Skipped if already running, and never closed."/>
-            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
-              <Button x:Name="AddLaunchBtn" Style="{StaticResource Btn}" Content="Add App…" Margin="0,0,8,0"/>
-              <Button x:Name="RemoveLaunchBtn" Style="{StaticResource Btn}" Content="Remove"/>
-            </StackPanel>
-            <ListBox x:Name="LaunchList" KeyboardNavigation.TabNavigation="Continue">
-              <ListBox.ItemTemplate>
-                <DataTemplate>
-                  <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                    <CheckBox Style="{StaticResource Check}" IsChecked="{Binding Enabled, Mode=TwoWay}" VerticalAlignment="Center"
-                              AutomationProperties.Name="{Binding Name}"/>
-                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                      <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{StaticResource Ink}"/>
-                      <TextBlock Text="{Binding Detail}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{StaticResource Faint}"
-                                 TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding Detail}"/>
-                    </StackPanel>
-                  </Grid>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </DockPanel>
-        </TabItem>
-
-        <TabItem Header="Close" Tag="Close list">
-          <DockPanel>
-            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Sub}" Margin="16,0,16,12"
-                       Text="Closed when Race Mode turns on. Apps get 5 seconds to close; anything still running is then closed for them, unless it's still showing a window (it may be asking you to save). iRacing and your Launch apps are never closed."/>
-            <Grid DockPanel.Dock="Bottom" Margin="0,12,0,0">
-              <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <TextBox x:Name="NewCloseBox" ToolTip="The app's name as Task Manager shows it on the Details tab, without .exe" AutomationProperties.Name="App to close"/>
-              <TextBlock Text="App name, e.g. steam" Foreground="{StaticResource Faint}" FontSize="13" Margin="11,0,0,0"
-                         VerticalAlignment="Center" IsHitTestVisible="False">
+          <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="720"/></Grid.ColumnDefinitions>
+            <Grid VerticalAlignment="Top">
+              <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+              <Border Style="{StaticResource Group}" Margin="0,0,0,12">
+                <Border Style="{StaticResource LastRow}">
+                  <CheckBox x:Name="OptLaunch" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Start these apps when Race Mode turns on"/><TextBlock Style="{StaticResource Sub}" Text="Your race apps, like SimHub or Crew Chief. Skipped if already running, and never closed."/></StackPanel></CheckBox>
+                </Border>
+              </Border>
+              <ListBox x:Name="LaunchList" Grid.Row="1" KeyboardNavigation.TabNavigation="Continue">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Grid>
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                      <CheckBox Style="{StaticResource Check}" IsChecked="{Binding Enabled, Mode=TwoWay}" VerticalAlignment="Center"
+                                AutomationProperties.Name="{Binding Name}"/>
+                      <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                        <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{StaticResource Ink}"/>
+                        <TextBlock Text="{Binding Detail}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{StaticResource Faint}"
+                                   TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding Detail}"/>
+                      </StackPanel>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <!-- empty list: say what goes here, inside the list's own card -->
+              <TextBlock Grid.Row="1" Margin="17,15,17,15" IsHitTestVisible="False"
+                         Text="No apps yet. Add the apps you race with, like SimHub or Crew Chief, and they start when Race Mode turns on.">
                 <TextBlock.Style>
-                  <Style TargetType="TextBlock">
+                  <Style TargetType="TextBlock" BasedOn="{StaticResource Sub}">
                     <Setter Property="Visibility" Value="Collapsed"/>
                     <Style.Triggers>
-                      <DataTrigger Binding="{Binding Text, ElementName=NewCloseBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                      <DataTrigger Binding="{Binding Items.Count, ElementName=LaunchList}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
                     </Style.Triggers>
                   </Style>
                 </TextBlock.Style>
               </TextBlock>
-              <Button x:Name="AddCloseBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Add" Margin="8,0,0,0"/>
-              <Button x:Name="PickRunningBtn" Grid.Column="2" Style="{StaticResource Btn}" Content="Choose Running…" Margin="8,0,0,0"/>
-              <Button x:Name="RemoveCloseBtn" Grid.Column="3" Style="{StaticResource Btn}" Content="Remove" Margin="8,0,0,0"/>
+              <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+                <Button x:Name="AddLaunchBtn" Style="{StaticResource Btn}" Content="Add App…" Margin="0,0,8,0"/>
+                <Button x:Name="RemoveLaunchBtn" Style="{StaticResource Btn}" Content="Remove"/>
+              </StackPanel>
             </Grid>
-            <ListBox x:Name="RunningList" DockPanel.Dock="Bottom" Height="210" Margin="0,12,0,0" Visibility="Collapsed"
-                     ToolTip="Double-click an app to add it">
-              <ListBox.ItemTemplate>
-                <DataTemplate><TextBlock Text="{Binding}" FontSize="13"/></DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-            <ListBox x:Name="CloseList">
-              <ListBox.ItemTemplate>
-                <DataTemplate><TextBlock Text="{Binding}" FontSize="13"/></DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </DockPanel>
+          </Grid>
+        </TabItem>
+
+        <TabItem Header="Close" Tag="Close list">
+          <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="720"/></Grid.ColumnDefinitions>
+            <Grid VerticalAlignment="Top">
+              <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+              <StackPanel>
+                <Border Style="{StaticResource Group}" Margin="0,0,0,10">
+                  <Border Style="{StaticResource LastRow}">
+                    <CheckBox x:Name="OptClose" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Close these apps when Race Mode turns on"/><TextBlock Style="{StaticResource Sub}" Text="Frees CPU and memory before the sim loads."/></StackPanel></CheckBox>
+                  </Border>
+                </Border>
+                <TextBlock Style="{StaticResource Sub}" Margin="16,0,16,12"
+                           Text="Apps get 5 seconds to close. Anything still running is then closed for them, unless it's showing a window, which may be asking you to save. iRacing and your Launch apps are never closed."/>
+              </StackPanel>
+              <ListBox x:Name="CloseList" Grid.Row="1">
+                <ListBox.ItemTemplate>
+                  <DataTemplate><TextBlock Text="{Binding}" FontSize="13"/></DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <TextBlock Grid.Row="1" Margin="17,15,17,15" IsHitTestVisible="False"
+                         Text="Nothing on the list. Type an app's name below, or click Choose Running… to pick from what's open now.">
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock" BasedOn="{StaticResource Sub}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding Items.Count, ElementName=CloseList}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+              <!-- one row; on a narrow page Choose Running and Remove drop to a second row (Pages.cs) -->
+              <Grid x:Name="CloseBar" Grid.Row="2" Margin="0,10,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <TextBox x:Name="NewCloseBox" ToolTip="The app's name as Task Manager shows it on the Details tab, without .exe" AutomationProperties.Name="App to close"/>
+                <TextBlock x:Name="NewCloseHint" Text="App name, e.g. steam" Foreground="{StaticResource Faint}" FontSize="13" Margin="11,0,0,0"
+                           VerticalAlignment="Center" IsHitTestVisible="False" TextTrimming="CharacterEllipsis">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="Visibility" Value="Collapsed"/>
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding Text, ElementName=NewCloseBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
+                <Button x:Name="AddCloseBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Add" Margin="8,0,0,0"/>
+                <Button x:Name="PickRunningBtn" Grid.Column="2" Style="{StaticResource Btn}" Content="Choose Running…" Margin="8,0,0,0"/>
+                <Button x:Name="RemoveCloseBtn" Grid.Column="3" Style="{StaticResource Btn}" Content="Remove" Margin="8,0,0,0"/>
+              </Grid>
+              <ListBox x:Name="RunningList" Grid.Row="3" Height="210" Margin="0,12,0,0" Visibility="Collapsed"
+                       ToolTip="Double-click an app to add it">
+                <ListBox.ItemTemplate>
+                  <DataTemplate><TextBlock Text="{Binding}" FontSize="13"/></DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Grid>
+          </Grid>
         </TabItem>
 
         <TabItem Header="Stream" Tag="Streaming">
           <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+          <Grid>
+          <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="720"/></Grid.ColumnDefinitions>
+          <!-- the switch, then the apps it adds, then OBS -->
           <StackPanel Margin="0,0,4,0">
             <Border Style="{StaticResource Group}">
               <StackPanel>
@@ -985,10 +1087,44 @@
                   <CheckBox x:Name="OptStreamBoost" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Put OBS ahead of other apps"/><TextBlock Style="{StaticResource Sub}" Text="Keeps your stream smooth when the game is busy. Back to normal when Race Mode turns off."/></StackPanel></CheckBox>
                 </Border>
                 <Border Style="{StaticResource LastRow}">
-                  <CheckBox x:Name="OptVram" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Warn if video memory is nearly full"/><TextBlock Style="{StaticResource Sub}" Text="Checked when Race Mode turns on (NVIDIA cards only). OBS needs room on the graphics card too."/></StackPanel></CheckBox>
+                  <CheckBox x:Name="OptVram" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Warn me if video memory is nearly full"/><TextBlock Style="{StaticResource Sub}" Text="Checked when Race Mode turns on (NVIDIA cards only). OBS needs room on the graphics card too."/></StackPanel></CheckBox>
                 </Border>
               </StackPanel>
             </Border>
+            <TextBlock Style="{StaticResource SectionHeader}" Text="Streaming apps" Margin="16,22,0,7"/>
+            <Grid>
+              <ListBox x:Name="StreamList" KeyboardNavigation.TabNavigation="Continue" MaxHeight="300">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Grid>
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                      <CheckBox Style="{StaticResource Check}" IsChecked="{Binding Enabled, Mode=TwoWay}" VerticalAlignment="Center"
+                                AutomationProperties.Name="{Binding Name}"/>
+                      <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                        <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{StaticResource Ink}"/>
+                        <TextBlock Text="{Binding Detail}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{StaticResource Faint}"
+                                   TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding Detail}"/>
+                      </StackPanel>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <TextBlock Margin="17,15,17,15" IsHitTestVisible="False"
+                         Text="No streaming apps yet. Add OBS and anything else you stream with; they start when Race Mode turns on while Streaming is on.">
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock" BasedOn="{StaticResource Sub}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding Items.Count, ElementName=StreamList}" Value="0"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+            </Grid>
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+              <Button x:Name="AddStreamBtn" Style="{StaticResource Btn}" Content="Add App…" Margin="0,0,8,0"/>
+              <Button x:Name="RemoveStreamBtn" Style="{StaticResource Btn}" Content="Remove"/>
+            </StackPanel>
             <TextBlock Style="{StaticResource SectionHeader}" Text="OBS" Margin="16,22,0,7"/>
             <Border Style="{StaticResource Group}">
               <StackPanel>
@@ -1027,33 +1163,15 @@
                 </Border>
               </StackPanel>
             </Border>
-            <TextBlock Style="{StaticResource SectionHeader}" Text="Streaming apps" Margin="16,22,0,7"/>
-            <ListBox x:Name="StreamList" KeyboardNavigation.TabNavigation="Continue" MaxHeight="220">
-              <ListBox.ItemTemplate>
-                <DataTemplate>
-                  <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                    <CheckBox Style="{StaticResource Check}" IsChecked="{Binding Enabled, Mode=TwoWay}" VerticalAlignment="Center"
-                              AutomationProperties.Name="{Binding Name}"/>
-                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                      <TextBlock Text="{Binding Name}" FontSize="13" Foreground="{StaticResource Ink}"/>
-                      <TextBlock Text="{Binding Detail}" FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{StaticResource Faint}"
-                                 TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding Detail}"/>
-                    </StackPanel>
-                  </Grid>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-              <Button x:Name="AddStreamBtn" Style="{StaticResource Btn}" Content="Add App…" Margin="0,0,8,0"/>
-              <Button x:Name="RemoveStreamBtn" Style="{StaticResource Btn}" Content="Remove"/>
-            </StackPanel>
           </StackPanel>
+          </Grid>
           </ScrollViewer>
         </TabItem>
 
         <TabItem Header="Graphics" Tag="Graphics">
           <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="720"/></Grid.ColumnDefinitions>
             <StackPanel Margin="0,0,4,0">
               <TextBlock Style="{StaticResource SectionHeader}" Text="Race graphics"/>
               <Border Style="{StaticResource Group}">
@@ -1085,7 +1203,7 @@
               <Border Style="{StaticResource Group}">
                 <StackPanel>
                   <Border Style="{StaticResource Row}">
-                    <CheckBox x:Name="OptPhoto" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Photo mode"/><TextBlock Style="{StaticResource Sub}" Text="High-quality replays for screenshots and videos. Racing stays on your Race graphics. Changes only while iRacing is closed."/></StackPanel></CheckBox>
+                    <CheckBox x:Name="OptPhoto" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Photo mode"/><TextBlock Style="{StaticResource Sub}" Text="High-quality replays for screenshots and videos. Racing stays on your Race graphics. Applied while iRacing is closed."/></StackPanel></CheckBox>
                   </Border>
                   <Border Style="{StaticResource LastRow}">
                     <Grid>
@@ -1106,7 +1224,7 @@
                 </StackPanel>
               </Border>
 
-              <TextBlock Style="{StaticResource SectionHeader}" Text="iRacing's graphics file" Margin="16,22,0,7"/>
+              <TextBlock Style="{StaticResource SectionHeader}" Text="Your saved settings" Margin="16,22,0,7"/>
               <Border Style="{StaticResource Group}">
                 <Border Style="{StaticResource LastRow}">
                   <StackPanel>
@@ -1165,144 +1283,174 @@
               </Border>
               <StackPanel x:Name="AdvList" Visibility="Collapsed" Margin="0,0,0,8"/>
             </StackPanel>
+            </Grid>
           </ScrollViewer>
         </TabItem>
 
         <TabItem Header="Settings" Tag="Settings">
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="0,0,4,0">
-              <TextBlock Style="{StaticResource SectionHeader}" Text="Racing monitor"/>
-              <Border Style="{StaticResource Group}">
-                <Border Style="{StaticResource LastRow}">
-                  <StackPanel>
-                    <TextBlock Text="Keep iRacing on this screen" Foreground="{StaticResource Ink}"/>
-                    <TextBlock x:Name="MonitorSub" Style="{StaticResource Sub}" Text="Before each race, Race Mode makes sure iRacing opens on this screen and fills it (as a borderless window), and fixes that while iRacing is closed. Your FPS cap stays as it is."/>
-                    <ComboBox x:Name="MonitorPick" Margin="0,10,0,0" AutomationProperties.Name="Racing monitor"/>
-                  </StackPanel>
-                </Border>
-              </Border>
-
-              <TextBlock Style="{StaticResource SectionHeader}" Text="When Race Mode turns on" Margin="16,22,0,7"/>
-              <Border Style="{StaticResource Group}">
-                <StackPanel>
-                  <Border Style="{StaticResource Row}">
-                    <CheckBox x:Name="OptClose" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Close apps on the Close list"/><TextBlock Style="{StaticResource Sub}" Text="Frees CPU and memory before the sim loads."/></StackPanel></CheckBox>
-                  </Border>
-                  <Border Style="{StaticResource Row}">
-                    <CheckBox x:Name="OptLaunch" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Start apps on the Launch list"/><TextBlock Style="{StaticResource Sub}" Text="Your race apps, like SimHub or Crew Chief."/></StackPanel></CheckBox>
-                  </Border>
-                  <Border Style="{StaticResource Row}">
-                    <CheckBox x:Name="OptIRacing" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Open iRacing"/><TextBlock Style="{StaticResource Sub}" Text="Opens the iRacing app if it isn't open."/></StackPanel></CheckBox>
-                  </Border>
-                  <Border Style="{StaticResource Row}">
-                    <CheckBox x:Name="OptHigh" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Put iRacing first"/><TextBlock Style="{StaticResource Sub}" Text="Windows runs iRacing ahead of your other apps while you race."/></StackPanel></CheckBox>
-                  </Border>
-                  <Border Style="{StaticResource Row}">
-                    <StackPanel>
-                      <CheckBox x:Name="OptLower" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Slow down background apps"/><TextBlock Style="{StaticResource Sub}" Text="The apps listed here get less of your processor while you race. Back to normal when Race Mode turns off."/></StackPanel></CheckBox>
-                      <Grid Margin="0,10,0,0">
-                        <TextBox x:Name="LowerBox" FontFamily="{StaticResource Mono}" FontSize="12"
-                                 ToolTip="App names as Task Manager shows them on the Details tab, without .exe, separated by commas" AutomationProperties.Name="Background apps to slow down"/>
-                        <TextBlock Text="App names, e.g. Discord, Spotify" Foreground="{StaticResource Faint}" FontSize="12" Margin="11,0,0,0"
-                                   VerticalAlignment="Center" IsHitTestVisible="False">
-                          <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                              <Setter Property="Visibility" Value="Collapsed"/>
-                              <Style.Triggers>
-                                <DataTrigger Binding="{Binding Text, ElementName=LowerBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger>
-                              </Style.Triggers>
-                            </Style>
-                          </TextBlock.Style>
-                        </TextBlock>
-                      </Grid>
-                    </StackPanel>
-                  </Border>
-                  <Border Style="{StaticResource LastRow}">
-                    <CheckBox x:Name="OptGpuWarn" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Warn me if the graphics card is busy"/><TextBlock Style="{StaticResource Sub}" Text="Catches something left running, like a video export, before you race. NVIDIA cards only."/></StackPanel></CheckBox>
-                  </Border>
-                </StackPanel>
-              </Border>
-
-              <TextBlock Style="{StaticResource SectionHeader}" Text="When you quit iRacing" Margin="16,22,0,7"/>
-              <Border Style="{StaticResource Group}">
-                <Border Style="{StaticResource LastRow}">
-                  <CheckBox x:Name="OptAutoOff" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Turn Race Mode off"/><TextBlock Style="{StaticResource Sub}" Text="Stays on between races. Turns off once you've closed iRacing completely, puts app priorities back and saves the log."/></StackPanel></CheckBox>
-                </Border>
-              </Border>
-
-              <TextBlock Style="{StaticResource SectionHeader}" Text="CPU temperature" Margin="16,22,0,7"/>
-              <Border Style="{StaticResource Group}">
-                <Border Style="{StaticResource LastRow}">
-                  <StackPanel x:Name="HwinfoPanel"/>
-                </Border>
-              </Border>
-
-              <TextBlock Style="{StaticResource SectionHeader}" Text="Windows" Margin="16,22,0,7"/>
-              <Border Style="{StaticResource Group}">
-                <StackPanel>
-                <Border Style="{StaticResource Row}">
-                  <CheckBox x:Name="OptAutostart" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Start with Windows"/><TextBlock Style="{StaticResource Sub}" Text="Starts in the system tray, next to the clock, when you sign in, so it's ready before a race."/></StackPanel></CheckBox>
-                </Border>
-                <Border Style="{StaticResource Row}">
-                  <CheckBox x:Name="OptTray" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Keep running in the tray when closed"/><TextBlock Style="{StaticResource Sub}" Text="Closing the window keeps Race Mode running in the system tray, next to the clock. Right-click its icon to turn it on or off, or to quit."/></StackPanel></CheckBox>
-                </Border>
-                <Border Style="{StaticResource Row}">
-                  <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <StackPanel VerticalAlignment="Center">
-                      <TextBlock Text="Setup" Foreground="{StaticResource Ink}"/>
-                      <TextBlock Style="{StaticResource Sub}" Text="Go through the first-run questions again: screen, apps to start and close, helpers."/>
-                    </StackPanel>
-                    <Button x:Name="RerunSetupBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Run Setup Again" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                  </Grid>
-                </Border>
-                <Border Style="{StaticResource LastRow}">
-                  <Button x:Name="PowerBtn" Cursor="Hand" FocusVisualStyle="{StaticResource FocusRing}" ToolTip="Open Windows power options"
-                          AutomationProperties.Name="Power plan, open Windows power options" HorizontalContentAlignment="Stretch">
-                    <Button.Template>
-                      <ControlTemplate TargetType="Button"><Border Background="Transparent"><ContentPresenter/></Border></ControlTemplate>
-                    </Button.Template>
-                    <Grid>
-                      <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                      <TextBlock Text="Power plan" VerticalAlignment="Center" Foreground="{StaticResource Ink}"/>
-                      <TextBlock x:Name="PowerText" Grid.Column="1" Text="--" Foreground="{StaticResource Dim}" TextAlignment="Right"
-                                 TextWrapping="Wrap" Margin="16,0,0,0" VerticalAlignment="Center"/>
-                      <Path Grid.Column="2" Data="M0,0 L4,4 L0,8" Stroke="{StaticResource Faint}" StrokeThickness="1.5" Margin="10,0,0,0"
-                            VerticalAlignment="Center" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-                    </Grid>
-                  </Button>
-                </Border>
-                </StackPanel>
-              </Border>
-              <TextBlock Style="{StaticResource SectionHeader}" Text="Updates" Margin="16,22,0,7"/>
-              <Border Style="{StaticResource Group}">
-                <StackPanel>
-                  <Border Style="{StaticResource Row}" Padding="16,9">
-                    <Grid>
-                      <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                      <StackPanel VerticalAlignment="Center">
-                        <TextBlock x:Name="VersionText" Text="Race Mode" Foreground="{StaticResource Ink}"/>
-                        <TextBlock x:Name="UpdateText" Style="{StaticResource Sub}" Text="Not checked yet"/>
+          <DockPanel>
+            <!-- a short index of the groups (one column only; Pages.cs hides it when the groups sit in two columns) -->
+            <Border x:Name="SetIndex" DockPanel.Dock="Top" Margin="0,-6,4,14" Padding="6,0,0,6" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1">
+            <WrapPanel x:Name="SetIndexLinks" AutomationProperties.Name="Jump to">
+              <Button Style="{StaticResource JumpLink}" Content="Racing monitor" Tag="SetHdrMonitor"/>
+              <Button Style="{StaticResource JumpLink}" Content="Turning on" Tag="SetHdrOn"/>
+              <Button Style="{StaticResource JumpLink}" Content="Quitting iRacing" Tag="SetHdrQuit"/>
+              <Button Style="{StaticResource JumpLink}" Content="CPU temperature" Tag="SetHdrCpu"/>
+              <Button Style="{StaticResource JumpLink}" Content="Windows" Tag="SetHdrWin"/>
+              <Button Style="{StaticResource JumpLink}" Content="Updates" Tag="SetHdrUpd"/>
+            </WrapPanel>
+            </Border>
+            <ScrollViewer x:Name="SetScroll" VerticalScrollBarVisibility="Auto">
+              <!-- left: what happens around a race; right: the app and Windows. One column under 900 px of page. -->
+              <Grid x:Name="SetGrid" Margin="0,0,4,0">
+                <Grid.ColumnDefinitions><ColumnDefinition x:Name="SetColADef" Width="*" MaxWidth="720"/><ColumnDefinition x:Name="SetColBDef" Width="0"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <StackPanel x:Name="SetColA" VerticalAlignment="Top">
+                  <TextBlock x:Name="SetHdrMonitor" Style="{StaticResource SectionHeader}" Text="Racing monitor"/>
+                  <Border Style="{StaticResource Group}">
+                    <Border Style="{StaticResource LastRow}">
+                      <StackPanel>
+                        <TextBlock Text="Keep iRacing on this screen" Foreground="{StaticResource Ink}"/>
+                        <TextBlock x:Name="MonitorSub" Style="{StaticResource Sub}" Text="Before each race, Race Mode checks that iRacing will open on this screen and fill it, as a borderless window. Any fix is made while iRacing is closed. Your FPS cap is left alone."/>
+                        <ComboBox x:Name="MonitorPick" Margin="0,10,0,0" AutomationProperties.Name="Racing monitor"/>
                       </StackPanel>
-                      <Button x:Name="UpdateBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Check Now" Margin="12,0,0,0" VerticalAlignment="Center"/>
-                    </Grid>
+                    </Border>
                   </Border>
-                  <Border Style="{StaticResource Row}">
-                    <CheckBox x:Name="OptUpdateCheck" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Check for updates every 12 hours"/><TextBlock Style="{StaticResource Sub}" Text="Only looks. Nothing is installed until you click Update."/></StackPanel></CheckBox>
+
+                  <TextBlock x:Name="SetHdrOn" Style="{StaticResource SectionHeader}" Text="When Race Mode turns on" Margin="16,22,0,7"/>
+                  <Border Style="{StaticResource Group}">
+                    <StackPanel>
+                      <Border Style="{StaticResource Row}">
+                        <CheckBox x:Name="OptIRacing" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Open iRacing"/><TextBlock Style="{StaticResource Sub}" Text="Opens the iRacing app if it isn't open."/></StackPanel></CheckBox>
+                      </Border>
+                      <Border Style="{StaticResource Row}">
+                        <CheckBox x:Name="OptHigh" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Put iRacing first"/><TextBlock Style="{StaticResource Sub}" Text="Windows runs iRacing ahead of your other apps while you race."/></StackPanel></CheckBox>
+                      </Border>
+                      <Border Style="{StaticResource Row}">
+                        <StackPanel>
+                          <CheckBox x:Name="OptLower" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Slow down background apps"/><TextBlock Style="{StaticResource Sub}" Text="The apps listed here get less of your processor while you race. Back to normal when Race Mode turns off."/></StackPanel></CheckBox>
+                          <Grid Margin="0,10,0,0">
+                            <TextBox x:Name="LowerBox" FontFamily="{StaticResource Mono}" FontSize="12"
+                                     ToolTip="App names as Task Manager shows them on the Details tab, without .exe, separated by commas" AutomationProperties.Name="Background apps to slow down"/>
+                            <TextBlock Text="App names, e.g. Discord, Spotify" Foreground="{StaticResource Faint}" FontSize="12" Margin="11,0,0,0"
+                                       VerticalAlignment="Center" IsHitTestVisible="False">
+                              <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                  <Setter Property="Visibility" Value="Collapsed"/>
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Text, ElementName=LowerBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </TextBlock.Style>
+                            </TextBlock>
+                          </Grid>
+                        </StackPanel>
+                      </Border>
+                      <Border Style="{StaticResource LastRow}">
+                        <CheckBox x:Name="OptGpuWarn" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Warn me if the graphics card is busy"/><TextBlock Style="{StaticResource Sub}" Text="Catches something left running, like a video export, before you race. NVIDIA cards only."/></StackPanel></CheckBox>
+                      </Border>
+                    </StackPanel>
                   </Border>
-                  <Border Style="{StaticResource LastRow}">
-                    <CheckBox x:Name="OptTestVersions" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Try test versions"/><TextBlock Style="{StaticResource Sub}" Text="Get the next version early, while it's still being tested (a release candidate). It may have bugs. Turn this off to go back at the next normal release."/></StackPanel></CheckBox>
+
+                  <TextBlock x:Name="SetHdrQuit" Style="{StaticResource SectionHeader}" Text="When you quit iRacing" Margin="16,22,0,7"/>
+                  <Border Style="{StaticResource Group}">
+                    <Border Style="{StaticResource LastRow}">
+                      <CheckBox x:Name="OptAutoOff" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Turn Race Mode off"/><TextBlock Style="{StaticResource Sub}" Text="Stays on between races. Turns off once you've closed iRacing completely, puts app priorities back and saves the log."/></StackPanel></CheckBox>
+                    </Border>
                   </Border>
                 </StackPanel>
-              </Border>
 
-            </StackPanel>
-          </ScrollViewer>
+                <!-- second column on wide pages; under the first one otherwise (Pages.cs) -->
+                <StackPanel x:Name="SetColB" Grid.Row="1" Margin="0,22,0,0" VerticalAlignment="Top">
+                  <TextBlock x:Name="SetHdrCpu" Style="{StaticResource SectionHeader}" Text="CPU temperature"/>
+                  <Border Style="{StaticResource Group}">
+                    <Border Style="{StaticResource LastRow}">
+                      <StackPanel x:Name="HwinfoPanel"/>
+                    </Border>
+                  </Border>
+
+                  <TextBlock x:Name="SetHdrWin" Style="{StaticResource SectionHeader}" Text="Windows" Margin="16,22,0,7"/>
+                  <Border Style="{StaticResource Group}">
+                    <StackPanel>
+                    <Border Style="{StaticResource Row}">
+                      <CheckBox x:Name="OptAutostart" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Start with Windows"/><TextBlock Style="{StaticResource Sub}" Text="Starts in the system tray, next to the clock, when you sign in, so it's ready before a race."/></StackPanel></CheckBox>
+                    </Border>
+                    <Border Style="{StaticResource Row}">
+                      <CheckBox x:Name="OptTray" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Keep running in the tray when closed"/><TextBlock Style="{StaticResource Sub}" Text="Closing the window keeps Race Mode running in the system tray, next to the clock. Right-click its icon to turn it on or off, or to quit."/></StackPanel></CheckBox>
+                    </Border>
+                    <Border Style="{StaticResource Row}">
+                      <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                          <TextBlock Text="Setup" Foreground="{StaticResource Ink}"/>
+                          <TextBlock Style="{StaticResource Sub}" Text="Answer the first-run questions again: your racing monitor, the apps to start and close, and CPU temperature."/>
+                        </StackPanel>
+                        <Button x:Name="RerunSetupBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Run Setup Again" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                      </Grid>
+                    </Border>
+                    <Border Style="{StaticResource LastRow}" Padding="16,6">
+                      <Button x:Name="PowerBtn" MinHeight="29" Cursor="Hand" FocusVisualStyle="{StaticResource FocusRing}" ToolTip="Open Windows power options"
+                              AutomationProperties.Name="Power plan, open Windows power options" HorizontalContentAlignment="Stretch">
+                        <Button.Template>
+                          <ControlTemplate TargetType="Button"><Border Background="Transparent"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate>
+                        </Button.Template>
+                        <Grid>
+                          <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                          <TextBlock Text="Power plan" VerticalAlignment="Center" Foreground="{StaticResource Ink}"/>
+                          <TextBlock x:Name="PowerText" Grid.Column="1" Text="--" Foreground="{StaticResource Dim}" TextAlignment="Right"
+                                     TextWrapping="Wrap" Margin="16,0,0,0" VerticalAlignment="Center"/>
+                          <Path Grid.Column="2" Data="M0,0 L4,4 L0,8" Stroke="{StaticResource Faint}" StrokeThickness="1.5" Margin="10,0,0,0"
+                                VerticalAlignment="Center" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                        </Grid>
+                      </Button>
+                    </Border>
+                    </StackPanel>
+                  </Border>
+                  <TextBlock x:Name="SetHdrUpd" Style="{StaticResource SectionHeader}" Text="Updates" Margin="16,22,0,7"/>
+                  <Border Style="{StaticResource Group}">
+                    <StackPanel>
+                      <Border Style="{StaticResource Row}" Padding="16,9">
+                        <Grid>
+                          <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                          <StackPanel VerticalAlignment="Center">
+                            <TextBlock x:Name="VersionText" Text="Race Mode" Foreground="{StaticResource Ink}"/>
+                            <TextBlock x:Name="UpdateText" Style="{StaticResource Sub}" Text="Not checked yet"/>
+                          </StackPanel>
+                          <Button x:Name="UpdateBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Check Now" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                        </Grid>
+                      </Border>
+                      <Border Style="{StaticResource Row}">
+                        <CheckBox x:Name="OptUpdateCheck" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Check for updates every 12 hours"/><TextBlock Style="{StaticResource Sub}" Text="Only checks. Nothing installs until you click Update."/></StackPanel></CheckBox>
+                      </Border>
+                      <Border Style="{StaticResource LastRow}">
+                        <CheckBox x:Name="OptTestVersions" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Try test versions"/><TextBlock Style="{StaticResource Sub}" Text="Get the next version early, while it's still being tested (a release candidate). It may have bugs. Turn this off to go back at the next normal release."/></StackPanel></CheckBox>
+                      </Border>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </Grid>
+            </ScrollViewer>
+          </DockPanel>
         </TabItem>
 
         <TabItem Header="Logs" Tag="Logs">
-          <DockPanel>
-            <Border DockPanel.Dock="Top" Style="{StaticResource Group}">
+          <!-- the last session leads; the logging options follow it (under it, or beside it on wide pages: Pages.cs).
+               With a summary, its row takes the page's height; before the first race the page is just the note. -->
+          <Grid x:Name="LogsGrid">
+            <Grid.ColumnDefinitions><ColumnDefinition x:Name="LogMainCol" Width="*" MaxWidth="720"/><ColumnDefinition x:Name="LogSideCol" Width="0"/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition x:Name="LogSumRow" Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <TextBlock Text="Last session" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Dim}" VerticalAlignment="Center" Margin="16,0,0,0"/>
+              <Button x:Name="OpenLogsBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Open Log Folder" Margin="0,0,8,0"/>
+              <Button x:Name="CopySummaryBtn" Grid.Column="2" Style="{StaticResource Btn}" Content="Copy Summary" IsEnabled="False"/>
+            </Grid>
+            <TextBox x:Name="SummaryBox" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Background="{StaticResource Card}"
+                     BorderBrush="{StaticResource Hairline}" Padding="7,6" VerticalContentAlignment="Top"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" FontSize="13"
+                     Foreground="#D1D1D6" VerticalAlignment="Top" AutomationProperties.Name="Last session summary" Text="No race logged yet. Turn Race Mode on before you race, and a summary of the session appears here."/>
+            <TextBlock x:Name="LogOptsHdr" Grid.Row="2" Style="{StaticResource SectionHeader}" Text="Logging" Margin="16,22,0,7"/>
+            <Border x:Name="LogOpts" Grid.Row="3" Style="{StaticResource Group}" VerticalAlignment="Top">
               <StackPanel>
                 <Border Style="{StaticResource Row}">
                   <CheckBox x:Name="OptLog" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Keep a log while Race Mode is on"/><TextBlock Style="{StaticResource Sub}" Text="Records FPS, temperatures, CPU, graphics card and memory so you can look back at a race. Uses almost no CPU."/></StackPanel></CheckBox>
@@ -1310,7 +1458,7 @@
                 <Border Style="{StaticResource LastRow}" Padding="16,9">
                   <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBlock Text="Record every" VerticalAlignment="Center"/>
+                    <TextBlock Text="Take a reading every" VerticalAlignment="Center"/>
                     <Border Grid.Column="1" Background="#141416" CornerRadius="8" Padding="2" BorderBrush="{StaticResource Hairline}" BorderThickness="1">
                       <StackPanel Orientation="Horizontal">
                         <RadioButton x:Name="Int1" Style="{StaticResource Seg}" GroupName="Int" Content="1 s"/>
@@ -1322,17 +1470,7 @@
                 </Border>
               </StackPanel>
             </Border>
-            <Grid DockPanel.Dock="Top" Margin="0,20,0,8">
-              <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <TextBlock Text="Last session" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Dim}" VerticalAlignment="Center" Margin="16,0,0,0"/>
-              <Button x:Name="OpenLogsBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Open Log Folder" Margin="0,0,8,0"/>
-              <Button x:Name="CopySummaryBtn" Grid.Column="2" Style="{StaticResource Btn}" Content="Copy Summary" IsEnabled="False"/>
-            </Grid>
-            <TextBox x:Name="SummaryBox" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Background="{StaticResource Card}"
-                     BorderBrush="{StaticResource Hairline}" Padding="12,10" VerticalContentAlignment="Top"
-                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" FontSize="13"
-                     Foreground="#D1D1D6" VerticalAlignment="Top" AutomationProperties.Name="Last session summary" Text="No race logged yet. Turn Race Mode on before you race, and a summary of the session appears here."/>
-          </DockPanel>
+          </Grid>
         </TabItem>
       </TabControl>
 
@@ -1343,8 +1481,21 @@
     </Grid>
 
     <!-- activity line -->
-    <Grid Grid.Row="2">
-      <Border x:Name="Footer" Margin="0,18,0,0" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="24,10,36,11">
+    <Grid x:Name="FooterHost" Grid.Row="2">
+      <Border x:Name="Footer" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="24,7,36,8">
+        <Border.Style>
+          <Style TargetType="Border">
+            <Style.Triggers>
+              <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                  <Condition Binding="{Binding Text, ElementName=Ticker}" Value=""/>
+                  <Condition Binding="{Binding Visibility, ElementName=UndoBtn}" Value="Collapsed"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Visibility" Value="Collapsed"/>
+              </MultiDataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Border.Style>
         <Grid>
           <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <TextBlock x:Name="Ticker" Style="{StaticResource Caption}" Text="" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"

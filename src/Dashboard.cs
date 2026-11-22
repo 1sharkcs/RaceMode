@@ -31,28 +31,39 @@ namespace RaceMode
         public Func<string> Idle = () => "No reading";  // sub-line when the latest value is missing
         public Func<string> Note = () => "";             // sub-line otherwise
 
+        // Look: Boxed = its own card (the lead chart); otherwise a cell inside a shared card, divided by hairlines
+        // that the layout sets (Overview.cs). PlotHeight NaN = the plot takes whatever height the cell is given.
+        public bool Boxed = true;
+        public double PlotHeight = 84, ValueSize = 24;
+        public Func<string> IdleWords;   // words in place of "--" when there is no reading ("Not set up")
+        public Action IdleAction;        // what clicking the tile (or Enter) does while there is no reading
+
         Canvas _canvas; Path _line; Line _ref, _cross; Ellipse _dot;
-        TextBlock _val, _unit, _sub, _refText;
+        TextBlock _val, _unit, _sub, _refText, _empty;
         bool _hovering;
         int _kbAge = -1;   // keyboard read-out position (seconds back), -1 = none
         public FrameworkElement Element;
+        public Border Cell;
+        Brush _inkB, _dimB;
+
+        public void SetPlotHeight(double h) { if (_canvas != null) _canvas.Height = h; PlotHeight = h; }
 
         public FrameworkElement Build(ResourceDictionary res)
         {
             var ink = (Brush)res["Ink"]; var faint = (Brush)res["Faint"];
-            _warnB = (Brush)res["Warn"]; _faintB = faint;
+            _warnB = (Brush)res["Warn"]; _faintB = faint; _inkB = ink; _dimB = (Brush)res["Dim"];
             var head = new Grid();
             head.ColumnDefinitions.Add(new ColumnDefinition());
             head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            head.Children.Add(new TextBlock { Text = Label, Style = (Style)res["StatLabel"], VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 3) });
-            var vp = new TextBlock { VerticalAlignment = VerticalAlignment.Bottom };
-            _val = new TextBlock { FontFamily = (FontFamily)res["Display"], FontSize = 24, Foreground = ink, Text = "--" };
+            head.Children.Add(new TextBlock { Text = Label, Style = (Style)res["StatLabel"], VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 8, 3), TextTrimming = TextTrimming.CharacterEllipsis });
+            _val = new TextBlock { FontFamily = (FontFamily)res["Display"], FontSize = ValueSize, Foreground = ink, Text = "--", VerticalAlignment = VerticalAlignment.Bottom };
             _unit = new TextBlock { Text = Unit, FontSize = 12, Foreground = (Brush)res["Dim"], Margin = new Thickness(4, 0, 0, 3), VerticalAlignment = VerticalAlignment.Bottom };
             var vs = new StackPanel { Orientation = Orientation.Horizontal };
             vs.Children.Add(_val); vs.Children.Add(_unit);
             Grid.SetColumn(vs, 1); head.Children.Add(vs);
 
-            _canvas = new Canvas { Height = 84, Margin = new Thickness(0, 10, 0, 0), Background = Brushes.Transparent, ClipToBounds = true, Cursor = Cursors.Cross };
+            _canvas = new Canvas { Height = PlotHeight, Margin = new Thickness(0, 10, 0, 0), Background = Brushes.Transparent, ClipToBounds = true, Cursor = Cursors.Cross };
+            _empty = new TextBlock { Style = (Style)res["Caption"], HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed, IsHitTestVisible = false, Margin = new Thickness(0, 10, 0, 0) };
             // baseline: the one recessive axis mark
             var baseLine = new Border { Height = 1, Background = (Brush)res["Hairline"], VerticalAlignment = VerticalAlignment.Bottom };
             _ref = new Line { Stroke = faint, StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 3, 3 }, Visibility = Visibility.Collapsed, SnapsToDevicePixels = true };
@@ -61,20 +72,26 @@ namespace RaceMode
             _cross = new Line { Stroke = faint, StrokeThickness = 1, Visibility = Visibility.Collapsed };
             _dot = new Ellipse { Width = 8, Height = 8, Fill = ink, Stroke = (Brush)res["Card"], StrokeThickness = 2, Visibility = Visibility.Collapsed };
             _canvas.Children.Add(_ref); _canvas.Children.Add(_refText); _canvas.Children.Add(_line); _canvas.Children.Add(_cross); _canvas.Children.Add(_dot);
-            var plot = new Grid(); plot.Children.Add(_canvas); plot.Children.Add(baseLine);
+            var plot = new Grid(); plot.Children.Add(_canvas); plot.Children.Add(baseLine); plot.Children.Add(_empty);
             _canvas.SizeChanged += (s, e) => Render();
             _canvas.MouseMove += (s, e) => Hover(e.GetPosition(_canvas).X);
             _canvas.MouseLeave += (s, e) => { _hovering = false; _cross.Visibility = Visibility.Collapsed; _dot.Visibility = Visibility.Collapsed; UpdateText(); };
 
             _sub = new TextBlock { Style = (Style)res["Caption"], Margin = new Thickness(0, 7, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis };
-            var stack = new StackPanel();
-            stack.Children.Add(head); stack.Children.Add(plot); stack.Children.Add(_sub);
-            var card = new Border { Style = (Style)res["Group"], Padding = new Thickness(16, 12, 16, 12), Margin = new Thickness(7), Child = stack,
-                                    Focusable = true, FocusVisualStyle = (Style)res["FocusRing"] };
+            var stack = new DockPanel();
+            DockPanel.SetDock(head, Dock.Top); DockPanel.SetDock(_sub, Dock.Bottom);
+            stack.Children.Add(head); stack.Children.Add(_sub); stack.Children.Add(plot);
+            var card = Boxed
+                ? new Border { Style = (Style)res["Group"], Padding = new Thickness(16, 12, 16, 12), Child = stack }
+                : new Border { Background = Brushes.Transparent, BorderBrush = (Brush)res["Hairline"], Padding = new Thickness(16, 12, 16, 12), Child = stack };
+            card.Focusable = true; card.FocusVisualStyle = (Style)res[Boxed ? "FocusRing" : "FocusRingInset"];
+            Cell = card;
             System.Windows.Automation.AutomationProperties.SetName(card, Label + " chart, last 60 seconds. Left and right arrows step through it.");
+            card.MouseLeftButtonUp += (s, e) => { if (IdleAction != null && double.IsNaN(Latest)) IdleAction(); };
             // Keyboard: arrows move the same read-out the mouse gives (Left = further back, Right = nearer now, Home/End).
             card.KeyDown += (s, e) =>
             {
+                if ((e.Key == Key.Enter || e.Key == Key.Space) && IdleAction != null && double.IsNaN(Latest)) { IdleAction(); e.Handled = true; return; }
                 if (_count == 0) return;
                 int age = _kbAge < 0 ? 0 : _kbAge;
                 if (e.Key == Key.Left) age = Math.Min(_count - 1, age + 1);
@@ -127,13 +144,19 @@ namespace RaceMode
             }
             g.Freeze();
             _line.Data = g;
+            // a tall plot with nothing in it says why, where the line would be
+            bool any = false;
+            for (int age = 0; age < _count && !any; age++) if (!double.IsNaN(At(age))) any = true;
+            bool emptyNote = !any && h >= 100;
+            _empty.Text = emptyNote ? Idle() : "";
+            _empty.Visibility = emptyNote ? Visibility.Visible : Visibility.Collapsed;
             if (!double.IsNaN(Ref) && Ref > Min && Ref < Max)
             {
                 var y = Math.Round(Y(Ref, h)) + 0.5;
                 _ref.X1 = 0; _ref.X2 = w; _ref.Y1 = y; _ref.Y2 = y; _ref.Visibility = Visibility.Visible;
                 _refText.Text = RefLabel; _refText.Visibility = string.IsNullOrEmpty(RefLabel) ? Visibility.Collapsed : Visibility.Visible;
                 _refText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                Canvas.SetLeft(_refText, Math.Max(0, w - _refText.DesiredSize.Width - 2));
+                Canvas.SetLeft(_refText, 2);   // at the old end of the line: the newest reading is drawn at the right edge
                 Canvas.SetTop(_refText, y - _refText.DesiredSize.Height - 1 < 0 ? y + 2 : y - _refText.DesiredSize.Height - 1);
             }
             else { _ref.Visibility = Visibility.Collapsed; _refText.Visibility = Visibility.Collapsed; }
@@ -143,7 +166,19 @@ namespace RaceMode
         void UpdateText()
         {
             var v = Latest;
-            if (double.IsNaN(v)) { _val.Text = "--"; _val.Foreground = (Brush)_line.Stroke; _sub.Text = Idle(); _sub.Foreground = DimOf(); return; }
+            bool fix = IdleAction != null && double.IsNaN(v);
+            Cell.Cursor = fix ? Cursors.Hand : null;
+            _sub.TextDecorations = fix ? TextDecorations.Underline : null;
+            if (double.IsNaN(v))
+            {
+                var words = IdleWords == null ? "" : IdleWords();
+                _val.Text = words.Length > 0 ? "" : "--"; _val.Foreground = (Brush)_line.Stroke;
+                _unit.Text = words.Length > 0 ? words : Unit;
+                bool inPlot = _empty.Visibility == Visibility.Visible;
+                _sub.Text = inPlot ? " " : Idle(); _sub.Foreground = fix ? _inkB : DimOf();
+                return;
+            }
+            _unit.Text = Unit;
             bool hot = IsHot(v);
             _val.Text = Format(Show(v));
             _val.Foreground = hot ? WarnOf() : (Brush)_line.Stroke;
