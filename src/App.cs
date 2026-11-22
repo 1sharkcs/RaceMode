@@ -585,6 +585,7 @@ namespace RaceMode
             };
             Get<Button>("CloseBtn").Click += (s, e) => Window.Close();
             Window.SourceInitialized += (s, e) => RoundCorners();
+            HookMaximiseFit();   // maximised = the monitor's free area, so the taskbar stays visible
             LoadAppIcon();
             Get<Border>("CpuTempCell").MouseLeftButtonUp += (s, e) => CpuTempAction();
             Get<Border>("CpuTempCell").KeyDown += (s, e) => { if (e.Key == Key.Enter || e.Key == Key.Space) { CpuTempAction(); e.Handled = true; } };
@@ -1792,13 +1793,9 @@ namespace RaceMode
         void OnWindowState()
         {
             bool max = Window.WindowState == WindowState.Maximized;
-            // With a custom title bar, Windows lets a maximised window hang over the screen edges by the frame size.
+            // Maximised, the window is exactly the monitor's free area (WindowFit.cs), so nothing hangs over the edges.
             var root = Get<Grid>("Root");
-            if (root != null)
-            {
-                var f = SystemParameters.WindowResizeBorderThickness;
-                root.Margin = max ? new Thickness(f.Left + 2, f.Top + 2, f.Right + 2, f.Bottom + 2) : new Thickness(0);
-            }
+            if (root != null) root.Margin = new Thickness(0);
             var icon = Get<System.Windows.Shapes.Path>("MaxIcon");
             if (icon != null) icon.Data = Geometry.Parse(max ? "M2.5,0.5 H9.5 V7.5 M0.5,2.5 H7.5 V9.5 H0.5 Z" : "M0.5,0.5 H9.5 V9.5 H0.5 Z");
             var btn = Get<Button>("MaxBtn");
