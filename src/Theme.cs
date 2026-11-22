@@ -66,6 +66,10 @@ namespace RaceMode
             { "CheckHover",     "#A1A1A6", "#55555B" },
             { "SegOn",          "#46464C", "#4A4A50" },
             { "SegOnInk",       "#F5F5F7", "#FFFFFF" },
+            { "ScreenTile",     "#242428", "#DCDCE1" },   // the screen picture (ScreenPick.cs): a screen
+            { "ScreenTileEdge", "#323237", "#C8C8CE" },
+            { "ScreenTileHover","#2C2C31", "#D0D0D6" },
+            { "ScreenTileOn",   "#34343A", "#4A4A50" },   // the picked one (white outline and text on it)
             { "Scroll",         "#48484D", "#B0B0B6" },
             { "RowHover",       "#26262A", "#F2F2F5" },
             { "RowSelected",    "#2F2F35", "#E8E8EC" },
