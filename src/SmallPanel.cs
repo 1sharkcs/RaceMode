@@ -296,7 +296,6 @@ namespace RaceMode
             if (hc != null && _colChecksCard != null && hc.Parent == _colChecksCard)
             {
                 _colChecksCard.Child = null;
-                if (_checksHome != null) _checksHome.Children.Add(hc);
                 hc.Margin = new Thickness(18, 10, 0, 0); hc.Columns = 2;
             }
             var db = Get<UniformGrid>("DashBottom"); if (db != null) db.Visibility = Visibility.Visible;

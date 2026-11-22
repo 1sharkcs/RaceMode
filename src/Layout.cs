@@ -60,6 +60,11 @@ namespace RaceMode
             };
             var small = Get<Button>("SmallBtn"); if (small != null) small.Click += (s, e) => ToggleSmall();
             NameControls();
+            // The switch card's own short checklist is only used by the small panel's column now (the full checklist
+            // sits beside the card). Left in the card at zero height, a screen reader still read it: every item twice.
+            var heroChecks = Get<UniformGrid>("HeroChecks");
+            var heroHome = heroChecks == null ? null : heroChecks.Parent as Panel;
+            if (heroHome != null) heroHome.Children.Remove(heroChecks);
             NavPhase(_phase ?? "off");
             Window.Loaded += (s, e) => { _layoutReady = true; ApplyLayout(); };
         }

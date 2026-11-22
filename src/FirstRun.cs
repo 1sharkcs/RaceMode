@@ -247,8 +247,8 @@ namespace RaceMode
                     int starts = _launch.Count(l => l.Enabled), closes = _close.Count;
                     return SetupFlow.Stack(SetupFlow.Group(
                         SetupFlow.Status(screen ? "Screen check is on" : "Screen check is off", "Settings, Racing monitor", screen ? (bool?)true : null),
-                        SetupFlow.Status(starts == 0 ? "No apps start with Race Mode" : starts + (starts == 1 ? " app starts" : " apps start") + " with Race Mode", "Launch", starts > 0 ? (bool?)true : null),
-                        SetupFlow.Status(closes == 0 ? "No apps close before a race" : closes + (closes == 1 ? " app closes" : " apps close") + " before a race", "Close", closes > 0 ? (bool?)true : null),
+                        SetupFlow.Status(starts == 0 ? "No apps start with Race Mode" : starts + (starts == 1 ? " app starts" : " apps start") + " with Race Mode", "Launch apps", starts > 0 ? (bool?)true : null),
+                        SetupFlow.Status(closes == 0 ? "No apps close before a race" : closes + (closes == 1 ? " app closes" : " apps close") + " before a race", "Close list", closes > 0 ? (bool?)true : null),
                         SetupFlow.Status(Installer.StartsWithWindows ? "Starts with Windows" : "Starts from its shortcut", "Settings, Windows", null)),
                         SetupFlow.Button("Turn It On Now", () => { _firstRun.Finish(); var sw = Get<ToggleButton>("Switch"); if (sw != null && sw.IsChecked != true) sw.IsChecked = true; }, true));
                 }
