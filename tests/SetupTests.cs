@@ -85,12 +85,12 @@ class SetupTests
             using (var pre = Registry.CurrentUser.CreateSubKey(HwinfoSetup.KeyPath + @"\Sensors\E0002000_0\Temp0"))
             { pre.SetValue("InVSB", 1, RegistryValueKind.DWord); pre.SetValue("VSBidx", 7, RegistryValueKind.DWord); }
             int addedFirst = HwinfoSetup.Apply(), addedAgain = HwinfoSetup.Apply();
-            Check("23 sharing on, 3 CPU readings added once", HwinfoSetup.SharingOn() && addedFirst == 3 && addedAgain == 0, addedFirst + "/" + addedAgain);
+            Check("23 sharing on, 5 CPU readings (Intel and AMD) added once", HwinfoSetup.SharingOn() && addedFirst == 5 && addedAgain == 0, addedFirst + "/" + addedAgain);
             var idx = new List<int>();
-            foreach (var k in new[] { @"F0000400_0\Temp510", @"F0000400_0\Temp511", @"F0002A00_0\Temp4" })
+            foreach (var k in new[] { @"F0000400_0\Temp510", @"F0000400_0\Temp511", @"F0002A00_0\Temp4", @"F0000501_0\Temp0", @"F0000501_0\Temp3" })
                 using (var rk = Registry.CurrentUser.OpenSubKey(HwinfoSetup.KeyPath + @"\Sensors\" + k))
                     if (rk != null && (int)rk.GetValue("InVSB", 0) == 1) idx.Add((int)rk.GetValue("VSBidx", -1));
-            Check("24 new readings are placed after the ones already shared", idx.Count == 3 && idx.All(i => i > 7) && idx.Distinct().Count() == 3, string.Join(",", idx.Select(i => i.ToString()).ToArray()));
+            Check("24 new readings are placed after the ones already shared", idx.Count == 5 && idx.All(i => i > 7) && idx.Distinct().Count() == 5, string.Join(",", idx.Select(i => i.ToString()).ToArray()));
             using (var keep = Registry.CurrentUser.OpenSubKey(HwinfoSetup.KeyPath + @"\Sensors\E0002000_0\Temp0"))
                 Check("25 readings already shared are left as they were", keep != null && (int)keep.GetValue("VSBidx", -1) == 7, null);
             Registry.CurrentUser.DeleteSubKeyTree(@"Software\RaceModeTest", false);

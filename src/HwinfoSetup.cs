@@ -6,8 +6,11 @@ namespace RaceMode
 {
     // Switches on HWiNFO's sharing for Race Mode, in HWiNFO's own per-user settings (HKCU, no admin needed):
     //  - Sensors\EnableVSB = 1: "Enable reporting to Gadget" (the setting that shares readings at all);
-    //  - Sensors\<sensor>\<reading>\InVSB = 1 for the CPU package temperature HWiNFO shows on Intel CPUs
-    //    ("CPU [#0]: DTS" -> Temp510 CPU Package, Temp511 Core Max; "CPU [#0]: Enhanced" -> Temp4 CPU Package).
+    //  - Sensors\<sensor>\<reading>\InVSB = 1 for the CPU temperature HWiNFO shows:
+    //    Intel "CPU [#0]: DTS" (F0000400) -> Temp510 CPU Package, Temp511 Core Max (HWiNFO 8.x numbering);
+    //    Intel "CPU [#0]: Enhanced" (F0002A00) -> Temp4 CPU Package;
+    //    AMD Ryzen "CPU [#0]: Enhanced" (F0000501) -> Temp0 CPU (Tctl/Tdie), Temp3 CPU Die (average).
+    //    Readings for a sensor this PC doesn't have are simply never shown by HWiNFO.
     // HWiNFO reads these when it starts and writes its own copy back when it exits, so this must only run while
     // HWiNFO is closed. Readings it already reports are left exactly as they are.
     public static class HwinfoSetup
@@ -22,6 +25,8 @@ namespace RaceMode
             new[] { "F0000400_0", "Temp510" },   // Intel DTS: CPU Package
             new[] { "F0000400_0", "Temp511" },   // Intel DTS: Core Max
             new[] { "F0002A00_0", "Temp4" },     // Intel Enhanced: CPU Package
+            new[] { "F0000501_0", "Temp0" },     // AMD Ryzen Enhanced: CPU (Tctl/Tdie)
+            new[] { "F0000501_0", "Temp3" },     // AMD Ryzen Enhanced: CPU Die (average)
         };
 
         public static bool SharingOn()
