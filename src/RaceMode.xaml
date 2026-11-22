@@ -778,6 +778,7 @@
             <Button x:Name="AddLaunchBtn" Style="{StaticResource Btn}" Content="Add App…" Margin="0,0,8,0"/>
             <Button x:Name="RemoveLaunchBtn" Style="{StaticResource Btn}" Content="Remove"/>
           </StackPanel>
+          <WrapPanel x:Name="LaunchSuggest" DockPanel.Dock="Bottom" Margin="0,10,0,0" Visibility="Collapsed"/>
           <ListBox x:Name="LaunchList" KeyboardNavigation.TabNavigation="Continue">
             <ListBox.ItemTemplate>
               <DataTemplate>
