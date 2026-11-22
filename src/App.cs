@@ -1396,6 +1396,8 @@ namespace RaceMode
                     finally { p.Dispose(); }
                 }
                 _forced += forced;
+                // Apps left open on purpose (save prompt, admin) were asked to close but didn't: don't count them as closed.
+                _closed.RemoveAll(n => _leftOpen.ContainsKey(n));
                 if (forced > 0) _mon.Event("Force-closed " + forced + " leftover processes");
                 if (waiting.Count > 0) _mon.Event("Left open (still showing a window): " + string.Join(", ", waiting.ToArray()));
                 if (denied.Count > 0) _mon.Event("Couldn't close (runs as administrator): " + string.Join(", ", denied.ToArray()));
