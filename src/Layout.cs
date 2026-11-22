@@ -132,6 +132,25 @@ namespace RaceMode
         }
 
         // The menu's own copy of the status: a dot and a word, next to the small switch.
+        bool NavSwitchHidden
+        {
+            get { var t = Get<TabControl>("Tabs"); return !_small && t != null && t.SelectedIndex == 0; }
+        }
+
+        // on the Overview the page's own big switch is right there; a second switch beside it only repeated it.
+        // Runs from NavPhase and
+        // ApplyLayout, so it's right on start-up too (the window opens on the Overview before any section change).
+        void UpdateNavSwitch()
+        {
+            var sw = Get<ToggleButton>("NavSwitch");
+            if (sw == null) return;
+            bool hide = NavSwitchHidden;
+            if (hide && sw.IsKeyboardFocusWithin) { var list = Get<ListBox>("Nav"); if (list != null) list.Focus(); }   // keep the keyboard in the menu
+            // the whole status card goes: without its switch it was an empty box with a lone light in it
+            var block = Get<FrameworkElement>("NavStatus");
+            if (block != null) block.Visibility = hide ? Visibility.Collapsed : Visibility.Visible;   // collapsed: a blank slot read as a gap
+        }
+
         void NavPhase(string phase)
         {
             SmallPhase(phase);
@@ -155,6 +174,7 @@ namespace RaceMode
             // what needs a look is spelled out in the tooltip, and the words open the Overview, where the checklist is
             string detail = phase == "issues" && _issues.Count > 0 ? NeedsALook() + ". Click to see the checklist." : "Race Mode: " + word.ToLowerInvariant() + ".";
             var sw = Get<ToggleButton>("NavSwitch");
+            UpdateNavSwitch();
             if (sw != null) sw.ToolTip = detail.Replace(". Click to see the checklist.", ".") + " Click to turn it " + (phase == "off" ? "on" : "off") + ".";
             var words = Get<FrameworkElement>("NavStatusWords");
             if (words != null) { words.ToolTip = detail; words.Cursor = phase == "issues" ? System.Windows.Input.Cursors.Hand : null; }
@@ -166,6 +186,7 @@ namespace RaceMode
             double w = Window.ActualWidth, h = Window.ActualHeight;
             var tabs = Get<TabControl>("Tabs"); var rail = Get<FrameworkElement>("NavRail");
             if (!_layoutReady || tabs == null || rail == null || w <= 0 || h <= 0) return;
+            UpdateNavSwitch();
             var bodyEl = Get<UIElement>("Body");
             bool hadFocus = bodyEl != null && bodyEl.IsKeyboardFocusWithin;
 

@@ -73,8 +73,10 @@ namespace RaceMode
                     // the menu: its switch block at the top, then the sections, then its collapse button; then the page
                     int nav = names.IndexOf("Nav"), firstBody = names.FindIndex(x => x != "Nav" && x != "NavSwitch" && x != "NavCollapse" && !x.EndsWith("Btn (title bar)", StringComparison.Ordinal));
                     int sw = names.IndexOf("NavSwitch"), fold = names.IndexOf("NavCollapse");
-                    check(sw == 0, "tab order, " + sec + ": the menu's switch is the first stop");
-                    check(nav >= 0 && nav == sw + 1, "tab order, " + sec + ": the section list comes straight after the menu's switch");
+                    // the Overview has its own big switch, so the menu's switch is hidden there and the section list leads
+                    bool home = tabs.SelectedIndex == 0;
+                    check(home ? sw < 0 : sw == 0, "tab order, " + sec + (home ? ": the menu's switch is hidden (the page has the big one)" : ": the menu's switch is the first stop"));
+                    check(nav >= 0 && nav == (home ? 0 : sw + 1), "tab order, " + sec + (home ? ": the section list is the first stop" : ": the section list comes straight after the menu's switch"));
                     check(fold >= 0 && fold == nav + 1, "tab order, " + sec + ": the collapse button comes straight after the section list");
                     check(nav >= 0 && (firstBody < 0 || Math.Max(nav, fold) < firstBody), "tab order, " + sec + ": the menu comes before the section");
                     int firstBar = names.FindIndex(x => x.EndsWith("(title bar)", StringComparison.Ordinal));
@@ -118,9 +120,12 @@ namespace RaceMode
                 // ---- focus is never left on something hidden ----
                 Window.Width = 960; Window.Height = 720; tabs.SelectedIndex = 1; Pump();
                 var ns = Get<UIElement>("NavSwitch"); if (ns != null) ns.Focus(); Pump();
-                tabs.SelectedIndex = 0; Pump();   // the menu's switch stays at the top of the menu on the Overview too
+                tabs.SelectedIndex = 0; Pump();   // the Overview hides the menu's switch; the keyboard stays in the menu
                 var f = FocusManager.GetFocusedElement(Window) as UIElement;
-                check(ns != null && ns.IsVisible && f == ns, "focus: the menu's switch stays put (and keeps the keyboard) on the Overview (now on " + (f == null ? "nothing" : DescribeStop(f)) + ")");
+                bool inMenu = f != null && f.IsVisible && f.IsDescendantOf(Get<DependencyObject>("Nav") ?? Window) || f == Get<UIElement>("Nav");
+                check(ns != null && !ns.IsVisible && inMenu, "focus: on the Overview the menu's switch hides and the keyboard stays in the menu (now on " + (f == null ? "nothing" : DescribeStop(f)) + ")");
+                tabs.SelectedIndex = 1; Pump();
+                check(ns != null && ns.IsVisible, "focus: the menu's switch is back on the other sections");
                 // the collapse button: folds the menu and back, and hides under 760 px without stranding the keyboard
                 var fb = Get<Button>("NavCollapse");
                 bool wasFolded = _cfg.NavCollapsed;
