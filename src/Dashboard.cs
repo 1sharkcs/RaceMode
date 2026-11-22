@@ -234,7 +234,17 @@ namespace RaceMode
             _val.SetResourceReference(Fg, hot ? "Warn" : "Ink");
             var note = Note();
             _sub.Text = hot ? HotWord(v) + (string.IsNullOrEmpty(note) ? "" : " · " + note) : note;
+            // one line: when it doesn't fit, drop the note's last parts (" · 4.80 GHz", then the rest) rather than cut a word
+            double room = _sub.ActualWidth;
+            while (room > 0 && _sub.Text.Contains(" · ") && Wide(_sub) > room)
+                _sub.Text = _sub.Text.Substring(0, _sub.Text.LastIndexOf(" · ", StringComparison.Ordinal));
             _sub.SetResourceReference(Fg, hot ? "Warn" : "Faint");
+        }
+
+        static double Wide(TextBlock t)
+        {
+            t.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            return t.DesiredSize.Width;
         }
 
 

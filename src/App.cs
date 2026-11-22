@@ -2100,6 +2100,10 @@ namespace RaceMode
             _coreChart.Push(s.CpuMaxCore);
             _cpuChart.Push(s.Cpu);
             _gpuChart.Push(s.GpuUtil);
+            // HWiNFO's unit is only known after its first reading, which comes after the tiles are built
+            bool fahr = Monitor.HwinfoFahrenheit;
+            _tempChart.Unit = fahr ? "°F" : "°C"; _tempChart.RefLabel = fahr ? "185 °F" : "85 °C";
+            _gpuTempChart.Unit = _tempChart.Unit; _gpuTempChart.RefLabel = fahr ? "181 °F" : "83 °C";
             _tempChart.Push(s.CpuTemp);
             _vramChart.Push(double.IsNaN(s.VramUsedMB) ? double.NaN : s.VramUsedMB / 1024.0);
             _gpuTempChart.Push(s.GpuTemp);
