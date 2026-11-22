@@ -300,6 +300,9 @@ namespace RaceMode
             if (args.Length >= 3 && args[1] == "--snapshot")
             {
                 // Renders the window to a PNG after a few seconds and exits (used to check the design).
+                // It is drawn off-screen and never takes the keyboard, so checking many sizes doesn't flash windows at the user.
+                shell.Window.WindowStartupLocation = WindowStartupLocation.Manual; shell.Window.Left = -30000; shell.Window.Top = -30000;
+                shell.Window.ShowActivated = false; shell.Window.ShowInTaskbar = false;
                 var outPath = args[2]; int tab = ArgInt(args, 3, 0, 0, 6);   // 0 Overview, 1 Launch, 2 Close, 3 Stream, 4 Graphics, 5 Settings, 6 Logs
                 // wide snapshots wait longer so the 60 s charts have some history to show
                 var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(args.Length >= 5 && args[4].Contains("wide") ? 20 : 4) };
