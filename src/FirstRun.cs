@@ -385,6 +385,7 @@ namespace RaceMode
         void FirstRunFinished()
         {
             if (_cfg.SetupDone != true) { _cfg.SetupDone = true; SaveConfig(); }
+            MarkVersionRun();
             // setup covered this version's features: What's new waits for the next stable series
             var series = VersionSeries(Updater.Current);
             if (series != null && (string.IsNullOrEmpty(_cfg.WhatsNewSeen) || Updater.Compare(_cfg.WhatsNewSeen + ".0", series + ".0") < 0)) { _cfg.WhatsNewSeen = series; SaveConfig(); }

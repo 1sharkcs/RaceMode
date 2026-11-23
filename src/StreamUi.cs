@@ -23,7 +23,11 @@ namespace RaceMode
             Get<Button>("DockLinkBtn").Click += (s, e) =>
             {
                 if (!ObsDock.Running) { Tick("Turn on Streaming first, then copy the dock link"); return; }
-                try { Clipboard.SetText(ObsDock.Url); Tick("Dock link copied. In OBS: Docks, Custom Browser Docks, paste it, name it Race Mode."); }
+                try
+                {
+                    Clipboard.SetText(ObsDock.Url); Tick("Dock link copied. In OBS: Docks, Custom Browser Docks, paste it, name it Race Mode.");
+                    if (_cfg.DockLinkChanged) { _cfg.DockLinkChanged = false; SaveConfig(); ShowDockChanged(); }
+                }
                 catch { Tick("Another app is using the clipboard. Try again in a moment."); }
             };
             Get<Button>("ObsEnableBtn").Click += (s, e) =>
@@ -48,7 +52,7 @@ namespace RaceMode
             if (err == null && ObsDock.Port != _cfg.DockPort)
             {
                 // the usual port was taken, so the dock moved to the next free one: a new link (and key) for OBS
-                _cfg.DockPort = ObsDock.Port; _cfg.DockToken = ObsDock.NewToken(); SaveConfig();
+                _cfg.DockPort = ObsDock.Port; _cfg.DockToken = ObsDock.NewToken(); _cfg.DockLinkChanged = true; SaveConfig();
                 ObsDock.Start(_cfg.DockPort, _cfg.DockToken, () => _dockJson, DockSwitch, DockShow);
                 var moved = "The OBS dock moved to port " + _cfg.DockPort + " because the usual one was busy. Copy the dock link into OBS again.";
                 Tick(moved); _mon.Event(moved);
@@ -61,6 +65,13 @@ namespace RaceMode
                 Tick(err); _mon.Event(err);
             }
             Get<Button>("DockLinkBtn").IsEnabled = ObsDock.Running;
+            ShowDockChanged();
+        }
+
+        void ShowDockChanged()
+        {
+            var note = Get<TextBlock>("DockChangedNote");
+            if (note != null) note.Visibility = _cfg.DockLinkChanged && ObsDock.Running ? Visibility.Visible : Visibility.Collapsed;
         }
 
         // From the OBS dock (a background thread): flip the same switch as the window, on the UI thread.

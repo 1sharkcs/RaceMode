@@ -278,6 +278,8 @@ namespace RaceMode
             Btn("SetupNext").Click += (s, e) => { if (_active == this) Next(true); };
             Btn("SetupSkip").Click += (s, e) => { if (_active != this) return; if (SkipEnds) Finish(); else Next(false); };
             Btn("SetupBack").Click += (s, e) => { if (_active == this && _i > 0) { Leave(); _i--; Render(); } };
+            // Esc closes the card (What's new), as in other Windows dialogs; first-run setup ignores it
+            _w.PreviewKeyDown += (s, e) => { if (e.Key == System.Windows.Input.Key.Escape && Modal && Showing) { e.Handled = true; Finish(); } };
         }
 
         // True while this flow is the one on screen.
@@ -327,8 +329,8 @@ namespace RaceMode
                 card.SetResourceReference(Border.BorderBrushProperty, "Hairline");
                 card.BorderThickness = new Thickness(1); card.CornerRadius = new CornerRadius(14);
                 card.HorizontalAlignment = HorizontalAlignment.Center; card.VerticalAlignment = VerticalAlignment.Center;
-                card.Margin = new Thickness(24, 12, 24, 24); card.MaxWidth = 640;
-                card.MaxHeight = Math.Max(320, _w.ActualHeight - 90);
+                card.Margin = new Thickness(24, 12, 24, 24); card.MaxWidth = 640; card.MaxHeight = double.PositiveInfinity;   // the overlay's own size limits it
+                System.Windows.Automation.AutomationProperties.SetName(card, "What's new");
                 card.Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 32, ShadowDepth = 6, Opacity = 0.45, Color = System.Windows.Media.Colors.Black };
                 grid.Margin = new Thickness(24, 22, 24, 22);
             }
@@ -339,6 +341,7 @@ namespace RaceMode
                 card.HorizontalAlignment = HorizontalAlignment.Stretch; card.VerticalAlignment = VerticalAlignment.Stretch;
                 card.Margin = new Thickness(0); card.MaxWidth = double.PositiveInfinity; card.MaxHeight = double.PositiveInfinity;
                 card.Effect = null; card.RenderTransform = null;
+                System.Windows.Automation.AutomationProperties.SetName(card, "");
                 grid.Margin = new Thickness(20, 6, 20, 20);
             }
         }
