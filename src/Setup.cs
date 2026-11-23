@@ -279,7 +279,12 @@ namespace RaceMode
             Btn("SetupSkip").Click += (s, e) => { if (_active != this) return; if (SkipEnds) Finish(); else Next(false); };
             Btn("SetupBack").Click += (s, e) => { if (_active == this && _i > 0) { Leave(); _i--; Render(); } };
             // Esc closes the card (What's new), as in other Windows dialogs; first-run setup ignores it
-            _w.PreviewKeyDown += (s, e) => { if (e.Key == System.Windows.Input.Key.Escape && Modal && Showing) { e.Handled = true; Finish(); } };
+            _w.PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key != System.Windows.Input.Key.Escape || !Modal || !Showing) return;
+                if (System.Windows.Input.Mouse.Captured is ComboBox) return;   // an open dropdown closes itself first
+                e.Handled = true; Finish();
+            };
         }
 
         // True while this flow is the one on screen.
@@ -315,6 +320,36 @@ namespace RaceMode
         // While setup shows, everything behind it is hidden too, so the keyboard and screen readers only reach setup.
         readonly Dictionary<UIElement, Visibility> _behind = new Dictionary<UIElement, Visibility>();
         readonly Dictionary<UIElement, bool> _behindEnabled = new Dictionary<UIElement, bool>();
+        System.Windows.Media.Brush _snapshot;
+
+        // The window below the title bar as it looks now, with the scrim over it: the background for the card.
+        System.Windows.Media.Brush Snapshot(Panel root)
+        {
+            try
+            {
+                var grid = root as Grid;
+                double w = root.ActualWidth, h = root.ActualHeight, top = grid != null && grid.RowDefinitions.Count > 0 ? grid.RowDefinitions[0].ActualHeight : 0;
+                if (w < 1 || h - top < 1) return null;
+                double sx = 1, sy = 1;
+                var src = PresentationSource.FromVisual(root);
+                if (src != null && src.CompositionTarget != null) { sx = src.CompositionTarget.TransformToDevice.M11; sy = src.CompositionTarget.TransformToDevice.M22; }
+                var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap((int)Math.Ceiling(w * sx), (int)Math.Ceiling(h * sy), 96 * sx, 96 * sy, System.Windows.Media.PixelFormats.Pbgra32);
+                bmp.Render(root); bmp.Freeze();
+                var scrim = Res<System.Windows.Media.Brush>("Scrim") ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xB8, 0, 0, 0));
+                var all = new Rect(0, 0, w, h);
+                var g = new System.Windows.Media.DrawingGroup();
+                g.Children.Add(new System.Windows.Media.ImageDrawing(bmp, all));
+                g.Children.Add(new System.Windows.Media.GeometryDrawing(scrim, null, new System.Windows.Media.RectangleGeometry(all)));
+                var brush = new System.Windows.Media.DrawingBrush(g)
+                {
+                    Viewbox = new Rect(0, top, w, h - top), ViewboxUnits = System.Windows.Media.BrushMappingMode.Absolute,
+                    Stretch = System.Windows.Media.Stretch.Fill
+                };
+                brush.Freeze();
+                return brush;
+            }
+            catch { return null; }
+        }
 
         // Setup: the page fills the window. What's new: a centred card on a scrim, sized to the window.
         void StyleOverlay(Border overlay)
@@ -324,7 +359,7 @@ namespace RaceMode
             if (card == null || grid == null) return;
             if (Modal)
             {
-                overlay.SetResourceReference(Border.BackgroundProperty, "Scrim");
+                if (_snapshot != null) overlay.Background = _snapshot; else overlay.SetResourceReference(Border.BackgroundProperty, "Scrim");
                 card.SetResourceReference(Border.BackgroundProperty, "Bg");
                 card.SetResourceReference(Border.BorderBrushProperty, "Hairline");
                 card.BorderThickness = new Thickness(1); card.CornerRadius = new CornerRadius(14);
@@ -353,20 +388,21 @@ namespace RaceMode
             {
                 if (overlay.Visibility == Visibility.Visible) return;   // already showing: keep the first snapshot
                 _behind.Clear(); _behindEnabled.Clear();
+                // What's new: a dimmed picture of the app behind the card. The real controls are hidden, as for setup,
+                // so the keyboard and screen readers reach only the card.
+                _snapshot = Modal ? Snapshot(root) : null;
                 foreach (UIElement el in root.Children)
                     if (el != overlay && !(el is FrameworkElement && ((FrameworkElement)el).Name == "TitleBar"))
-                    {
-                        if (Modal) { _behindEnabled[el] = el.IsEnabled; el.IsEnabled = false; }
-                        else { _behind[el] = el.Visibility; el.Visibility = Visibility.Collapsed; }
-                    }
+                    { _behind[el] = el.Visibility; el.Visibility = Visibility.Collapsed; }
                 StyleOverlay((Border)overlay);
                 overlay.Visibility = Visibility.Visible;
                 if (Modal && SystemParameters.ClientAreaAnimation)
                 {
                     // a short fade and lift (no motion when Windows' animations are off)
                     var ease = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut };
-                    overlay.BeginAnimation(UIElement.OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)) { EasingFunction = ease });
+                    // the card fades in over the dimmed picture of the app (fading the whole overlay would flash an empty window)
                     var card = (FrameworkElement)_w.FindName("SetupCard");
+                    card.BeginAnimation(UIElement.OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)) { EasingFunction = ease });
                     var lift = new System.Windows.Media.TranslateTransform(0, 14); card.RenderTransform = lift;
                     lift.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, new System.Windows.Media.Animation.DoubleAnimation(14, 0, TimeSpan.FromMilliseconds(220)) { EasingFunction = ease });
                 }
@@ -375,6 +411,8 @@ namespace RaceMode
             {
                 overlay.Visibility = Visibility.Collapsed;
                 overlay.BeginAnimation(UIElement.OpacityProperty, null); overlay.Opacity = 1;
+                var cardEl = (FrameworkElement)_w.FindName("SetupCard"); if (cardEl != null) { cardEl.BeginAnimation(UIElement.OpacityProperty, null); cardEl.Opacity = 1; }
+                _snapshot = null;
                 foreach (var kv in _behind) kv.Key.Visibility = kv.Value;
                 foreach (var kv in _behindEnabled) kv.Key.IsEnabled = kv.Value;
                 _behind.Clear(); _behindEnabled.Clear();

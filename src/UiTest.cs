@@ -145,6 +145,34 @@ namespace RaceMode
                     check(tabs.SelectedIndex == 4, "keyboard: Enter on a menu section opens it (now on section " + tabs.SelectedIndex + ")");
                 }
 
+                // ---- What's new: a card that hides the app from the keyboard and screen readers; Esc closes it ----
+                {
+                    tabs.SelectedIndex = 0; Window.Width = 960; Window.Height = 720; Pump();
+                    StartWhatsNew(); Pump();
+                    var overlay = Get<UIElement>("SetupOverlay"); var body = Get<UIElement>("Body"); var next = Get<Button>("SetupNext");
+                    check(overlay != null && overlay.IsVisible && body != null && !body.IsVisible, "what's new: the card shows and the app behind it is hidden from the keyboard and screen readers");
+                    if (next != null) { next.Focus(); Pump(); }
+                    var src = next == null ? null : PresentationSource.FromVisual(next);
+                    if (src != null)
+                    {
+                        var esc = new KeyEventArgs(Keyboard.PrimaryDevice, src, 0, Key.Escape) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+                        next.RaiseEvent(esc); Pump();
+                    }
+                    check(overlay != null && !overlay.IsVisible && body != null && body.IsVisible, "what's new: Esc closes the card and brings the app back");
+                    // Esc with a dropdown open (mouse captured by it) leaves the card alone
+                    StartWhatsNew(); Pump();
+                    var pick = new ComboBox(); var host = Get<StackPanel>("SetupPage"); if (host != null) { host.Children.Add(pick); Pump(); }
+                    if (host != null && next != null && Mouse.Capture(pick))
+                    {
+                        var esc2 = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(next), 0, Key.Escape) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+                        next.RaiseEvent(esc2); Pump();
+                        check(overlay.IsVisible, "what's new: Esc with a dropdown open doesn't close the card");
+                        Mouse.Capture(null);
+                    }
+                    if (host != null) host.Children.Remove(pick);
+                    _whatsNew.Finish(); Pump();
+                }
+
                 // ---- the Small panel button, and a section asked for from the small panel ----
                 tabs.SelectedIndex = 5; Window.Width = 1100; Window.Height = 760; Pump();
                 ToggleSmall(); Pump();

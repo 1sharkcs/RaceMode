@@ -134,6 +134,7 @@ namespace RaceMode
             Obs.Stop();
             ObsDock.Stop();
             Get<Button>("DockLinkBtn").IsEnabled = false;
+            ShowDockChanged();   // the note only means something while the dock runs
             if (_test != null) StopStreamTest("Stream test stopped: Streaming was turned off");
         }
 
