@@ -15,7 +15,7 @@ class WhatsNewTests
         Check("04 a later 1.1 fix still counts as unseen until shown", Shell.ShouldShowWhatsNew("1.1.2", "1.0", false), null);
         Check("05 shown once: not again for the same series", !Shell.ShouldShowWhatsNew("1.1.0", "1.1", false) && !Shell.ShouldShowWhatsNew("1.1.3", "1.1", false), null);
         Check("06 never after first-run setup", !Shell.ShouldShowWhatsNew("1.1.0", null, true), null);
-        Check("07 never for test versions", !Shell.ShouldShowWhatsNew("1.1.0-rc.3", null, false), null);
+        Check("07 test versions show it too (once per series)", Shell.ShouldShowWhatsNew("1.1.0-rc.5", null, false) && !Shell.ShouldShowWhatsNew("1.1.0-rc.6", "1.1", false), null);
         Check("08 never for local builds", !Shell.ShouldShowWhatsNew("local", null, false), null);
         Check("09 nothing for a series without pages", !Shell.ShouldShowWhatsNew("1.0.2", null, false) && !Shell.ShouldShowWhatsNew("9.4.0", null, false), null);
         Check("10 a rollback below what was seen shows nothing", !Shell.ShouldShowWhatsNew("1.1.0", "1.2", false), null);
