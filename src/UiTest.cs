@@ -53,6 +53,27 @@ namespace RaceMode
                 check(unnamed.Count == 0, "names: every reachable control has a name" + (unnamed.Count == 0 ? "" : " (" + unnamed.Count + " without)"));
                 foreach (var kv in unnamed) sb.AppendLine("        no name: " + kv.Key + "   first seen in " + kv.Value);
 
+                // ---- how long switching sections takes (until the new page is laid out and drawn) ----
+                Window.Width = 960; Window.Height = 720; Pump();
+                for (int round = 0; round < 3; round++)
+                {
+                    // round 3: as if a screen reader or another UI Automation client were watching (peers exist)
+                    if (round == 2) { var peer = UIElementAutomationPeer.CreatePeerForElement(Window); WalkPeers(peer, 0); }
+                    var times = new List<string>(); long worst = 0;
+                    for (int s = 0; s < tabs.Items.Count; s++)
+                    {
+                        int to = (s + 1) % tabs.Items.Count;
+                        var watch = System.Diagnostics.Stopwatch.StartNew();
+                        tabs.SelectedIndex = to; Pump();
+                        Window.Dispatcher.Invoke(new Action(() => { }), System.Windows.Threading.DispatcherPriority.Render);
+                        watch.Stop();
+                        worst = Math.Max(worst, watch.ElapsedMilliseconds);
+                        times.Add((string)((TabItem)tabs.Items[to]).Header + " " + watch.ElapsedMilliseconds + " ms");
+                    }
+                    sb.AppendLine("TIME  switching sections, " + (round == 0 ? "first time" : round == 1 ? "again" : "with UI Automation watching") + ": " + string.Join(", ", times));
+                    if (round >= 1) check(worst < 150, "speed: every section opens in under 150 ms" + (round == 2 ? " with UI Automation watching" : " once seen") + " (slowest " + worst + " ms)");
+                }
+
                 // ---- tab order ----
                 Window.Width = 960; Window.Height = 720; Pump();
                 var orders = new StringBuilder();
@@ -230,5 +251,12 @@ namespace RaceMode
             if (bar != null && fe is Button && bar.Children.Contains(fe)) n += " (title bar)";
             return n;
         }
-    }
+    
+        static void WalkPeers(AutomationPeer p, int depth)
+        {
+            if (p == null || depth > 40) return;
+            var kids = p.GetChildren();
+            if (kids != null) foreach (var k in kids) WalkPeers(k, depth + 1);
+        }
+}
 }
