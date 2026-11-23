@@ -127,6 +127,7 @@ namespace RaceMode
                     }
                     RefreshLaunchSuggest();
                     if (_firstRun != null && _firstRun.Current == 1) _firstRun.Refresh();
+                    if (_whatsNew != null && _whatsNew.Current == 1) _whatsNew.Refresh();
                 }));
             });
         }
@@ -384,6 +385,9 @@ namespace RaceMode
         void FirstRunFinished()
         {
             if (_cfg.SetupDone != true) { _cfg.SetupDone = true; SaveConfig(); }
+            // setup covered this version's features: What's new waits for the next stable series
+            var series = VersionSeries(Updater.Current);
+            if (series != null && (string.IsNullOrEmpty(_cfg.WhatsNewSeen) || Updater.Compare(_cfg.WhatsNewSeen + ".0", series + ".0") < 0)) { _cfg.WhatsNewSeen = series; SaveConfig(); }
             ApplyLayout();   // the window may have been resized while setup hid everything
             if (_on) UpdateStatus();
             else SetText("StatusText", "All set. Flip the switch when you're about to race.");

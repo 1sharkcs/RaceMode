@@ -1504,6 +1504,16 @@
                           <Button x:Name="UpdateBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Check Now" Margin="12,0,0,0" VerticalAlignment="Center"/>
                         </Grid>
                       </Border>
+                      <Border Style="{StaticResource Row}" Padding="16,9">
+                        <Grid>
+                          <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                          <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="What's new" Foreground="{DynamicResource Ink}"/>
+                            <TextBlock Style="{StaticResource Sub}" Text="A quick look at what this version added, with its settings."/>
+                          </StackPanel>
+                          <Button x:Name="WhatsNewBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Show Me" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                        </Grid>
+                      </Border>
                       <Border Style="{StaticResource Row}">
                         <CheckBox x:Name="OptUpdateCheck" Style="{StaticResource SwitchRow}"><StackPanel><TextBlock Text="Check for updates every 12 hours"/><TextBlock Style="{StaticResource Sub}" Text="Only checks. Nothing installs until you click Update."/></StackPanel></CheckBox>
                       </Border>

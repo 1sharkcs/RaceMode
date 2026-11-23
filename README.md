@@ -70,6 +70,8 @@ certutil -hashfile RaceMode.zip SHA256
 
 Race Mode checks for a new version every 12 hours while it runs. It shows what it found in Settings, under Updates. Nothing installs until you click Update, and only while Race Mode is off and iRacing is closed. Turn on **Try test versions** to get the next version early, while it's still being tested (a release candidate).
 
+After an update to a new normal release, Race Mode shows **What's new** once: a few pages on what the release added, each with its setting right there. Skip closes it. Settings > Updates > Show Me opens it again.
+
 ## Uninstall
 
 Quit Race Mode (right-click its icon in the system tray (next to the clock), then Quit). Then go to **Settings > Apps > Installed apps > Race Mode > Uninstall**. It asks whether to keep your settings and logs. Your iRacing settings are left as they are. Race Mode's backups of iRacing's settings file stay in `Documents\iRacing` (their names start with `rendererDX11Monitor.ini.racemode`); the `.first.bak` one is your original. If Race Mode switched on OBS's remote control, that stays on; uninstall shows how to switch it off.
