@@ -178,7 +178,9 @@ namespace RaceMode
                 // ---- the Small panel button, and a section asked for from the small panel ----
                 tabs.SelectedIndex = 5; Window.Width = 1100; Window.Height = 760; Pump();
                 // a screen smaller than that caps the window: what comes back is the size it really had
-                double hadW = Window.ActualWidth, hadH = Window.ActualHeight;
+                // (and coming back it keeps 16 clear of the screen's bottom, as ToggleSmall does)
+                var room = ScreenWork();
+                double hadW = Math.Min(Window.ActualWidth, room.Width), hadH = Math.Min(Window.ActualHeight, room.Height - 16);
                 ToggleSmall(); Pump();
                 check(_small && Math.Abs(Window.ActualWidth - PanelW) < 2 && Math.Abs(Window.ActualHeight - PanelH) < 2, "small: the button shrinks the window to " + PanelW + "x" + PanelH + " (got " + Math.Round(Window.ActualWidth) + "x" + Math.Round(Window.ActualHeight) + ")");
                 check(tabs.SelectedIndex == 0, "small: the small panel shows the Overview");
