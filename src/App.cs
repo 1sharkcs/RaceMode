@@ -246,7 +246,7 @@ namespace RaceMode
             // Test modes (--logtest, --savepreset, --selftest, --snapshot) skip this so they never
             // clash with the user's running app; they run from isolated copies.
             // Real modes (not tests): --after-update (updater), --install / --uninstall (Setup.cs),
-            // --minimized (start with Windows), --setup (show the first-run questions again).
+            // --minimized (start with Windows), --setup (show the first-run questions again), --whatsnew.
             string mode = args.Length >= 2 ? args[1] : "";
             bool afterUpdate = args.Length >= 3 && mode == "--after-update";
             bool realMode = afterUpdate || mode == "--install" || mode == "--uninstall" || mode == "--minimized" || mode == "--setup" || mode == "--whatsnew";

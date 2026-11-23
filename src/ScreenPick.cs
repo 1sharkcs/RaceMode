@@ -93,7 +93,7 @@ namespace RaceMode
 
                     // the tick boxes
                     three.IsChecked = wantThree;
-                    three.IsEnabled = _pickTriples.Count > 0 || wantThree;
+                    three.IsEnabled = _pickTriples.Count > 0 || wantThree || (missing && savedThree);
                     off.IsChecked = i == 0;
                     var threeSub = ((Panel)((Grid)threeRow).Children[1]).Children.OfType<TextBlock>().Skip(1).FirstOrDefault();
                     bool joined = mons.Any(DisplayGuard.LooksJoined);
@@ -158,10 +158,10 @@ namespace RaceMode
                         else if (!DisplayGuard.TripleMatches(row))
                             say += " Your screens are different widths; iRacing's three-screen view works best when all three match.";
                         if (DisplayGuard.IniNumMonitors(IniPath()) != 3)
-                            say += " Then, in iRacing, open Settings > Display > Monitor and set the monitor type to three screens.";
+                            say += " Then, in the iRacing sim (not Windows), open its monitor settings and set it up for 3 screens.";
                     }
                     else say = savedThree
-                        ? "Your three racing screens aren't all connected side by side right now. Race Mode leaves iRacing's screen settings alone until they're back."
+                        ? "Your three racing screens aren't all connected side by side right now. Race Mode leaves iRacing's screen settings alone until they're back. Untick the box to race on one screen instead."
                         : "Your racing screen isn't connected right now. Click a screen to race on it instead, or leave it until it's back.";
                     status.Text = (string.IsNullOrEmpty(why) ? "" : why + " ") + say;
                 }

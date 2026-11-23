@@ -146,6 +146,16 @@ class TripleTests
             var rPlus = DisplayGuard.Run(Triple(iniPlus), true, plus, false);
             Check("fourth screen: keeps the row that is the picked size", rPlus.Changed && Val(iniPlus, "Display", "windowedXPos") == "-1920" && Val(iniPlus, "Display", "windowedWidth") == "5760", rPlus.Message);
 
+            // two screens stacked to the right of the middle one: the one that lines up still makes a row
+            var stacked = new List<MonitorInfo> { M(0, "TSTL", 0, 0, 1920, 1080, 144, true), M(1, "TSTM", 1920, 0, 2560, 1440, 144, false), M(2, "TSTU", 4480, -700, 1920, 1080, 144, false), M(3, "TSTD", 4480, 380, 1920, 1080, 144, false) };
+            var stackedRows = DisplayGuard.TripleRows(stacked);
+            Check("stacked right screens: the lined-up one still makes a row", stackedRows.Count == 1 && stackedRows[0][2].MonitorId == "TSTD", stackedRows.Count + " rows");
+            // a saved row dragged out of line: says to line them up, not that a screen is missing
+            var dragged = Row(); dragged[1].Y = 600;
+            var iniDrag = Ini("triple-dragged", 3);
+            var rDrag = DisplayGuard.Run(Triple(iniDrag), true, dragged, false);
+            Check("screens dragged out of line: skipped with 'line them up'", rDrag.Skipped && rDrag.Message.Contains("line up"), rDrag.Message);
+
             // ---- a screen missing / switched off
             var iniMiss = Ini("triple-missing", 3);
             var textMiss = File.ReadAllText(iniMiss);

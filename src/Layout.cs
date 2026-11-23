@@ -229,7 +229,8 @@ namespace RaceMode
             Get<ColumnDefinition>("MainCol").Width = wide ? new GridLength(SectionCol) : new GridLength(1, GridUnitType.Star);
             Get<ColumnDefinition>("DashCol").Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
             Get<ScrollViewer>("Dash").Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
-            var footer = Get<FrameworkElement>("FooterHost"); if (footer != null) footer.Visibility = small ? Visibility.Collapsed : Visibility.Visible;
+            // while setup or What's new covers the window, only it may be reachable (it lays this out again when it ends)
+            var footer = Get<FrameworkElement>("FooterHost"); if (footer != null && !SetupFlow.AnyShowing) footer.Visibility = small ? Visibility.Collapsed : Visibility.Visible;
             var bodyBox = Get<FrameworkElement>("Body"); if (bodyBox != null) bodyBox.Margin = new Thickness(0, 0, 0, small ? 8 : 12);
 
             double body = w - 2 - (small ? 0 : 12 + navW);            // everything right of the menu
