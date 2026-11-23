@@ -1734,6 +1734,13 @@ namespace RaceMode
         void BindUpdates()
         {
             SetText("VersionText", "Race Mode " + (Updater.Enabled ? Updater.Current : "(local build)"));
+            // the version beside the name in the title bar and on the taskbar, like OBS ("OBS 33.0.1")
+            if (Updater.Parse(Updater.Current) != null)
+            {
+                var tv = Get<System.Windows.Documents.Run>("TitleVersion");
+                if (tv != null) tv.Text = " " + Updater.Current;
+                Window.Title = "Race Mode " + Updater.Current;
+            }
             Get<CheckBox>("OptUpdateCheck").IsChecked = _cfg.UpdateCheck;
             Get<CheckBox>("OptTestVersions").IsChecked = _cfg.UpdateTestVersions;
             Get<CheckBox>("OptUpdateCheck").Checked += (s, e) => SaveConfig();
