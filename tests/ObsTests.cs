@@ -198,6 +198,14 @@ class ObsTests
         bool refused = false; try { Http(dport, "GET / HTTP/1.1\r\n\r\n"); } catch { refused = true; }
         Check("24 stopped -> nothing listens", refused, null);
 
+        // a port something else holds: the dock moves to the next free one, and programs Race Mode starts can't inherit it
+        var holder = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0); holder.Start();
+        int held = ((System.Net.IPEndPoint)holder.LocalEndpoint).Port;
+        var moveErr = held + ObsDock.PortsToTry <= 65535 ? ObsDock.Start(held, token, () => "{}") : "port too high to test";
+        Check("38 busy port -> the dock listens on the next free one", moveErr == null && ObsDock.Running && ObsDock.Port > held && ObsDock.Port < held + ObsDock.PortsToTry, moveErr + " port " + ObsDock.Port + " held " + held);
+        Check("39 the dock's socket isn't inherited by programs Race Mode starts", ObsDock.Running && !ObsDock.ListenerInheritable, null);
+        ObsDock.Stop(); holder.Stop();
+
         Console.WriteLine(pass + " passed, " + fail + " failed");
         Environment.Exit(fail == 0 ? 0 : 1);
     }
