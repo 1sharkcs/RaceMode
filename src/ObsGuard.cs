@@ -40,6 +40,12 @@ namespace RaceMode
             return !string.IsNullOrEmpty(name) && OtherStreamApps.Any(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase));
         }
 
+        // OBS itself (the app a user means by "OBS"); everything else in Family is a part of it
+        public static bool IsObsMain(string name)
+        {
+            return !string.IsNullOrEmpty(name) && (string.Equals(name, "obs64", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "obs32", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "obs", StringComparison.OrdinalIgnoreCase));
+        }
+
         public static bool IsObs(string name)
         {
             return !string.IsNullOrEmpty(name) && Family.Any(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase));
@@ -76,22 +82,36 @@ namespace RaceMode
             return s;
         }
 
-        // The running OBS's log: the newest log file in OBS's logs folder written since that OBS started.
-        // logsDirs: candidate folders (the normal %APPDATA% one, and a portable OBS's own config folder).
+        // The running OBS's own log. OBS names each log after the moment it started ("2026-11-23 11-07-25.txt"), so
+        // the log whose name is closest to (and not before) this OBS's start is its own: with two OBS running at once
+        // (--multi), "the newest log" was the other one's (found live 2026-11-23: a recording OBS read as idle).
+        // Null when no log name matches within a minute of the start.
         public static string LogFor(DateTime obsStarted, IEnumerable<string> logsDirs)
         {
-            FileInfo best = null;
+            string best = null; double bestGap = double.MaxValue;
             foreach (var d in logsDirs)
             {
                 try
                 {
                     if (string.IsNullOrEmpty(d) || !Directory.Exists(d)) continue;
-                    foreach (var f in new DirectoryInfo(d).GetFiles("*.txt"))
-                        if (f.LastWriteTime >= obsStarted.AddSeconds(-5) && f.CreationTime >= obsStarted.AddSeconds(-30) && (best == null || f.LastWriteTime > best.LastWriteTime)) best = f;
+                    foreach (var f in Directory.GetFiles(d, "*.txt"))
+                    {
+                        DateTime t;
+                        if (!LogNameTime(Path.GetFileNameWithoutExtension(f), out t)) continue;
+                        double gap = (t - obsStarted).TotalSeconds;
+                        if (gap < -2 || gap > 60) continue;   // a log starts within moments of its OBS
+                        if (Math.Abs(gap) < bestGap) { bestGap = Math.Abs(gap); best = f; }
+                    }
                 }
                 catch { }
             }
-            return best == null ? null : best.FullName;
+            return best;
+        }
+
+        // "2026-11-23 11-07-25" (OBS's log file name) -> that local time
+        public static bool LogNameTime(string name, out DateTime t)
+        {
+            return DateTime.TryParseExact(name ?? "", "yyyy-MM-dd HH-mm-ss", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeLocal, out t);
         }
 
         public static IEnumerable<string> LogDirs(string obsExe)
@@ -127,6 +147,7 @@ namespace RaceMode
             try { ps = Process.GetProcessesByName("obs64").Concat(Process.GetProcessesByName("obs32")).ToArray(); } catch { return new ObsStatus { Why = "couldn't list processes" }; }
             try
             {
+                var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var p in ps)
                 {
                     ObsStatus one;
@@ -134,7 +155,8 @@ namespace RaceMode
                     {
                         string exe = null; try { exe = p.MainModule.FileName; } catch { }
                         var log = LogFor(p.StartTime, LogDirs(exe));
-                        one = log == null ? new ObsStatus { Why = "no log for this OBS" } : FromLog(ReadShared(log));
+                        if (log != null && !used.Add(log)) one = new ObsStatus { Why = "two OBS share one log" };   // can't tell them apart
+                        else one = log == null ? new ObsStatus { Why = "no log for this OBS" } : FromLog(ReadShared(log));
                     }
                     catch (Exception ex) { one = new ObsStatus { Why = "couldn't read OBS's log (" + ex.Message + ")" }; }
                     foreach (var a in one.Active) if (!all.Active.Contains(a)) all.Active.Add(a);

@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Windows;
 using System.Windows.Interop;
 
 namespace RaceMode
@@ -21,6 +22,26 @@ namespace RaceMode
         [DllImport("shell32.dll")] static extern IntPtr SHAppBarMessage(uint message, ref AppBarData data);
 
         const int WmGetMinMaxInfo = 0x0024;
+
+        // The free height (taskbar left out) of the screen the window is on, in the window's own units; 0 if unknown.
+        // The layout test sets TestRoomH to try a short screen on any PC.
+        internal static double TestRoomH;
+        double ScreenRoomH()
+        {
+            if (TestRoomH > 0) return TestRoomH;
+            try
+            {
+                var hwnd = new WindowInteropHelper(Window).Handle;
+                if (hwnd == IntPtr.Zero) return SystemParameters.WorkArea.Height;
+                var monitor = MonitorFromWindow(hwnd, 2);   // MONITOR_DEFAULTTONEAREST
+                var mi = new MonitorInfoEx { Size = Marshal.SizeOf(typeof(MonitorInfoEx)) };
+                if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref mi)) return SystemParameters.WorkArea.Height;
+                var src = PresentationSource.FromVisual(Window);
+                double scale = src != null && src.CompositionTarget != null ? src.CompositionTarget.TransformFromDevice.M22 : 1;
+                return (mi.Work.Bottom - mi.Work.Top) * scale;
+            }
+            catch { return 0; }
+        }
 
         void HookMaximiseFit()
         {

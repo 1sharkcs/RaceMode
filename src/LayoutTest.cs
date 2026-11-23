@@ -29,6 +29,20 @@ namespace RaceMode
         static readonly int[] TestW = { 420, 440, 460, 480, 499, 500, 520, 560, 600, 640, 700, 759, 760, 800, 860, 900, 959, 960, 1024, 1100, 1200, 1280, 1366, 1439, 1440, 1600, 1920, 2560, 3440 };
         static readonly int[] TestH = { 150, 200, 255, 256, 262, 299, 300, 399, 400, 459, 460, 520, 600, 690, 699, 700, 760, 900, 1080, 1440 };
 
+        // Every section in the side menu sits above the switch block under it (or the menu's bottom when it's hidden).
+        bool NavFits()
+        {
+            var rail = Get<FrameworkElement>("NavRail"); var status = Get<FrameworkElement>("NavStatus");
+            if (rail == null || _navRows == null || _navRows.Length == 0 || rail.Visibility != Visibility.Visible) return true;
+            var last = _navRows[_navRows.Length - 1];
+            double bottom = last.TranslatePoint(new Point(0, last.ActualHeight), rail).Y;
+            double limit = status != null && status.Visibility == Visibility.Visible ? status.TranslatePoint(new Point(0, 0), rail).Y : rail.ActualHeight;
+            NavOver = bottom - limit;
+            return bottom <= limit + 1;
+        }
+
+        double NavOver;   // how far the last row ran under, for the report
+
         sealed class Finding { public string What; public List<string> At = new List<string>(); }
 
         public void RunLayoutTest(string outPath, bool on)
@@ -62,14 +76,47 @@ namespace RaceMode
                             stops++;
                             string at = w + "x" + h, sec = small ? "small panel" : ((TabItem)tabs.Items[s]).Header as string;
                             Check(sec, at, note);
+                            if (!small && !NavFits()) note("the side menu's last row runs under the Race Mode switch", at);
                         }
                         if (!small) tabs.SelectedIndex = 0;
                     }
                     catch (Exception ex) { errors++; note("EXCEPTION " + ex.GetType().Name + ": " + ex.Message.Split('\n')[0], w + "x" + h); }
                 }
 
+            // A short screen (a 1280x720 laptop at 150% has 432 of room): the full window must still show, and work,
+            // at every height it can have there (found on a test PC: it was stuck as the small panel)
+            int shortSizes = 0;
+            TestRoomH = 432;
+            try
+            {
+                foreach (int w in new[] { 600, 853, 960, 1280 })
+                    foreach (int h in new[] { 392, 400, 416, 432 })
+                    {
+                        shortSizes++;
+                        string at0 = w + "x" + h + " short screen";
+                        try
+                        {
+                            Window.Width = w; Window.Height = h;
+                            Pump();
+                            if (_small) { note("the full window doesn't show on a short screen", at0); continue; }
+                            for (int s = 0; s < tabs.Items.Count; s++)
+                            {
+                                tabs.SelectedIndex = s; Pump(); stops++;
+                                Check(((TabItem)tabs.Items[s]).Header as string, at0, note);
+                                if (!NavFits()) note("the side menu's last row runs under the Race Mode switch", at0 + " by " + Math.Round(NavOver));
+                            }
+                            tabs.SelectedIndex = 0;
+                        }
+                        catch (Exception ex) { errors++; note("EXCEPTION " + ex.GetType().Name + ": " + ex.Message.Split('\n')[0], at0); }
+                    }
+                // ...and the Small panel button still gives the small panel there
+                Window.Width = PanelW; Window.Height = PanelH; Pump(); shortSizes++;
+                if (!_small) note("the small panel doesn't show on a short screen", PanelW + "x" + PanelH + " short screen");
+            }
+            finally { TestRoomH = 0; }
+
             var sb = new StringBuilder();
-            sb.AppendLine("Race Mode layout test (" + (on ? "on" : "off") + "): " + stops + " layouts at " + (TestW.Length * TestH.Length) + " window sizes, " + found.Count + " kinds of problem, " + errors + " exceptions");
+            sb.AppendLine("Race Mode layout test (" + (on ? "on" : "off") + "): " + stops + " layouts at " + (TestW.Length * TestH.Length + shortSizes) + " window sizes, " + found.Count + " kinds of problem, " + errors + " exceptions");
             foreach (var f in found.Values.OrderByDescending(x => x.At.Count))
                 sb.AppendLine(f.At.Count.ToString(CultureInfo.InvariantCulture).PadLeft(4) + "  " + f.What + "   [" + Ranges(f.At) + "]");
             File.WriteAllText(outPath, sb.ToString());

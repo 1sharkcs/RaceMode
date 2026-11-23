@@ -608,8 +608,13 @@ namespace RaceMode
             Window w;
             using (var fs = typeof(Installer).Assembly.GetManifestResourceStream("RaceMode.xaml")) w = (Window)XamlReader.Load(fs);
             // setup is one column of questions: narrower and taller than the app's own default
-            w.MinWidth = 560; w.MinHeight = 620; w.Width = 600;
-            w.Height = Math.Min(820, SystemParameters.WorkArea.Height - 16);
+            // never taller or wider than the screen's free area: on a short screen (a laptop at 150% has about 430
+            // of room) a fixed 620 put the title bar and the Install button off the screen (found on a test PC);
+            // the page scrolls and its buttons stay put, so less height is fine
+            var work = SystemParameters.WorkArea;
+            w.MinWidth = Math.Min(560, work.Width); w.Width = Math.Min(600, work.Width);
+            w.MinHeight = Math.Min(620, work.Height - 16);
+            w.Height = Math.Min(820, work.Height - 16);
             app.MainWindow = w;
             Palette.Apply(w, Palette.IsLight("System"));   // no settings yet: follow Windows' app mode (Theme.cs)
             Shell.ApplyIcon(w);

@@ -1477,6 +1477,9 @@ namespace RaceMode
             // Helpers whose main app is on the list too end with it (GentleClose.cs): Steam's own shutdown ends its web
             // helpers after syncing, and OBS ends its browser sources; asking or killing them separately did harm.
             var names = GentleClose.WithoutHelpers(_close.Where(n => !ProtectedFromClose(n)));
+            // OBS's own parts (browser sources, the recording muxer) are never closed on their own: only OBS itself, which
+            // ends them (found live 2026-11-23: obs-browser-page alone on the list was asked to close)
+            names.RemoveAll(n => ObsGuard.IsObs(n) && !ObsGuard.IsObsMain(n));
             // Other streaming apps: no way to tell if they're live, so never closed (ObsGuard.cs)
             foreach (var n in names.Where(ObsGuard.IsOtherStreamApp).ToList())
             {

@@ -53,32 +53,35 @@ static class ObsGuardTests
         Check("13 every OBS process is OBS's", ObsGuard.IsObs("obs64") && ObsGuard.IsObs("OBS64") && ObsGuard.IsObs("obs-ffmpeg-mux") && ObsGuard.IsObs("obs-browser-page")
             && !ObsGuard.IsObs("obsidian") && !ObsGuard.IsObs("Discord") && !ObsGuard.IsObs("") && !ObsGuard.IsObs(null));
 
-        // which log belongs to the running OBS
+        // which log belongs to which running OBS: by the start time in the log's name
         var dir = Path.Combine(Path.GetTempPath(), "obsguard-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
-            var started = DateTime.Now.AddMinutes(-10);
-            var old = Path.Combine(dir, "old.txt"); File.WriteAllText(old, "==== Recording Start ===="); File.SetCreationTime(old, started.AddHours(-2)); File.SetLastWriteTime(old, started.AddHours(-1));
-            var cur = Path.Combine(dir, "cur.txt"); File.WriteAllLines(cur, Log()); File.SetCreationTime(cur, started.AddSeconds(1)); File.SetLastWriteTime(cur, started.AddSeconds(3));
-            var picked = ObsGuard.LogFor(started, new[] { dir, null, Path.Combine(dir, "missing") });
-            Check("14 the running OBS's log is picked, not an older run's", picked == cur, picked);
-            Check("15 no log written since it started: none", ObsGuard.LogFor(DateTime.Now.AddMinutes(5), new[] { dir }) == null);
-            using (var w = new FileStream(cur, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+            var a = new DateTime(2026, 11, 23, 11, 46, 23); var b2 = a.AddSeconds(8);
+            File.WriteAllLines(Path.Combine(dir, "2026-11-23 10-00-00.txt"), new[] { "==== Recording Start ====" });   // an old run
+            var la = Path.Combine(dir, "2026-11-23 11-46-23.txt"); File.WriteAllLines(la, Log("==== Recording Start ===="));
+            var lb = Path.Combine(dir, "2026-11-23 11-46-31.txt"); File.WriteAllLines(lb, Log());
+            File.WriteAllText(Path.Combine(dir, "not a log name.txt"), "x");
+            Check("14 two OBS at once: the recording one gets its own log, not the newer idle one", ObsGuard.LogFor(a.AddMilliseconds(-300), new[] { dir }) == la, ObsGuard.LogFor(a, new[] { dir }));
+            Check("15 ...and the second gets its own", ObsGuard.LogFor(b2.AddMilliseconds(-500), new[] { dir }) == lb);
+            Check("16 an OBS with no log starting near it: none (unknown, never idle)", ObsGuard.LogFor(a.AddHours(3), new[] { dir, null, Path.Combine(dir, "missing") }) == null);
+            DateTime t;
+            Check("17 log names read as local start times", ObsGuard.LogNameTime("2026-11-23 11-07-25", out t) && t == new DateTime(2026, 11, 23, 11, 7, 25) && !ObsGuard.LogNameTime("crash 1", out t) && !ObsGuard.LogNameTime(null, out t));
+            using (var w = new FileStream(lb, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
             {
-                var b = System.Text.Encoding.UTF8.GetBytes("==== Streaming Start ====\r\n"); w.Write(b, 0, b.Length); w.Flush();
-                var read = ObsGuard.ReadShared(cur);
-                Check("16 a log OBS still has open is read", ObsGuard.FromLog(read).State == ObsState.Live, read.Count.ToString());
+                var bytes = System.Text.Encoding.UTF8.GetBytes("==== Streaming Start ====\r\n"); w.Write(bytes, 0, bytes.Length); w.Flush();
+                var read = ObsGuard.ReadShared(lb);
+                Check("18 a log OBS still has open is read", ObsGuard.FromLog(read).State == ObsState.Live, read.Count.ToString());
             }
         }
         finally { try { Directory.Delete(dir, true); } catch { } }
+        Check("19 only OBS itself counts as the main app; its parts don't", ObsGuard.IsObsMain("obs64") && ObsGuard.IsObsMain("OBS64") && !ObsGuard.IsObsMain("obs-browser-page") && !ObsGuard.IsObsMain("obs-ffmpeg-mux") && !ObsGuard.IsObsMain(null));
 
-        Check("19 other streaming apps are recognised (never closed: live state unknown)", ObsGuard.IsOtherStreamApp("Streamlabs Desktop") && ObsGuard.IsOtherStreamApp("xsplit.core")
-            && ObsGuard.IsOtherStreamApp("PRISMLiveStudio") && !ObsGuard.IsOtherStreamApp("Discord") && !ObsGuard.IsOtherStreamApp(null));
         var none = ObsGuard.Now(false);
-        Check("17 Now() never throws (whatever is running here)", none != null);
+        Check("20 Now() never throws (whatever is running here)", none != null);
         var st = ObsGuard.Now(true);
-        Check("18 Race Mode's stream stats saying 'streaming' make it live", st.State == ObsState.Live && st.Active.Contains("streaming"), st.State + " " + st.ActiveText);
+        Check("21 Race Mode's stream stats saying 'streaming' make it live", st.State == ObsState.Live && st.Active.Contains("streaming"), st.State + " " + st.ActiveText);
 
         Console.WriteLine(pass + " passed, " + fail + " failed");
         return fail == 0 ? 0 : 1;

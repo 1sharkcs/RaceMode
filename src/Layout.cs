@@ -25,6 +25,14 @@ namespace RaceMode
     public partial class Shell
     {
         const double SmallW = 500, SmallH = 460;
+        // Below this height the window is the small panel: 460, or less on a screen that has less room than that
+        // (a laptop at 150% scaling can have about 430), so the full window still fits there, maximised or not.
+        // Found on a test PC: with a fixed 460 the menu and every section were out of reach on such a screen.
+        double SmallHere()
+        {
+            double room = ScreenRoomH();
+            return room <= 0 ? SmallH : Math.Min(SmallH, Math.Max(PanelH + 40, room - 40));
+        }
         const double NavNamesAt = 760;
         const double WideAt = 1360;
         const double NavWide = 208, NavNarrow = 60;
@@ -202,7 +210,7 @@ namespace RaceMode
             bool hadFocus = bodyEl != null && bodyEl.IsKeyboardFocusWithin;
 
             // ---- which size is this ----
-            bool small = w < SmallW || h < SmallH;
+            bool small = w < SmallW || h < SmallHere();
             var shape = small ? ShapeFor(w, h) : SmallShape.None;
             if (small != _small)
             {
@@ -232,6 +240,7 @@ namespace RaceMode
                 rail.Width = navW;
                 // the switch block sits under the sections on every section but the Overview (its big switch is right
                 // there); being under them, the rows never move when it comes and goes
+                _navShort = h < 540;
                 LayoutNav(names, w >= NavNamesAt);
             }
 
@@ -346,14 +355,14 @@ namespace RaceMode
             if (Window.WindowState == WindowState.Maximized)
             {
                 var rb = Window.RestoreBounds;
-                if (rb.Width >= SmallW && rb.Height >= SmallH) { _cfg.FullWidth = Math.Round(rb.Width); _cfg.FullHeight = Math.Round(rb.Height); }
+                if (rb.Width >= SmallW && rb.Height >= SmallHere()) { _cfg.FullWidth = Math.Round(rb.Width); _cfg.FullHeight = Math.Round(rb.Height); }
                 Window.WindowState = WindowState.Normal;
             }
             var work = SystemParameters.WorkArea;
             if (!_small) { Window.Width = PanelW; Window.Height = PanelH; return; }
-            double fw = _cfg.FullWidth >= SmallW ? _cfg.FullWidth : 960, fh = _cfg.FullHeight >= SmallH ? _cfg.FullHeight : 720;
+            double fw = _cfg.FullWidth >= SmallW ? _cfg.FullWidth : 960, fh = _cfg.FullHeight >= SmallHere() ? _cfg.FullHeight : 720;
             fw = Math.Min(fw, work.Width); fh = Math.Min(fh, work.Height - 16);
-            Window.Width = Math.Max(fw, SmallW); Window.Height = Math.Max(fh, SmallH);
+            Window.Width = Math.Max(fw, SmallW); Window.Height = Math.Max(fh, SmallHere());
             // growing back must not push the window off the screens
             double right = SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth, bottom = SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight;
             if (Window.Left + Window.Width > right) Window.Left = Math.Max(SystemParameters.VirtualScreenLeft, right - Window.Width);
