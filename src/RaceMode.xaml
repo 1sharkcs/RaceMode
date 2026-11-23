@@ -825,7 +825,7 @@
         <ColumnDefinition x:Name="DashCol" Width="0"/>
       </Grid.ColumnDefinitions>
 
-      <!-- side menu: the Race Mode switch block first, on every section, so the rows never move; then the sections;
+      <!-- side menu: the Race Mode switch block first on every section but the Overview (Layout.cs UpdateNavSwitch); then the sections;
            then, at the foot, the button that folds the menu to icons (markup order is Tab order) -->
       <Grid x:Name="NavRail" Width="208" Margin="12,6,0,0">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>

@@ -177,11 +177,21 @@ namespace RaceMode
             if (rows.Count == 0)
                 return Skip(r, "Your three racing screens aren't all connected side by side right now, so iRacing's screen settings were left alone (looking for " + string.Join(", ", cfg.Triple.ToArray()) + ", found " + string.Join(", ", r.Monitors.Select(m => m.MonitorId).ToArray()) + ")");
             if (rows.Count > 1)
-                return Skip(r, "More than one row of three matching screens is connected, so Race Mode can't tell which to race on and left iRacing's screen settings alone");
+            {
+                // a fourth screen of the same model beside the three makes a second row: keep the one that is the
+                // size that was picked (the whole window, or one screen's size in configs from before 1.1)
+                var same = rows.Where(row => { int a, b, w, h; TripleWindow(row, out a, out b, out w, out h);
+                                               return (w == cfg.Width && h == cfg.Height) || row.All(m => m.Width == cfg.Width && m.Height == cfg.Height); }).ToList();
+                if (same.Count != 1)
+                    return Skip(r, "More than one row of three matching screens is connected, so Race Mode can't tell which to race on and left iRacing's screen settings alone");
+                rows = same;
+            }
             var row3 = rows[0];
             var inv = CultureInfo.InvariantCulture;
             int x, y, width, height;
             TripleWindow(row3, out x, out y, out width, out height);
+            if (width <= 0 || height <= 0)
+                return Skip(r, "Your three racing screens don't line up side by side in Windows' display settings right now, so iRacing's screen settings were left alone");
             var want = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
             want["Display"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -201,7 +211,7 @@ namespace RaceMode
                 };
             var slow = row3.Where(m => m.Hz > 0 && m.Hz < cfg.RefreshRate).OrderBy(m => m.Hz).FirstOrDefault();
             if (slow != null)
-                r.Warning = "Windows has one of your racing screens (screen " + (slow.Index + 1) + ") at " + slow.Hz + " Hz, not " + cfg.RefreshRate + " Hz. Change it in Settings > Display > Advanced display";
+                r.Warning = "Windows has one of your racing screens (" + slow.Width + "×" + slow.Height + (slow.Primary ? ", your main screen" : "") + ") at " + slow.Hz + " Hz, not " + cfg.RefreshRate + " Hz. Change it in Settings > Display > Advanced display";
             // cfg.Width/Height: the whole window's size (older configs kept one screen's size, so either counts)
             else if (!(width == cfg.Width && height == cfg.Height) && !row3.All(m => m.Width == cfg.Width && m.Height == cfg.Height))
                 r.Warning = "Windows has your racing screens at a different size than when you picked them. Change it in Settings > Display";
@@ -251,7 +261,12 @@ namespace RaceMode
             {
                 var b = mons.FirstOrDefault(m => next(a, m)); if (b == null) continue;
                 var c = mons.FirstOrDefault(m => m != a && next(b, m)); if (c == null) continue;
-                rows.Add(new List<MonitorInfo> { a, b, c });
+                // all three must share a band at least half the smallest screen's height: a staircase of screens
+                // that only overlap in pairs would give a window a few pixels tall, or none at all
+                var row = new List<MonitorInfo> { a, b, c };
+                int shared = row.Min(m => m.Y + m.Height) - row.Max(m => m.Y);
+                if (shared * 2 < row.Min(m => m.Height)) continue;
+                rows.Add(row);
             }
             return rows;
         }

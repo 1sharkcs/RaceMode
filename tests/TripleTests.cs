@@ -119,6 +119,33 @@ class TripleTests
             Check("triple, iRacing on 1 screen: window still fixed", r1.Changed && Val(ini1, "Display", "windowedWidth") == "5760", r1.Message);
             Check("triple, iRacing on 1 screen: says how to fix it in iRacing", r1.Message.Contains("set up for one screen") && Val(ini1, "MonitorSetup", "NumMonitors") == "1", r1.Message);
 
+            // ---- configs saved by 1.1 keep the whole window's size; offset and staggered rows
+            var iniNew = Ini("triple-newcfg", 3);
+            var cfgNew = Triple(iniNew); cfgNew.Width = 5760; cfgNew.Height = 1080;
+            var rNew = DisplayGuard.Run(cfgNew, true, Row(), false);
+            Check("1.1 config (whole window size): fixed, no size warning", rNew.Changed && rNew.Warning == null, rNew.Message + " | " + rNew.Warning);
+            var bigger = Row(); foreach (var m in bigger) { m.Width = 2560; m.Height = 1440; } bigger[1].X = 2560; bigger[2].X = -2560;
+            var rBig = DisplayGuard.Run(cfgNew, false, bigger, false);
+            Check("1.1 config, screens changed resolution since: warns", rBig.Warning != null && rBig.Warning.Contains("different size"), rBig.Warning);
+            var iniOff = Ini("triple-offset", 3);
+            var offset = Row(); offset[1].Y = 50;
+            var rOff = DisplayGuard.Run(Triple(iniOff), true, offset, false);
+            Check("offset row: window uses the band all three share", Val(iniOff, "Display", "windowedYPos") == "50" && Val(iniOff, "Display", "windowedHeight") == "1030", Val(iniOff, "Display", "windowedYPos") + " / " + Val(iniOff, "Display", "windowedHeight"));
+            // a staircase: left/middle and middle/right overlap, but nothing all three share
+            var stair = new List<MonitorInfo> { M(0, "TSTA", 0, 0, 1920, 1080, 144, true), M(1, "TSTB", 1920, -400, 1440, 2560, 144, false), M(2, "TSTC", 3360, 1200, 1920, 1080, 144, false) };
+            Check("a staircase of screens is not a row (no shared band)", DisplayGuard.TripleRows(stair).Count == 0, null);
+            var iniStair = Ini("triple-stair", 3);
+            var textStair = File.ReadAllText(iniStair);
+            var stairCfg = new DisplayGuardConfig { Enabled = true, MonitorId = "TSTB", Width = 5280, Height = 1080, RefreshRate = 144, KeepFpsCap = false, IniPath = iniStair, Triple = new List<string> { "TSTA", "TSTB", "TSTC" } };
+            var rStair = DisplayGuard.Run(stairCfg, true, stair, false);
+            Check("staircase: skipped, the file is left alone", rStair.Skipped && File.ReadAllText(iniStair) == textStair, rStair.Message);
+            // three identical screens plus a fourth of the same model turned to portrait on the right
+            var plus = Row(); plus.Add(M(3, "TST0001", 3840, 0, 1080, 1920, 144, false));
+            Check("a portrait fourth screen makes a second possible row", DisplayGuard.TripleRows(plus).Count == 2, DisplayGuard.TripleRows(plus).Count + " rows");
+            var iniPlus = Ini("triple-plus", 3);
+            var rPlus = DisplayGuard.Run(Triple(iniPlus), true, plus, false);
+            Check("fourth screen: keeps the row that is the picked size", rPlus.Changed && Val(iniPlus, "Display", "windowedXPos") == "-1920" && Val(iniPlus, "Display", "windowedWidth") == "5760", rPlus.Message);
+
             // ---- a screen missing / switched off
             var iniMiss = Ini("triple-missing", 3);
             var textMiss = File.ReadAllText(iniMiss);

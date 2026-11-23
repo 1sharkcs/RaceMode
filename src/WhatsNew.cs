@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Threading;
 
 namespace RaceMode
@@ -45,24 +46,33 @@ namespace RaceMode
             var args = Environment.GetCommandLineArgs();
             bool forced = args.Length >= 2 && args[1] == "--whatsnew";
             bool firstRun = _freshConfig || _cfg.SetupDone == false;
-            if (!forced && !ShouldShowWhatsNew(Updater.Current, _cfg.WhatsNewSeen, firstRun)) return;
+            // an unreadable config.json can't remember it was shown (and its own warning must stay visible)
+            if (!forced && (_cfgBroken || !ShouldShowWhatsNew(Updater.Current, _cfg.WhatsNewSeen, firstRun))) return;
             // after the window is up (a start to the tray waits until the window is first opened)
             Window.Loaded += (s, e) => Window.Dispatcher.BeginInvoke(new Action(() => StartWhatsNew()), DispatcherPriority.Background);
         }
 
+        IInputElement _focusBeforeWhatsNew;
+
         public void StartWhatsNew()
         {
             if (SetupFlow.AnyShowing) return;   // setup is up: never stack one on the other
-            _whatsNewSeries = VersionSeries(Updater.Current);
-            if (!WhatsNewSeriesWithPages.Contains(_whatsNewSeries)) _whatsNewSeries = WhatsNewSeriesWithPages.Last();   // local builds: the newest pages
-            var pages = WhatsNewPages(_whatsNewSeries);
-            if (pages.Count == 0) return;
-            string series = _whatsNewSeries;
-            _whatsNew = new SetupFlow(Window, pages, WhatsNewFinished)
+            // the pages need the full window (the small panel has no room, and hides its own way back)
+            if (_small) ToggleSmall();
+            _focusBeforeWhatsNew = Keyboard.FocusedElement;
+            if (_whatsNew == null)
             {
-                StepText = (i, n) => "What's new in " + series + " · " + (i + 1) + " of " + n,
-                SkipEnds = true,
-            };
+                _whatsNewSeries = VersionSeries(Updater.Current);
+                if (!WhatsNewSeriesWithPages.Contains(_whatsNewSeries)) _whatsNewSeries = WhatsNewSeriesWithPages.Last();   // local builds: the newest pages
+                var pages = WhatsNewPages(_whatsNewSeries);
+                if (pages.Count == 0) return;
+                string series = _whatsNewSeries;
+                _whatsNew = new SetupFlow(Window, pages, WhatsNewFinished)
+                {
+                    StepText = (i, n) => "What's new in " + series + " · " + (i + 1) + " of " + n,
+                    SkipEnds = true,
+                };
+            }
             _whatsNew.Start(0);
         }
 
@@ -74,8 +84,15 @@ namespace RaceMode
                 _cfg.WhatsNewSeen = series; SaveConfig();
             }
             ApplyLayout();   // the window may have been resized while the overlay hid everything
-            var sw = Get<ToggleButton>("Switch");
-            if (sw != null) Window.Dispatcher.BeginInvoke(new Action(() => sw.Focus()), DispatcherPriority.Input);
+            // back where the keyboard was (Show Me in Settings); on start-up, the switch
+            var back = _focusBeforeWhatsNew as UIElement;
+            Window.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (back != null && back.IsVisible && back.Focus()) return;
+                var sw = Get<ToggleButton>("Switch");
+                if (sw != null && sw.IsVisible) sw.Focus();
+                else { var nav = Get<ListBox>("Nav"); if (nav != null) nav.Focus(); }
+            }), DispatcherPriority.Input);
         }
 
         List<SetupPage> WhatsNewPages(string series)
