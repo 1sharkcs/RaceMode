@@ -29,16 +29,16 @@ namespace RaceMode
             return p == null ? null : p[0] + "." + p[1];
         }
 
-        // Whether to open What's new on this start. seen: the last series it was shown for (or set up on).
-        public static bool ShouldShowWhatsNew(string current, string seen, bool firstRun)
+        // Whether to open What's new on this start: the first start after the version went up (an update, test
+        // versions too). lastRun: the version that ran before this start (empty in configs from before 1.1, which
+        // only an update can bring here). Never after first-run setup, on a local build, or after going back.
+        public static bool ShouldShowWhatsNew(string current, string lastRun, bool firstRun)
         {
             if (firstRun) return false;
             var p = Updater.Parse(current);
             if (p == null) return false;                                         // a local build
-            var series = VersionSeries(current);
-            if (!WhatsNewSeriesWithPages.Contains(series)) return false;
-            // already shown for this series or a later one (a rollback to an older version shows nothing)
-            return string.IsNullOrEmpty(seen) || Updater.Compare(seen + ".0", series + ".0") < 0;
+            if (!WhatsNewSeriesWithPages.Contains(VersionSeries(current))) return false;
+            return string.IsNullOrEmpty(lastRun) || (Updater.Parse(lastRun) != null && Updater.Compare(lastRun, current) < 0);
         }
 
         void MaybeStartWhatsNew()
@@ -46,8 +46,11 @@ namespace RaceMode
             var args = Environment.GetCommandLineArgs();
             bool forced = args.Length >= 2 && args[1] == "--whatsnew";
             bool firstRun = _freshConfig || _cfg.SetupDone == false;
+            string lastRun = _cfg.LastRunVersion;
+            // this version has now run (saved even when nothing shows, so only the next update counts)
+            if (!_cfgBroken && Updater.Parse(Updater.Current) != null && _cfg.LastRunVersion != Updater.Current) { _cfg.LastRunVersion = Updater.Current; SaveConfig(); }
             // an unreadable config.json can't remember it was shown (and its own warning must stay visible)
-            if (!forced && (_cfgBroken || !ShouldShowWhatsNew(Updater.Current, _cfg.WhatsNewSeen, firstRun))) return;
+            if (!forced && (_cfgBroken || !ShouldShowWhatsNew(Updater.Current, lastRun, firstRun))) return;
             // after the window is up (a start to the tray waits until the window is first opened)
             Window.Loaded += (s, e) => Window.Dispatcher.BeginInvoke(new Action(() => StartWhatsNew()), DispatcherPriority.Background);
         }
@@ -57,7 +60,7 @@ namespace RaceMode
         public void StartWhatsNew()
         {
             if (SetupFlow.AnyShowing) return;   // setup is up: never stack one on the other
-            // the pages need the full window (the small panel has no room, and hides its own way back)
+            // the card needs room (the small panel has none, and hides its own way back)
             if (_small) ToggleSmall();
             _focusBeforeWhatsNew = Keyboard.FocusedElement;
             if (_whatsNew == null)
@@ -71,6 +74,7 @@ namespace RaceMode
                 {
                     StepText = (i, n) => "What's new in " + series + " · " + (i + 1) + " of " + n,
                     SkipEnds = true,
+                    Modal = true,   // a card over the dimmed app, not a page of its own
                 };
             }
             _whatsNew.Start(0);

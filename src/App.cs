@@ -77,6 +77,8 @@ namespace RaceMode
         public bool TrayOnClose = true, TrayHintShown = false;
         // What's new (WhatsNew.cs): the last version series ("1.1") it was shown for, or that setup was done on.
         public string WhatsNewSeen;
+        // The version that ran last time (WhatsNew.cs): What's new opens on the first start after it goes up.
+        public string LastRunVersion;
         public bool? SetupDone;   // false until first-run setup is finished; null in configs from before this existed   // closing the window keeps Race Mode in the tray
         // OBS dock (ObsDock.cs): local port and the private key in its link (made on first use).
         public int DockPort = 47815;
@@ -644,13 +646,35 @@ namespace RaceMode
         }
 
         // ---------------- UI wiring ----------------
+        Point? _dragFromMax;   // where a drag started on the title bar of the maximised window
+
         void BindUi()
         {
             Get<Grid>("TitleBar").MouseLeftButtonDown += (s, e) =>
             {
                 if (e.ClickCount == 2) { ToggleMaximize(); return; }                 // double-click the title bar, like any Windows app
-                if (e.ButtonState == MouseButtonState.Pressed) Window.DragMove();
+                if (e.ButtonState != MouseButtonState.Pressed) return;
+                // maximised: DragMove does nothing, so start the drag ourselves once the pointer moves, like Windows does
+                if (Window.WindowState == WindowState.Maximized) { _dragFromMax = e.GetPosition(Window); return; }
+                try { Window.DragMove(); } catch { }
             };
+            Get<Grid>("TitleBar").MouseMove += (s, e) =>
+            {
+                if (_dragFromMax == null || e.LeftButton != MouseButtonState.Pressed || Window.WindowState != WindowState.Maximized) { _dragFromMax = null; return; }
+                var at = e.GetPosition(Window); var from = _dragFromMax.Value;
+                if (Math.Abs(at.X - from.X) < 4 && Math.Abs(at.Y - from.Y) < 4) return;
+                _dragFromMax = null;
+                // back to the normal size with the pointer at the same place across the title bar, then drag
+                double share = Window.ActualWidth > 0 ? at.X / Window.ActualWidth : 0.5;
+                var screen = Window.PointToScreen(at);
+                var src = PresentationSource.FromVisual(Window);
+                if (src != null && src.CompositionTarget != null) screen = src.CompositionTarget.TransformFromDevice.Transform(screen);
+                Window.WindowState = WindowState.Normal;
+                double w = Window.Width > 0 && !double.IsNaN(Window.Width) ? Window.Width : Window.RestoreBounds.Width;
+                Window.Left = screen.X - w * share; Window.Top = screen.Y - at.Y;
+                try { Window.DragMove(); } catch { }
+            };
+            Get<Grid>("TitleBar").MouseLeftButtonUp += (s, e) => _dragFromMax = null;
             Get<Button>("MinBtn").Click += (s, e) => Window.WindowState = WindowState.Minimized;
             Get<Button>("MaxBtn").Click += (s, e) => ToggleMaximize();
             Window.StateChanged += (s, e) => OnWindowState();
