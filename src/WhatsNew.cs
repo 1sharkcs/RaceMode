@@ -10,10 +10,10 @@ using System.Windows.Threading;
 
 namespace RaceMode
 {
-    // "What's new": a short walk through a stable release's new features, in the same overlay as first-run setup,
-    // with each feature's setting right on its page. Shown once after updating to a stable version whose series
-    // ("1.1") has pages here; never after first-run setup (that already covers everything) and never for test
-    // versions (their testers see it when the stable one arrives). Settings > Updates opens it again.
+    // "What's new": a short walk through a release's new features, in the same overlay as first-run setup, with
+    // each feature's setting right on its page. Shown once, on the first start after updating to any version
+    // (test versions too) whose series ("1.1") has pages here; never after first-run setup (that already covers
+    // everything) and never for local builds. Settings > Updates opens it again.
     public partial class Shell
     {
         SetupFlow _whatsNew;
@@ -34,7 +34,7 @@ namespace RaceMode
         {
             if (firstRun) return false;
             var p = Updater.Parse(current);
-            if (p == null || p[3] != long.MaxValue) return false;               // local build or a test version
+            if (p == null) return false;                                         // a local build
             var series = VersionSeries(current);
             if (!WhatsNewSeriesWithPages.Contains(series)) return false;
             // already shown for this series or a later one (a rollback to an older version shows nothing)
