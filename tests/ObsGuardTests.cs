@@ -122,6 +122,17 @@ static class ObsGuardTests
         try { noConn = !ObsGuard.OwnsRemoteTcp(-1) && !ObsGuard.OwnsRemoteTcp(0); ObsGuard.OwnsRemoteTcp(System.Diagnostics.Process.GetCurrentProcess().Id); } catch { threw = true; }
         Check("32 reading Windows' connection table works without admin and never throws; no process id, no connection", !threw && noConn);
 
+        // An idle OBS keeps connections to obsproject.com open (update and what's-new checks): those aren't outputs,
+        // or an idle OBS on the Close list would never be closed (found live 2026-11-23). Anything else still counts.
+        var server = new byte[] { 37, 59, 185, 111 };
+        Check("33 a connection to OBS's own service isn't an output", !ObsGuard.CountsAsOutput(server, ip => true));
+        Check("34 a connection anywhere else is (a stream ingest, the LAN)", ObsGuard.CountsAsOutput(server, ip => false)
+            && ObsGuard.CountsAsOutput(new byte[] { 192, 168, 1, 20 }, ip => false));
+        Check("35 a look-up that fails counts as an output (unknown is live)", ObsGuard.CountsAsOutput(server, ip => { throw new System.Net.Sockets.SocketException(); })
+            && ObsGuard.CountsAsOutput(server, null));
+        Check("36 loopback is never an output, whatever the look-up says", !ObsGuard.CountsAsOutput(new byte[] { 127, 0, 0, 1 }, ip => false)
+            && !ObsGuard.CountsAsOutput(new byte[] { 127, 0, 0, 1 }, ip => { throw new Exception(); }));
+
         Console.WriteLine(pass + " passed, " + fail + " failed");
         return fail == 0 ? 0 : 1;
     }

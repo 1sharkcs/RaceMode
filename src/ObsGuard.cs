@@ -7,7 +7,8 @@
 // OBS yet, OBS still starting up or started under a minute ago, a stream still connecting, the log can't be read),
 // the answer is "unknown", and unknown is treated as live: OBS is left alone and Race Mode says so.
 // Plugin outputs (Aitum Vertical, Multiple RTMP Outputs, NDI) don't write those log lines; an OBS whose log reads
-// idle but which holds a network connection to another machine is "unknown" too. Known limit: a plugin that only
+// idle but which holds a network connection to another machine is "unknown" too (OBS's own update and what's-new
+// connections to obsproject.com don't count). Known limit: a plugin that only
 // writes a file (Source Record) holds no connection and can't be seen; OBS's own exit prompt doesn't cover it either.
 using System;
 using System.Collections.Generic;
@@ -248,7 +249,7 @@ namespace RaceMode
                             if (System.Runtime.InteropServices.Marshal.ReadInt32(row, 20) != pid) continue;
                             if (System.Runtime.InteropServices.Marshal.ReadInt32(row, 0) != TcpEstablished) continue;
                             var b = BitConverter.GetBytes(System.Runtime.InteropServices.Marshal.ReadInt32(row, 12));
-                            if (!IsLoopback(b)) return true;
+                            if (CountsAsOutput(b, IsObsService)) return true;
                         }
                         else
                         {
@@ -257,7 +258,7 @@ namespace RaceMode
                             if (System.Runtime.InteropServices.Marshal.ReadInt32(row, 48) != TcpEstablished) continue;
                             var b = new byte[16];
                             System.Runtime.InteropServices.Marshal.Copy(row + 24, b, 0, 16);
-                            if (!IsLoopback(b)) return true;
+                            if (CountsAsOutput(b, IsObsService)) return true;
                         }
                     }
                 }
@@ -265,6 +266,64 @@ namespace RaceMode
                 finally { if (buf != IntPtr.Zero) System.Runtime.InteropServices.Marshal.FreeHGlobal(buf); }
             }
             return false;
+        }
+
+        // Whether a connection out of OBS could be an output (a stream). Loopback can't. Nor can OBS's own service:
+        // an idle OBS keeps connections open to obsproject.com for its update and what's-new checks (found live
+        // 2026-11-23), which made every idle OBS "unknown" so it was never closed. isObsService answers for an address;
+        // if it throws, the connection counts (unknown is treated as live).
+        public static bool CountsAsOutput(byte[] addr, Func<System.Net.IPAddress, bool> isObsService)
+        {
+            if (IsLoopback(addr)) return false;
+            try { return !(isObsService != null && isObsService(new System.Net.IPAddress(addr))); }
+            catch { return true; }
+        }
+
+        // Whether an address belongs to OBS's own service: one that obsproject.com's names resolve to, or whose
+        // reverse name is obsproject.com or ends in .obsproject.com. Each look-up waits at most 800 ms; a failed or
+        // slow one says "no", so the connection still counts. Answers are kept for the session (a "no" isn't, so a
+        // look-up that failed is tried again next time).
+        public static Func<System.Net.IPAddress, bool> IsObsService = LookUpObsService;
+        static readonly string[] ObsServiceNames = { "obsproject.com", "cdn-fastly.obsproject.com" };
+        static readonly object _svcLock = new object();
+        static HashSet<string> _svcAddrs;                      // what the names resolve to, once per session
+        static readonly HashSet<string> _svcYes = new HashSet<string>();
+
+        static bool LookUpObsService(System.Net.IPAddress ip)
+        {
+            string key = ip.ToString();
+            lock (_svcLock) { if (_svcYes.Contains(key)) return true; }
+            if (_svcAddrs == null)
+            {
+                var found = new HashSet<string>();
+                foreach (var n in ObsServiceNames)
+                {
+                    try
+                    {
+                        var ar = System.Net.Dns.BeginGetHostAddresses(n, null, null);
+                        if (ar.AsyncWaitHandle.WaitOne(800)) foreach (var a in System.Net.Dns.EndGetHostAddresses(ar)) found.Add(a.ToString());
+                    }
+                    catch { }
+                }
+                if (found.Count > 0) lock (_svcLock) _svcAddrs = found;
+            }
+            bool yes = false;
+            lock (_svcLock) yes = _svcAddrs != null && _svcAddrs.Contains(key);
+            if (!yes)
+            {
+                try
+                {
+                    var ar = System.Net.Dns.BeginGetHostEntry(ip, null, null);
+                    if (ar.AsyncWaitHandle.WaitOne(800))
+                    {
+                        string host = (System.Net.Dns.EndGetHostEntry(ar).HostName ?? "").TrimEnd('.').ToLowerInvariant();
+                        yes = host == "obsproject.com" || host.EndsWith(".obsproject.com", StringComparison.Ordinal);
+                    }
+                }
+                catch { }
+            }
+            if (yes) lock (_svcLock) _svcYes.Add(key);
+            return yes;
         }
 
         // 127.x.x.x, 0.0.0.0, ::1, :: and IPv4-mapped 127.x (::ffff:127.x.x.x), as the bytes appear on the wire.

@@ -120,7 +120,9 @@ namespace RaceMode
                     bool home = tabs.SelectedIndex == 0;
                     check(nav == 0, "tab order, " + sec + ": the section list is the first stop");
                     check(home ? sw < 0 : sw == nav + 1, "tab order, " + sec + (home ? ": the menu's switch is hidden (the page has the big one)" : ": the menu's switch comes straight after the section list"));
-                    check(fold >= 0 && fold == (home ? nav : sw) + 1, "tab order, " + sec + ": the collapse button comes last in the menu");
+                    // on a short screen the menu hides its collapse button to make room (SideMenu): then it must not be a stop
+                    var foldEl = Get<FrameworkElement>("NavCollapse"); bool foldShown = foldEl != null && foldEl.IsVisible;
+                    check(foldShown ? fold >= 0 && fold == (home ? nav : sw) + 1 : fold < 0, "tab order, " + sec + (foldShown ? ": the collapse button comes last in the menu" : ": the hidden collapse button is skipped"));
                     check(nav >= 0 && (firstBody < 0 || Math.Max(nav, fold) < firstBody), "tab order, " + sec + ": the menu comes before the section");
                     int firstBar = names.FindIndex(x => x.EndsWith("(title bar)", StringComparison.Ordinal));
                     check(firstBar >= 0 && names.Skip(firstBar).All(x => x.EndsWith("(title bar)", StringComparison.Ordinal)), "tab order, " + sec + ": the title bar's buttons come last");
@@ -175,13 +177,17 @@ namespace RaceMode
 
                 // ---- the Small panel button, and a section asked for from the small panel ----
                 tabs.SelectedIndex = 5; Window.Width = 1100; Window.Height = 760; Pump();
+                // a screen smaller than that caps the window: what comes back is the size it really had
+                // (and coming back it keeps 16 clear of the screen's bottom, as ToggleSmall does)
+                var room = ScreenWork();
+                double hadW = Math.Min(Window.ActualWidth, room.Width), hadH = Math.Min(Window.ActualHeight, room.Height - 16);
                 ToggleSmall(); Pump();
                 check(_small && Math.Abs(Window.ActualWidth - PanelW) < 2 && Math.Abs(Window.ActualHeight - PanelH) < 2, "small: the button shrinks the window to " + PanelW + "x" + PanelH + " (got " + Math.Round(Window.ActualWidth) + "x" + Math.Round(Window.ActualHeight) + ")");
                 check(tabs.SelectedIndex == 0, "small: the small panel shows the Overview");
                 var nr = Get<FrameworkElement>("NavRail");
                 check(nr != null && !nr.IsVisible, "small: the menu is hidden");
                 ToggleSmall(); Pump();
-                check(!_small && Math.Abs(Window.ActualWidth - 1100) < 2 && Math.Abs(Window.ActualHeight - 760) < 2, "small: the button brings back 1100x760 (got " + Math.Round(Window.ActualWidth) + "x" + Math.Round(Window.ActualHeight) + ")");
+                check(!_small && Math.Abs(Window.ActualWidth - hadW) < 2 && Math.Abs(Window.ActualHeight - hadH) < 2, "small: the button brings back " + Math.Round(hadW) + "x" + Math.Round(hadH) + " (got " + Math.Round(Window.ActualWidth) + "x" + Math.Round(Window.ActualHeight) + ")");
                 check(tabs.SelectedIndex == 5, "small: and the section that was open (Settings)");
                 ToggleSmall(); Pump();
                 GoToSection(3); Pump();
