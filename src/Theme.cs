@@ -66,6 +66,7 @@ namespace RaceMode
             { "CheckHover",     "#A1A1A6", "#55555B" },
             { "SegOn",          "#46464C", "#4A4A50" },
             { "SegOnInk",       "#F5F5F7", "#FFFFFF" },
+            { "Scrim",          "#B8000000", "#73000000" },   // behind the What's new card, over the dimmed app
             { "ScreenTile",     "#242428", "#DCDCE1" },   // the screen picture (ScreenPick.cs): a screen
             { "ScreenTileEdge", "#323237", "#C8C8CE" },
             { "ScreenTileHover","#2C2C31", "#D0D0D6" },

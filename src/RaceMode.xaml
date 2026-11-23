@@ -60,6 +60,7 @@
     <SolidColorBrush x:Key="CheckHover" Color="#A1A1A6"/>
     <SolidColorBrush x:Key="SegOn" Color="#46464C"/>
     <SolidColorBrush x:Key="SegOnInk" Color="#F5F5F7"/>
+    <SolidColorBrush x:Key="Scrim" Color="#B8000000"/>        <!-- behind the What's new card -->
     <SolidColorBrush x:Key="ScreenTile" Color="#242428"/>     <!-- the screen picture: a screen -->
     <SolidColorBrush x:Key="ScreenTileEdge" Color="#323237"/>
     <SolidColorBrush x:Key="ScreenTileHover" Color="#2C2C31"/>
@@ -1641,8 +1642,10 @@
     </Grid>
 
     <!-- setup (install and first-run questions, Setup.cs): covers everything below the title bar; pages are built in code -->
+    <!-- first-run setup fills the window (Bg); What's new is a card over the dimmed app (Setup.cs SetupFlow.Modal) -->
     <Border x:Name="SetupOverlay" Grid.Row="1" Grid.RowSpan="2" Background="{DynamicResource Bg}" Visibility="Collapsed">
-      <Grid Margin="20,6,20,20" MaxWidth="560">
+      <Border x:Name="SetupCard">
+      <Grid x:Name="SetupGrid" Margin="20,6,20,20" MaxWidth="560">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <StackPanel Margin="16,0,16,0">
           <TextBlock x:Name="SetupStep" Style="{StaticResource Caption}" Text=""/>
@@ -1659,6 +1662,7 @@
           <Button x:Name="SetupNext" Grid.Column="3" Style="{StaticResource PrimaryBtn}" Content="Next" MinWidth="96"/>
         </Grid>
       </Grid>
+      </Border>
     </Border>
   </Grid>
 </Window>

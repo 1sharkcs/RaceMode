@@ -74,6 +74,24 @@ namespace RaceMode
                     if (round >= 1) check(worst < 150, "speed: every section opens in under 150 ms" + (round == 2 ? " with UI Automation watching" : " once seen") + " (slowest " + worst + " ms)");
                 }
 
+                // ---- the title bar's empty space drags the window: nothing else may sit on top of it ----
+                foreach (var size in new[] { new Size(960, 720), new Size(520, 900), new Size(1400, 900) })
+                {
+                    Window.Width = size.Width; Window.Height = size.Height;
+                    for (int sec = 0; sec < tabs.Items.Count; sec += 3)
+                    {
+                        tabs.SelectedIndex = sec; Pump();
+                        var bar = Get<Grid>("TitleBar");
+                        foreach (var x in new[] { 170.0, size.Width * 0.45 })
+                        {
+                            var hit = VisualTreeHelper.HitTest(Window, new Point(x, 14));
+                            var top = hit == null ? null : hit.VisualHit;
+                            bool onBar = top != null && (top == bar || bar.IsAncestorOf(top));
+                            check(onBar, "title bar: the empty space at " + Math.Round(x) + " px is the title bar (" + size.Width + "x" + size.Height + ", " + ((TabItem)tabs.Items[sec]).Header + "; hit " + (top == null ? "nothing" : (top is FrameworkElement && ((FrameworkElement)top).Name.Length > 0 ? ((FrameworkElement)top).Name : top.GetType().Name) + (top is FrameworkElement ? " in " + Describe((FrameworkElement)top) : "")) + ")");
+                        }
+                    }
+                }
+
                 // ---- tab order ----
                 Window.Width = 960; Window.Height = 720; Pump();
                 var orders = new StringBuilder();

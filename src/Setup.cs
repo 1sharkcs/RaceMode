@@ -268,6 +268,9 @@ namespace RaceMode
         public Func<int, int, string> StepText;
         // Skip ends the whole flow instead of moving to the next page (What's new).
         public bool SkipEnds;
+        // A card over the dimmed app (What's new) instead of the whole window (setup). The app stays visible behind,
+        // but can't be clicked or reached by the keyboard while the card shows.
+        public bool Modal;
 
         public SetupFlow(Window w, List<SetupPage> pages, Action finished)
         {
@@ -309,6 +312,36 @@ namespace RaceMode
 
         // While setup shows, everything behind it is hidden too, so the keyboard and screen readers only reach setup.
         readonly Dictionary<UIElement, Visibility> _behind = new Dictionary<UIElement, Visibility>();
+        readonly Dictionary<UIElement, bool> _behindEnabled = new Dictionary<UIElement, bool>();
+
+        // Setup: the page fills the window. What's new: a centred card on a scrim, sized to the window.
+        void StyleOverlay(Border overlay)
+        {
+            var card = (Border)_w.FindName("SetupCard");
+            var grid = (FrameworkElement)_w.FindName("SetupGrid");
+            if (card == null || grid == null) return;
+            if (Modal)
+            {
+                overlay.SetResourceReference(Border.BackgroundProperty, "Scrim");
+                card.SetResourceReference(Border.BackgroundProperty, "Bg");
+                card.SetResourceReference(Border.BorderBrushProperty, "Hairline");
+                card.BorderThickness = new Thickness(1); card.CornerRadius = new CornerRadius(14);
+                card.HorizontalAlignment = HorizontalAlignment.Center; card.VerticalAlignment = VerticalAlignment.Center;
+                card.Margin = new Thickness(24, 12, 24, 24); card.MaxWidth = 640;
+                card.MaxHeight = Math.Max(320, _w.ActualHeight - 90);
+                card.Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 32, ShadowDepth = 6, Opacity = 0.45, Color = System.Windows.Media.Colors.Black };
+                grid.Margin = new Thickness(24, 22, 24, 22);
+            }
+            else
+            {
+                overlay.SetResourceReference(Border.BackgroundProperty, "Bg");
+                card.Background = null; card.BorderThickness = new Thickness(0); card.CornerRadius = new CornerRadius(0);
+                card.HorizontalAlignment = HorizontalAlignment.Stretch; card.VerticalAlignment = VerticalAlignment.Stretch;
+                card.Margin = new Thickness(0); card.MaxWidth = double.PositiveInfinity; card.MaxHeight = double.PositiveInfinity;
+                card.Effect = null; card.RenderTransform = null;
+                grid.Margin = new Thickness(20, 6, 20, 20);
+            }
+        }
         void ShowOverlay(bool on)
         {
             var overlay = (UIElement)_w.FindName("SetupOverlay");
@@ -316,16 +349,32 @@ namespace RaceMode
             if (on)
             {
                 if (overlay.Visibility == Visibility.Visible) return;   // already showing: keep the first snapshot
-                _behind.Clear();
+                _behind.Clear(); _behindEnabled.Clear();
                 foreach (UIElement el in root.Children)
-                    if (el != overlay && !(el is FrameworkElement && ((FrameworkElement)el).Name == "TitleBar")) { _behind[el] = el.Visibility; el.Visibility = Visibility.Collapsed; }
+                    if (el != overlay && !(el is FrameworkElement && ((FrameworkElement)el).Name == "TitleBar"))
+                    {
+                        if (Modal) { _behindEnabled[el] = el.IsEnabled; el.IsEnabled = false; }
+                        else { _behind[el] = el.Visibility; el.Visibility = Visibility.Collapsed; }
+                    }
+                StyleOverlay((Border)overlay);
                 overlay.Visibility = Visibility.Visible;
+                if (Modal && SystemParameters.ClientAreaAnimation)
+                {
+                    // a short fade and lift (no motion when Windows' animations are off)
+                    var ease = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut };
+                    overlay.BeginAnimation(UIElement.OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)) { EasingFunction = ease });
+                    var card = (FrameworkElement)_w.FindName("SetupCard");
+                    var lift = new System.Windows.Media.TranslateTransform(0, 14); card.RenderTransform = lift;
+                    lift.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, new System.Windows.Media.Animation.DoubleAnimation(14, 0, TimeSpan.FromMilliseconds(220)) { EasingFunction = ease });
+                }
             }
             else
             {
                 overlay.Visibility = Visibility.Collapsed;
+                overlay.BeginAnimation(UIElement.OpacityProperty, null); overlay.Opacity = 1;
                 foreach (var kv in _behind) kv.Key.Visibility = kv.Value;
-                _behind.Clear();
+                foreach (var kv in _behindEnabled) kv.Key.IsEnabled = kv.Value;
+                _behind.Clear(); _behindEnabled.Clear();
             }
         }
 
