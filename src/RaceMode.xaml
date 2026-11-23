@@ -1614,7 +1614,8 @@
       <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
         <Image x:Name="AppIcon" Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Race Mode icon"/>
-        <TextBlock Text="Race Mode" FontSize="12" Foreground="{DynamicResource Dim}" VerticalAlignment="Center"/>
+        <!-- "Race Mode 1.1.0", as OBS shows its version in its title (App.cs BindUpdates); local builds show none -->
+        <TextBlock x:Name="TitleText" FontSize="12" Foreground="{DynamicResource Dim}" VerticalAlignment="Center"><Run Text="Race Mode"/><Run x:Name="TitleVersion" Text=""/></TextBlock>
       </StackPanel>
       <!-- small panel and back (Layout.cs ToggleSmall) -->
       <Button x:Name="SmallBtn" Grid.Column="1" ToolTip="Small panel: the switch, FPS and the live numbers" AutomationProperties.Name="Small panel">
