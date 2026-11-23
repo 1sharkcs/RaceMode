@@ -60,8 +60,20 @@ namespace RaceMode
             // this version has run: saved now when nothing will show, but only once the card actually opens when it
             // will (a start to the tray that never opens the window keeps it for the next start)
             if (!show) { MarkVersionRun(); return; }
-            // after the window is up (a start to the tray waits until the window is first opened)
-            Window.Loaded += (s, e) => Window.Dispatcher.BeginInvoke(new Action(() => StartWhatsNew()), DispatcherPriority.Background);
+            // after the window is up. A start with Windows loads the window and hides it to the tray straight away, so
+            // wait until it is really on screen (it only counts as shown once it is: MarkVersionRun in StartWhatsNew).
+            Window.Loaded += (s, e) => Window.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (Window.IsVisible) { StartWhatsNew(); return; }
+                DependencyPropertyChangedEventHandler shown = null;
+                shown = (s2, e2) =>
+                {
+                    if (!Window.IsVisible) return;
+                    Window.IsVisibleChanged -= shown;
+                    Window.Dispatcher.BeginInvoke(new Action(() => StartWhatsNew()), DispatcherPriority.Background);
+                };
+                Window.IsVisibleChanged += shown;
+            }), DispatcherPriority.Background);
         }
 
         IInputElement _focusBeforeWhatsNew;

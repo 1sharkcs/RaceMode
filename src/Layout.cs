@@ -21,7 +21,7 @@ namespace RaceMode
     //   small panel   under 560 wide or 460 tall: only the switch and the live numbers (no menu, no activity line)
     //   icon menu     under 760 wide: the menu is icons only, their names are tooltips
     //   full menu     icons and names
-    //   wide          from 1280 wide: the dashboard also shows beside whichever section is open
+    //   wide          from 1360 wide (WideAt): the dashboard also shows beside the list sections
     public partial class Shell
     {
         const double SmallW = 500, SmallH = 460;
@@ -227,8 +227,8 @@ namespace RaceMode
             if (!small)
             {
                 rail.Width = navW;
-                // the switch block heads the menu on every section but the Overview (its big switch is right there);
-                // the rows move up by the block's height there, which reads better than an empty slot
+                // the switch block sits under the sections on every section but the Overview (its big switch is right
+                // there); being under them, the rows never move when it comes and goes
                 LayoutNav(names, w >= NavNamesAt);
             }
 
