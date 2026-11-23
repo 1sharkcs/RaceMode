@@ -825,15 +825,17 @@
         <ColumnDefinition x:Name="DashCol" Width="0"/>
       </Grid.ColumnDefinitions>
 
-      <!-- side menu: the Race Mode switch block first on every section but the Overview (Layout.cs UpdateNavSwitch); then the sections;
-           then, at the foot, the button that folds the menu to icons (markup order is Tab order) -->
+      <!-- side menu: the sections first, so their rows never move; under them the Race Mode switch block, on every section
+           but the Overview, which has the big switch (Layout.cs UpdateNavSwitch); then, at the foot, the button that folds
+           the menu to icons (markup order is Tab order) -->
       <Grid x:Name="NavRail" Width="208" Margin="12,6,0,0">
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <ListBox x:Name="Nav" Grid.Row="0" Style="{StaticResource NavList}" ItemContainerStyle="{StaticResource NavItem}" VerticalAlignment="Top"/>
         <!-- the switch block reads as status first: the light in the icon column, the state word in Ink under a quiet
              "Race Mode" label, the switch at the right. Graphite while off, a quiet red tint while on (SideMenu.cs).
              Icon-only, the switch is centred with the light under it. -->
         <Border x:Name="NavStatus" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Hairline}" BorderThickness="1"
-                CornerRadius="8" Padding="12,9,9,9" Margin="0,0,0,14">
+                CornerRadius="8" Padding="12,9,9,9" Margin="0,14,0,0" Grid.Row="1">
           <Grid x:Name="NavStatusGrid">
             <Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -847,7 +849,6 @@
                           AutomationProperties.Name="Race Mode" ToolTip="Turn Race Mode on or off"/>
           </Grid>
         </Border>
-        <ListBox x:Name="Nav" Grid.Row="1" Style="{StaticResource NavList}" ItemContainerStyle="{StaticResource NavItem}" VerticalAlignment="Top"/>
         <!-- names or icons only, by hand (remembered); under 760 px there is no room for names and it hides -->
         <Button x:Name="NavCollapse" Grid.Row="2" Width="36" Height="28" Margin="5,8,0,0" HorizontalAlignment="Left"
                 Foreground="{DynamicResource Dim}" Cursor="Hand" FocusVisualStyle="{StaticResource FocusRing}"

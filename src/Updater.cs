@@ -178,6 +178,7 @@ namespace RaceMode
 
         public static void StartNew()
         {
+            ObsDock.Stop();   // let go of the dock's port before the new copy starts (it listens there next)
             Process.Start(new ProcessStartInfo(ExePath, "--after-update " + Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture))
             { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(ExePath) });
         }
@@ -219,6 +220,7 @@ namespace RaceMode
                 if (File.Exists(bad)) File.Delete(bad);
                 File.Move(exe, bad);
                 File.Move(old, exe);
+                ObsDock.Stop();
                 Process.Start(new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) });
                 return true;
             }

@@ -70,14 +70,14 @@ namespace RaceMode
                     var missed = want.Where(x => !names.Contains(x)).ToList();
                     check(twice.Count == 0, "tab order, " + sec + ": nothing is visited twice" + (twice.Count == 0 ? "" : " (" + string.Join(", ", twice) + ")"));
                     check(missed.Count == 0, "tab order, " + sec + ": every visible control is reached" + (missed.Count == 0 ? "" : " (missed: " + string.Join(", ", missed.Take(12)) + ")"));
-                    // the menu: its switch block at the top, then the sections, then its collapse button; then the page
+                    // the menu: the sections first, then its switch block (not on the Overview, which has the big one),
+                    // then its collapse button; then the page
                     int nav = names.IndexOf("Nav"), firstBody = names.FindIndex(x => x != "Nav" && x != "NavSwitch" && x != "NavCollapse" && !x.EndsWith("Btn (title bar)", StringComparison.Ordinal));
                     int sw = names.IndexOf("NavSwitch"), fold = names.IndexOf("NavCollapse");
-                    // the Overview has its own big switch, so the menu's switch is hidden there and the section list leads
                     bool home = tabs.SelectedIndex == 0;
-                    check(home ? sw < 0 : sw == 0, "tab order, " + sec + (home ? ": the menu's switch is hidden (the page has the big one)" : ": the menu's switch is the first stop"));
-                    check(nav >= 0 && nav == (home ? 0 : sw + 1), "tab order, " + sec + (home ? ": the section list is the first stop" : ": the section list comes straight after the menu's switch"));
-                    check(fold >= 0 && fold == nav + 1, "tab order, " + sec + ": the collapse button comes straight after the section list");
+                    check(nav == 0, "tab order, " + sec + ": the section list is the first stop");
+                    check(home ? sw < 0 : sw == nav + 1, "tab order, " + sec + (home ? ": the menu's switch is hidden (the page has the big one)" : ": the menu's switch comes straight after the section list"));
+                    check(fold >= 0 && fold == (home ? nav : sw) + 1, "tab order, " + sec + ": the collapse button comes last in the menu");
                     check(nav >= 0 && (firstBody < 0 || Math.Max(nav, fold) < firstBody), "tab order, " + sec + ": the menu comes before the section");
                     int firstBar = names.FindIndex(x => x.EndsWith("(title bar)", StringComparison.Ordinal));
                     check(firstBar >= 0 && names.Skip(firstBar).All(x => x.EndsWith("(title bar)", StringComparison.Ordinal)), "tab order, " + sec + ": the title bar's buttons come last");

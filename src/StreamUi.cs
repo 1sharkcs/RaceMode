@@ -45,6 +45,14 @@ namespace RaceMode
             if (!ObsDock.ValidToken(_cfg.DockToken)) { _cfg.DockToken = ObsDock.NewToken(); fix = true; }
             if (fix) SaveConfig();
             var err = ObsDock.Start(_cfg.DockPort, _cfg.DockToken, () => _dockJson, DockSwitch, DockShow);
+            if (err == null && ObsDock.Port != _cfg.DockPort)
+            {
+                // the usual port was taken, so the dock moved to the next free one: a new link (and key) for OBS
+                _cfg.DockPort = ObsDock.Port; _cfg.DockToken = ObsDock.NewToken(); SaveConfig();
+                ObsDock.Start(_cfg.DockPort, _cfg.DockToken, () => _dockJson, DockSwitch, DockShow);
+                var moved = "The OBS dock moved to port " + _cfg.DockPort + " because the usual one was busy. Copy the dock link into OBS again.";
+                Tick(moved); _mon.Event(moved);
+            }
             if (err != null)
             {
                 // Couldn't listen (usually the port is taken). Whoever holds it may have collected the old link's token, so make a new one.
