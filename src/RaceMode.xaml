@@ -1094,7 +1094,7 @@
                   </Border>
                 </Border>
                 <TextBlock Style="{StaticResource Sub}" Margin="16,0,16,12"
-                           Text="Each app gets 5 seconds to close on its own. Anything still running is then closed, unless it has a window open (it may be asking you to save). iRacing and your Launch apps are never closed."/>
+                           Text="Each app gets 5 seconds to close on its own. Anything still running is then closed, unless it has a window open (it may be asking you to save). iRacing and your Launch apps are never closed, and neither are OBS while it streams or records, or other streaming apps."/>
               </StackPanel>
               <ListBox x:Name="CloseList" Grid.Row="1">
                 <ListBox.ItemTemplate>

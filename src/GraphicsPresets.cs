@@ -193,7 +193,7 @@ namespace RaceMode
                     // none of the preset's settings are in the file (a fresh install, or a file iRacing hasn't filled in
                     // yet): "only 0 of 0 settings match" said nothing useful
                     r.Failed = true;
-                    r.Message = "iRacing's graphics file has none of the " + r.Mode + " settings yet. Start iRacing once so it writes them, then turn Race Mode on again";
+                    r.Message = "iRacing's graphics file has none of the " + r.Mode + " settings yet. Start iRacing once so it writes them, then try again";
                 }
                 else
                 {

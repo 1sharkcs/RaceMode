@@ -166,7 +166,7 @@ namespace RaceMode
                     status.Text = (string.IsNullOrEmpty(why) ? "" : why + " ") + say;
                     // the Settings card's title follows the choice (setup has its own page title)
                     var keep = why == null ? Get<TextBlock>("MonitorKeepTitle") : null;
-                    if (keep != null) keep.Text = wantThree ? "Keep iRacing across these three screens" : "Keep iRacing on this screen";
+                    if (keep != null) keep.Text = wantThree && i != 0 ? "Keep iRacing across your three screens" : "Keep iRacing on this screen";
                 }
                 finally { busy = false; }
             };

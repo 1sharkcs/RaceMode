@@ -4,9 +4,11 @@
 // close (CloseMainWindow needs a visible main window), and 5 s later all its processes were force-closed mid-recording.
 // The recording was cut off, and OBS showed its "safe mode" question the next time it started.
 //
-// Now: apps that save or record as they close (OBS, browsers, mail) are only ever asked. If they're in the tray, the
-// ask goes to their hidden main window, so OBS gets its normal close and, while recording, asks "are you sure?". If
-// they're still running after the wait, they're left open and Race Mode says so; they are never killed.
+// Now: OBS (every part of it) and the other streaming apps are only ever asked. If OBS is in the tray, the ask goes to
+// its hidden main window, so it gets its normal close and, while recording, asks "are you sure?". If it's still running
+// after the wait, it's left open and Race Mode says so; it is never killed.
+// Browsers, mail and editors are not on this list: one still showing a window is already left open (it may be asking
+// to save), and one with no window (Edge's startup boost, Chrome in the background) is force-closed as in 1.1.0.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,15 +18,11 @@ namespace RaceMode
 {
     public static class GentleClose
     {
-        // Process names (no .exe) that are never force-closed.
-        static readonly string[] Never = {
-            "obs64", "obs32", "obs", "obs-browser-page", "Streamlabs Desktop", "Streamlabs OBS", "XSplit.Core", "PRISMLiveStudio",
-            "chrome", "msedge", "firefox", "brave", "opera", "opera_gx", "vivaldi", "OUTLOOK", "olk", "thunderbird",
-            "WINWORD", "EXCEL", "POWERPNT", "Resolve", "Premiere Pro", "AfterFX", "Photoshop", "blender" };
-
+        // Never force-closed: OBS and all its parts (ObsGuard.IsObs) and the other streaming apps (ObsGuard.IsOtherStreamApp:
+        // Streamlabs, XSplit, PRISM, ...). Killing one of them can cut a stream or a recording.
         public static bool NeverForce(string name)
         {
-            return !string.IsNullOrEmpty(name) && (ObsGuard.IsObs(name) || Never.Any(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase)));
+            return !string.IsNullOrEmpty(name) && (ObsGuard.IsObs(name) || ObsGuard.IsOtherStreamApp(name));
         }
 
         // Helpers that end with their main app, so asking or killing them separately only does harm (OBS's browser
@@ -34,6 +32,13 @@ namespace RaceMode
             { "obs-browser-page", "obs64" }, { "obs-ffmpeg-mux", "obs64" }, { "obs-amf-test", "obs64" }, { "obs-nvenc-test", "obs64" },
             { "obs-qsv-test", "obs64" }, { "steamwebhelper", "steam" }
         };
+
+        // The main app a helper ends with ("obs-browser-page" -> "obs64"), or null if it isn't a known helper.
+        public static string MainOf(string helper)
+        {
+            string main;
+            return !string.IsNullOrEmpty(helper) && HelperOf.TryGetValue(helper, out main) ? main : null;
+        }
 
         // The names to ask, without helpers whose main app is asked too (it takes them down itself).
         public static List<string> WithoutHelpers(IEnumerable<string> names)

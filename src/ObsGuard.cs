@@ -4,8 +4,11 @@
 // OBS writes every output start and stop to its log as it happens ("==== Recording Start ====", "==== Streaming Stop
 // ===="), so the running OBS's own log says what is live, with no settings to change and no password. When Race Mode's
 // stream stats are connected (obs-websocket), "streaming" from there counts too. If neither can say (no log for this
-// OBS yet, OBS still starting up, the log can't be read), the answer is "unknown", and unknown is treated as live:
-// OBS is left alone and Race Mode says so.
+// OBS yet, OBS still starting up or started under a minute ago, a stream still connecting, the log can't be read),
+// the answer is "unknown", and unknown is treated as live: OBS is left alone and Race Mode says so.
+// Plugin outputs (Aitum Vertical, Multiple RTMP Outputs, NDI) don't write those log lines; an OBS whose log reads
+// idle but which holds a network connection to another machine is "unknown" too. Known limit: a plugin that only
+// writes a file (Source Record) holds no connection and can't be seen; OBS's own exit prompt doesn't cover it either.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -61,23 +64,39 @@ namespace RaceMode
         // to start recording (--startrecording) or streaming (auto-start).
         public static ObsStatus FromLog(IEnumerable<string> lines)
         {
+            return FromLog(lines, double.MaxValue);
+        }
+
+        // runningSeconds: how long this OBS has been running. One started under a minute ago that reads idle may still
+        // be about to start recording or streaming on its own (auto-start, --startrecording): "unknown".
+        public static ObsStatus FromLog(IEnumerable<string> lines, double runningSeconds)
+        {
             var s = new ObsStatus();
             if (lines == null) { s.Why = "no log"; return s; }
             bool started = false;
+            // A stream still connecting: OBS writes "Connecting to RTMP URL" first and "==== Streaming Start" only once
+            // it's connected, so in between it read as idle while the racer's stream was about to go live.
+            bool connecting = false;
             var on = new bool[Outputs.Length];
             foreach (var raw in lines)
             {
                 if (raw == null) continue;
-                if (raw.IndexOf("==== Startup complete", StringComparison.Ordinal) >= 0) started = true;
+                if (raw.IndexOf("==== Startup complete", StringComparison.Ordinal) >= 0) { started = true; connecting = false; }
+                if (raw.IndexOf("Connecting to RTMP URL", StringComparison.OrdinalIgnoreCase) >= 0) connecting = true;
+                // a first connection that failed doesn't start the stream (OBS shows an error): no longer connecting
+                else if (connecting && raw.IndexOf("[rtmp stream", StringComparison.OrdinalIgnoreCase) >= 0 && raw.IndexOf("failed", StringComparison.OrdinalIgnoreCase) >= 0) connecting = false;
                 for (int i = 0; i < Outputs.Length; i++)
                 {
-                    if (raw.IndexOf(Outputs[i][1], StringComparison.Ordinal) >= 0) on[i] = true;
-                    else if (raw.IndexOf(Outputs[i][2], StringComparison.Ordinal) >= 0) on[i] = false;
+                    // Outputs[0] is streaming: its Start or Stop ends the "connecting" wait
+                    if (raw.IndexOf(Outputs[i][1], StringComparison.Ordinal) >= 0) { on[i] = true; if (i == 0) connecting = false; }
+                    else if (raw.IndexOf(Outputs[i][2], StringComparison.Ordinal) >= 0) { on[i] = false; if (i == 0) connecting = false; }
                 }
             }
             for (int i = 0; i < Outputs.Length; i++) if (on[i]) s.Active.Add(Outputs[i][0]);
             if (s.Active.Count > 0) s.State = ObsState.Live;
             else if (!started) { s.State = ObsState.Unknown; s.Why = "OBS is still starting"; }
+            else if (connecting) { s.State = ObsState.Unknown; s.Why = "a stream is still connecting"; }
+            else if (runningSeconds < 60) { s.State = ObsState.Unknown; s.Why = "OBS started under a minute ago"; }
             else s.State = ObsState.Idle;
             return s;
         }
@@ -126,16 +145,31 @@ namespace RaceMode
             }
         }
 
-        // Reads a log OBS is still writing (shared read).
-        public static List<string> ReadShared(string path)
+        // Reads a log OBS is still writing (shared read), one line at a time as FromLog asks for it: an OBS left running
+        // for days can have a huge log, and holding all of it in memory at once isn't needed. A read that fails throws
+        // to the caller (Now), which counts it as unknown.
+        public static IEnumerable<string> ReadShared(string path)
         {
-            var lines = new List<string>();
             using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
             using (var r = new StreamReader(fs))
             {
-                string l; while ((l = r.ReadLine()) != null) lines.Add(l);
+                string l; while ((l = r.ReadLine()) != null) yield return l;
             }
-            return lines;
+        }
+
+        // The process names of OBS itself (64-bit, 32-bit, and "obs" on some builds).
+        public static readonly string[] MainNames = { "obs64", "obs32", "obs" };
+
+        // Only an OBS in Race Mode's own Windows session counts (another signed-in user's OBS isn't one Race Mode
+        // closes), and only one the app catalog accepts as OBS (another program can use the same exe name).
+        static bool Ours(Process p, int mySession)
+        {
+            try
+            {
+                if (p.SessionId != mySession) return false;
+                return AppScan.BelongsTo(p.ProcessName, AppScan.ImagePath(p.Id));
+            }
+            catch { return true; }   // can't tell: judged like any OBS (unknown if its log can't be read), never skipped
         }
 
         // Every running OBS: live if any is live; unknown if any can't be read; idle only when all are known idle.
@@ -144,29 +178,113 @@ namespace RaceMode
         {
             var all = new ObsStatus { State = ObsState.Idle };
             Process[] ps;
-            try { ps = Process.GetProcessesByName("obs64").Concat(Process.GetProcessesByName("obs32")).ToArray(); } catch { return new ObsStatus { Why = "couldn't list processes" }; }
+            int mySession;
+            try
+            {
+                using (var me = Process.GetCurrentProcess()) mySession = me.SessionId;
+                ps = MainNames.SelectMany(n => Process.GetProcessesByName(n)).ToArray();
+            }
+            catch { return new ObsStatus { Why = "couldn't list processes" }; }
             try
             {
                 var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var p in ps)
                 {
+                    if (!Ours(p, mySession)) continue;
                     ObsStatus one;
                     try
                     {
-                        string exe = null; try { exe = p.MainModule.FileName; } catch { }
-                        var log = LogFor(p.StartTime, LogDirs(exe));
+                        string exe = AppScan.ImagePath(p.Id);
+                        if (exe == null) try { exe = p.MainModule.FileName; } catch { }
+                        var startedAt = p.StartTime;
+                        var log = LogFor(startedAt, LogDirs(exe));
                         if (log != null && !used.Add(log)) one = new ObsStatus { Why = "two OBS share one log" };   // can't tell them apart
-                        else one = log == null ? new ObsStatus { Why = "no log for this OBS" } : FromLog(ReadShared(log));
+                        else one = log == null ? new ObsStatus { Why = "no log for this OBS" } : FromLog(ReadShared(log), (DateTime.Now - startedAt).TotalSeconds);
                     }
                     catch (Exception ex) { one = new ObsStatus { Why = "couldn't read OBS's log (" + ex.Message + ")" }; }
+                    // Plugin outputs (Aitum Vertical, Multiple RTMP Outputs, NDI, ...) don't write OBS's "==== Start"
+                    // lines, so the log can read idle while one streams. Every live network output holds a connection
+                    // out of OBS itself; an idle OBS normally holds none (its browser sources are separate processes).
+                    if (one.State == ObsState.Idle && HasRemoteConnection(p.Id)) one = new ObsStatus { Why = "OBS has a network connection open (a plugin may be streaming)" };
                     foreach (var a in one.Active) if (!all.Active.Contains(a)) all.Active.Add(a);
                     if (one.State == ObsState.Unknown && all.State == ObsState.Idle) { all.State = ObsState.Unknown; all.Why = one.Why; }
                 }
             }
             finally { foreach (var p in ps) p.Dispose(); }
-            if (statsStreaming && !all.Active.Contains("streaming")) all.Active.Insert(0, "streaming");
-            if (all.Active.Count > 0) all.State = ObsState.Live;
-            return all;
+            return WithStats(all, statsStreaming);
+        }
+
+        // Whether a process has an established TCP connection to another machine (IPv4 or IPv6; loopback doesn't
+        // count). From Windows' connection table: no admin rights and no handle on the process needed. A table that
+        // can't be read counts as "yes" (unknown is treated as live). Tests can replace it.
+        public static Func<int, bool> HasRemoteConnection = OwnsRemoteTcp;
+
+        [System.Runtime.InteropServices.DllImport("iphlpapi.dll", SetLastError = true)]
+        static extern uint GetExtendedTcpTable(IntPtr table, ref int size, bool sort, int family, int tableClass, uint reserved);
+        const int AfInet = 2, AfInet6 = 23, TcpTableOwnerPidConnections = 4, TcpEstablished = 5;
+
+        public static bool OwnsRemoteTcp(int pid)
+        {
+            if (pid <= 0) return false;
+            foreach (int family in new[] { AfInet, AfInet6 })
+            {
+                IntPtr buf = IntPtr.Zero;
+                try
+                {
+                    int size = 0;
+                    GetExtendedTcpTable(IntPtr.Zero, ref size, false, family, TcpTableOwnerPidConnections, 0);
+                    if (size <= 0) continue;
+                    size += 4096;   // room for connections opened in between
+                    buf = System.Runtime.InteropServices.Marshal.AllocHGlobal(size);
+                    if (GetExtendedTcpTable(buf, ref size, false, family, TcpTableOwnerPidConnections, 0) != 0) return true;
+                    int n = System.Runtime.InteropServices.Marshal.ReadInt32(buf);
+                    int rowSize = family == AfInet ? 24 : 56;
+                    for (int i = 0; i < n; i++)
+                    {
+                        IntPtr row = buf + 4 + i * rowSize;
+                        if (family == AfInet)
+                        {
+                            // MIB_TCPROW_OWNER_PID: state, local addr, local port, remote addr, remote port, pid
+                            if (System.Runtime.InteropServices.Marshal.ReadInt32(row, 20) != pid) continue;
+                            if (System.Runtime.InteropServices.Marshal.ReadInt32(row, 0) != TcpEstablished) continue;
+                            var b = BitConverter.GetBytes(System.Runtime.InteropServices.Marshal.ReadInt32(row, 12));
+                            if (!IsLoopback(b)) return true;
+                        }
+                        else
+                        {
+                            // MIB_TCP6ROW_OWNER_PID: local addr[16], scope, port, remote addr[16] (at 24), scope, port, state (48), pid (52)
+                            if (System.Runtime.InteropServices.Marshal.ReadInt32(row, 52) != pid) continue;
+                            if (System.Runtime.InteropServices.Marshal.ReadInt32(row, 48) != TcpEstablished) continue;
+                            var b = new byte[16];
+                            System.Runtime.InteropServices.Marshal.Copy(row + 24, b, 0, 16);
+                            if (!IsLoopback(b)) return true;
+                        }
+                    }
+                }
+                catch { return true; }
+                finally { if (buf != IntPtr.Zero) System.Runtime.InteropServices.Marshal.FreeHGlobal(buf); }
+            }
+            return false;
+        }
+
+        // 127.x.x.x, 0.0.0.0, ::1, :: and IPv4-mapped 127.x (::ffff:127.x.x.x), as the bytes appear on the wire.
+        public static bool IsLoopback(byte[] a)
+        {
+            if (a == null) return true;
+            if (a.Length == 4) return a[0] == 127 || (a[0] == 0 && a[1] == 0 && a[2] == 0 && a[3] == 0);
+            if (a.Length != 16) return true;
+            bool zero10 = true; for (int i = 0; i < 10; i++) if (a[i] != 0) zero10 = false;
+            if (zero10 && a[10] == 0xff && a[11] == 0xff) return a[12] == 127 || (a[12] == 0 && a[13] == 0 && a[14] == 0 && a[15] == 0);
+            bool allZero = zero10 && a[10] == 0 && a[11] == 0 && a[12] == 0 && a[13] == 0 && a[14] == 0;
+            return allZero && (a[15] == 1 || a[15] == 0);
+        }
+
+        // Adds what Race Mode's own stream stats say: "streaming" there makes OBS live whatever its log says.
+        public static ObsStatus WithStats(ObsStatus s, bool statsStreaming)
+        {
+            if (statsStreaming && !s.Active.Contains("streaming")) s.Active.Insert(0, "streaming");
+            if (s.Active.Count > 0) s.State = ObsState.Live;
+            return s;
         }
     }
 }

@@ -29,16 +29,22 @@ namespace RaceMode
         static readonly int[] TestW = { 420, 440, 460, 480, 499, 500, 520, 560, 600, 640, 700, 759, 760, 800, 860, 900, 959, 960, 1024, 1100, 1200, 1280, 1366, 1439, 1440, 1600, 1920, 2560, 3440 };
         static readonly int[] TestH = { 150, 200, 255, 256, 262, 299, 300, 399, 400, 459, 460, 520, 600, 690, 699, 700, 760, 900, 1080, 1440 };
 
-        // Every section in the side menu sits above the switch block under it (or the menu's bottom when it's hidden).
+        // Every section in the side menu sits above what's under it (the switch block, else the collapse button, else
+        // the menu's bottom), and the switch block and the button themselves end inside the menu. A menu that
+        // wasn't built at all fails.
         bool NavFits()
         {
-            var rail = Get<FrameworkElement>("NavRail"); var status = Get<FrameworkElement>("NavStatus");
-            if (rail == null || _navRows == null || _navRows.Length == 0 || rail.Visibility != Visibility.Visible) return true;
+            NavOver = 0;
+            var rail = Get<FrameworkElement>("NavRail"); var status = Get<FrameworkElement>("NavStatus"); var fold = Get<FrameworkElement>("NavCollapse");
+            if (rail == null || rail.Visibility != Visibility.Visible) return true;
+            if (_navRows == null || _navRows.Length == 0) { NavOver = 999; return false; }
             var last = _navRows[_navRows.Length - 1];
             double bottom = last.TranslatePoint(new Point(0, last.ActualHeight), rail).Y;
-            double limit = status != null && status.Visibility == Visibility.Visible ? status.TranslatePoint(new Point(0, 0), rail).Y : rail.ActualHeight;
-            NavOver = bottom - limit;
-            return bottom <= limit + 1;
+            bool st = status != null && status.Visibility == Visibility.Visible, fo = fold != null && fold.Visibility == Visibility.Visible;
+            double limit = st ? status.TranslatePoint(new Point(0, 0), rail).Y : fo ? fold.TranslatePoint(new Point(0, 0), rail).Y : rail.ActualHeight;
+            double end = Math.Max(st ? status.TranslatePoint(new Point(0, status.ActualHeight), rail).Y : 0, fo ? fold.TranslatePoint(new Point(0, fold.ActualHeight), rail).Y : 0);
+            NavOver = Math.Max(bottom - limit, end - rail.ActualHeight);
+            return NavOver <= 1;
         }
 
         double NavOver;   // how far the last row ran under, for the report
@@ -76,7 +82,7 @@ namespace RaceMode
                             stops++;
                             string at = w + "x" + h, sec = small ? "small panel" : ((TabItem)tabs.Items[s]).Header as string;
                             Check(sec, at, note);
-                            if (!small && !NavFits()) note("the side menu's last row runs under the Race Mode switch", at);
+                            if (!small && !NavFits()) note("the side menu doesn't fit: a row runs under the switch, or the menu runs off the window", at + " by " + Math.Round(NavOver));
                         }
                         if (!small) tabs.SelectedIndex = 0;
                     }
@@ -85,15 +91,18 @@ namespace RaceMode
 
             // A short screen (a 1280x720 laptop at 150% has 432 of room): the full window must still show, and work,
             // at every height it can have there (found on a test PC: it was stuck as the small panel)
+            // A shorter screen still (420 of room) reaches the lowest height the full window may have (380).
             int shortSizes = 0;
-            TestRoomH = 432;
             try
             {
+              foreach (int room in new[] { 432, 420 })
+              {
+                TestRoomH = room;
                 foreach (int w in new[] { 600, 853, 960, 1280 })
-                    foreach (int h in new[] { 392, 400, 416, 432 })
+                    foreach (int h in new[] { room - 40, room - 32, room - 16, room }.Where(x => x >= FullFloor))
                     {
                         shortSizes++;
-                        string at0 = w + "x" + h + " short screen";
+                        string at0 = w + "x" + h + " short screen (" + room + ")";
                         try
                         {
                             Window.Width = w; Window.Height = h;
@@ -103,12 +112,13 @@ namespace RaceMode
                             {
                                 tabs.SelectedIndex = s; Pump(); stops++;
                                 Check(((TabItem)tabs.Items[s]).Header as string, at0, note);
-                                if (!NavFits()) note("the side menu's last row runs under the Race Mode switch", at0 + " by " + Math.Round(NavOver));
+                                if (!NavFits()) note("the side menu doesn't fit: a row runs under the switch, or the menu runs off the window", at0 + " by " + Math.Round(NavOver));
                             }
                             tabs.SelectedIndex = 0;
                         }
                         catch (Exception ex) { errors++; note("EXCEPTION " + ex.GetType().Name + ": " + ex.Message.Split('\n')[0], at0); }
                     }
+              }
                 // ...and the Small panel button still gives the small panel there
                 Window.Width = PanelW; Window.Height = PanelH; Pump(); shortSizes++;
                 if (!_small) note("the small panel doesn't show on a short screen", PanelW + "x" + PanelH + " short screen");

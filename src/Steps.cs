@@ -68,12 +68,19 @@ namespace RaceMode
             // 2. Close list
             var cl = new StepView { Key = "Close", Name = "Close list", Section = 2 };
             var closable = _close.Where(n => !ProtectedFromClose(n)).ToList();
-            int openNow = pv ? 0 : closable.Count(IsRunning);
+            // while on, apps left open on purpose (OBS live, other streaming apps, a save prompt, admin) aren't "still running":
+            // their reason is in the issue list
+            int openNow = pv ? 0 : closable.Count(n => IsRunning(n) && !(on && LeftOnPurpose(n)));
             if (!_cfg.CloseApps) cl.Set(StOff, "Off");
             else if (!on) cl.Set(StTodo, closable.Count == 0 ? "Nothing on the list" : "Closes " + Count(closable.Count, "app") + (openNow > 0 ? ", " + openNow + " open now" : ""));
             else if (pv) cl.Set(StDone, "Closed " + Count(closable.Count, "app"));
             else if (openNow > 0) cl.Set(turning ? StBusy : StLook, turning ? "Closing " + Count(openNow, "app") + "…" : openNow + " still running");
-            else cl.Set(StDone, _closed.Count > 0 ? "Closed " + Count(_closed.Count, "app") : "None were open");
+            else
+            {
+                int leftOpen = closable.Count(n => IsRunning(n) && LeftOnPurpose(n) && !(ObsGuard.IsObs(n) && !ObsGuard.IsObsMain(n)));
+                cl.Set(StDone, _closed.Count > 0 ? "Closed " + Count(_closed.Count, "app") + (leftOpen > 0 ? ", left " + leftOpen + " open" : "")
+                    : leftOpen > 0 ? "Left " + Count(leftOpen, "app") + " open" : "None were open");
+            }
             list.Add(cl);
 
             // 3. Launch apps, with a line per app

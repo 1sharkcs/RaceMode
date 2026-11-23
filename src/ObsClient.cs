@@ -41,8 +41,11 @@ namespace RaceMode
         public static Func<bool> IsRunning = Running;
 
         public static ObsStats Latest { get { lock (_lock) return _latest.Clone(); } }
-        static void Set(ObsStats s) { s.Time = DateTime.Now; lock (_lock) _latest = s; }
-        static void SetStatus(string status) { var s = new ObsStats { Status = status }; Set(s); }
+        // Only the current loop may write what OBS reported: after a quick off and on, the earlier loop can still be
+        // finishing a request and would otherwise put its old (or "stats are off") reading back. Checked under the
+        // lock, so a write can't land between Stop's "off" and the check.
+        static void Set(ObsStats s) { s.Time = DateTime.Now; lock (_lock) { if (Live) _latest = s; } }
+        static void SetStatus(string status) { Set(new ObsStats { Status = status }); }
 
         public static bool Active { get { return _run; } }
 
@@ -58,7 +61,8 @@ namespace RaceMode
         public static void Stop()
         {
             _run = false;
-            SetStatus("OBS stats are off");
+            // written directly: Set only takes the loop's own readings, and this is the UI thread
+            lock (_lock) _latest = new ObsStats { Status = "OBS stats are off", Time = DateTime.Now };
         }
 
         static void Loop()

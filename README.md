@@ -4,7 +4,7 @@ A small Windows app for iRacing. One switch gets your PC ready to race.
 
 ## What it does
 
-- Closes the apps you list (browsers, launchers, anything you don't want running during a race). Setup and the Close list suggest heavy apps it finds on your PC, with how much memory each uses; nothing is ticked for you. iRacing, your Launch apps and Windows itself are never closed, and neither are your streaming apps while Streaming is on
+- Closes the apps you list (browsers, launchers, anything you don't want running during a race). Setup and the Close list suggest heavy apps it finds on your PC, with how much memory each uses; nothing is ticked for you. iRacing, your Launch apps and Windows itself are never closed, and neither are your streaming apps while Streaming is on. OBS is never closed while it's streaming or recording (or when Race Mode can't tell), other streaming apps like Streamlabs are never closed, and an app that still has a window open is left alone in case it's asking you to save
 - Starts your race apps, like SimHub and Crew Chief. Setup and the Launch list suggest the race apps it finds installed
 - Puts iRacing first, so Windows gives it the processor ahead of your other apps
 - Keeps iRacing on your racing monitor, or across three screens side by side, as a borderless window that fills it. iRacing's own triple-screen settings (angles, bezels) are left to iRacing
@@ -29,6 +29,8 @@ Open **Command Prompt** (not PowerShell), paste this and press Enter:
 ```
 curl -fLo "%TEMP%\racemode-install.cmd" https://github.com/1sharkcs/RaceMode/releases/latest/download/install.cmd && "%TEMP%\racemode-install.cmd"
 ```
+
+If it stops with a certificate error (CRYPT_E_REVOCATION_OFFLINE), Windows couldn't reach the server that checks certificates, which can happen in the first minute after a PC starts. Wait a minute and run it again.
 
 The installer:
 
