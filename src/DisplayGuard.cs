@@ -34,8 +34,12 @@ namespace RaceMode
         public bool KeepFpsCap = true;
         public int FpsLimit;
         public string IniPath = "";            // blank = Documents\iRacing\rendererDX11Monitor.ini
+        // Three screens side by side, as EDID ids left, centre, right (null = one screen). Then MonitorId is the
+        // centre one, Width/Height are one screen's size and RefreshRate the slowest of the three.
+        public List<string> Triple;
 
         public bool EnforcesFpsCap { get { return KeepFpsCap && FpsLimit > 0; } }
+        public bool IsTriple { get { return Triple != null && Triple.Count == 3 && Triple.All(t => !string.IsNullOrWhiteSpace(t)); } }
     }
 
     public class MonitorInfo
@@ -96,6 +100,18 @@ namespace RaceMode
                 if (!File.Exists(path)) return Skip(r, "iRacing's screen settings file wasn't found at " + path);
 
                 r.Monitors = monitors ?? ListMonitors();
+                if (cfg.IsTriple) return RunTriple(r, cfg, path, apply);
+
+                // iRacing is set up for three screens but Race Mode guards one: putting the window back on one
+                // screen would undo the triple setup. A Surround/Eyefinity display (one very wide screen) is fine.
+                if (IniNumMonitors(path) == 3)
+                {
+                    var one = r.Monitors.FirstOrDefault(m => (m.MonitorId ?? "").IndexOf(cfg.MonitorId.Trim(), StringComparison.OrdinalIgnoreCase) >= 0);
+                    // (An unplugged racing monitor falls through to the usual "isn't connected" message.)
+                    if (one != null && !LooksJoined(one))
+                        return Skip(r, "iRacing is set up for three screens, so Race Mode left its screen settings alone. To have them checked, pick your three screens as the racing monitor on the Settings tab");
+                }
+
                 var matches = r.Monitors.Where(m => (m.MonitorId ?? "").IndexOf(cfg.MonitorId.Trim(), StringComparison.OrdinalIgnoreCase) >= 0).ToList();
                 // Two identical monitors share an EDID id: prefer the one at the wanted resolution; if that's still
                 // ambiguous, don't guess.
@@ -133,38 +149,14 @@ namespace RaceMode
                         { "DesiredFPSLimit", cfg.FpsLimit.ToString(inv) },
                     };
 
-                var patch = IniFile.Patch(path, want, apply);
-                r.Changes = patch.Changes;
-                var missing = patch.Missing;
-
-                var targetDesc = "your " + target.Width + "×" + target.Height + " racing monitor";
                 // A borderless window runs at whatever mode Windows has the monitor in, so flag a dropped
                 // refresh rate or resolution (Windows sometimes falls back to 60 Hz after updates or wake).
                 if (target.Hz > 0 && target.Hz < cfg.RefreshRate)
                     r.Warning = "Windows has your racing monitor at " + target.Hz + " Hz, not " + cfg.RefreshRate + " Hz. Change it in Settings > Display > Advanced display";
                 else if (target.Width != cfg.Width || target.Height != cfg.Height)
                     r.Warning = "Windows has your racing monitor at " + target.Width + "×" + target.Height + ", not " + cfg.Width + "×" + cfg.Height + ". Change it in Settings > Display";
-                if (r.Changes.Count == 0)
-                {
-                    r.Message = "Screen settings OK: iRacing is on " + targetDesc + (cfg.EnforcesFpsCap ? ", FPS cap " + cfg.FpsLimit : "");
-                    if (missing.Count > 0) r.Message += " (not in the file: " + string.Join(", ", missing.ToArray()) + ")";
-                    return r;
-                }
-
-                if (patch.ReadOnly)
-                {
-                    r.Changes.Clear();
-                    return Skip(r, "iRacing's screen settings file is read-only, so it couldn't be fixed. Right-click it, choose Properties and untick Read-only");
-                }
-                if (apply)
-                {
-                    r.Backup = patch.Backup;
-                    r.Changed = patch.Written;
-                    r.Message = "Put iRacing back on " + targetDesc + " (" + r.Changes.Count + " setting" + (r.Changes.Count == 1 ? "" : "s") + " fixed): " + string.Join(", ", r.Changes.ToArray());
-                }
-                else r.Message = "Would fix (" + targetDesc + "): " + string.Join(", ", r.Changes.ToArray());
-                if (missing.Count > 0) r.Message += " (not in the file: " + string.Join(", ", missing.ToArray()) + ")";
-                return r;
+                var desc = "your " + target.Width + "×" + target.Height + " racing monitor";
+                return Write(r, cfg, path, want, apply, desc, "on " + desc, "back on " + desc, null);
             }
             catch (Exception ex)
             {
@@ -172,6 +164,154 @@ namespace RaceMode
                 r.Changed = false; r.Changes.Clear();
                 return Skip(r, "The screen check didn't work, so iRacing's settings were left as they were: " + ex.Message);
             }
+        }
+
+        // Three screens side by side: iRacing runs as one borderless window across all three (iRacing's own
+        // "run in a window" triple method; full screen across separate screens needs Surround/Eyefinity).
+        // Only the window's position and size are kept: deviceIdx and the full-screen mode are left as iRacing
+        // has them, and so is everything in [MonitorSetup] (screen angles, bezels, distance), which the
+        // driver tunes inside iRacing.
+        static GuardResult RunTriple(GuardResult r, DisplayGuardConfig cfg, string path, bool apply)
+        {
+            var rows = TripleRows(r.Monitors).Where(row => IdMatches(row[0], cfg.Triple[0]) && IdMatches(row[1], cfg.Triple[1]) && IdMatches(row[2], cfg.Triple[2])).ToList();
+            if (rows.Count == 0 && TripleRows(r.Monitors, false).Any(row => IdMatches(row[0], cfg.Triple[0]) && IdMatches(row[1], cfg.Triple[1]) && IdMatches(row[2], cfg.Triple[2])))
+                return Skip(r, "Your three racing screens are connected but don't line up side by side in Windows' display settings, so iRacing's screen settings were left alone. Line them up in Settings > Display");
+            if (rows.Count == 0)
+                return Skip(r, "Your three racing screens aren't all connected side by side right now, so iRacing's screen settings were left alone (looking for " + string.Join(", ", cfg.Triple.ToArray()) + ", found " + string.Join(", ", r.Monitors.Select(m => m.MonitorId).ToArray()) + ")");
+            if (rows.Count > 1)
+            {
+                // a fourth screen of the same model beside the three makes a second row: keep the one that is the
+                // size that was picked (the whole window, or one screen's size in configs from before 1.1)
+                var same = rows.Where(row => { int a, b, w, h; TripleWindow(row, out a, out b, out w, out h);
+                                               return (w == cfg.Width && h == cfg.Height) || row.All(m => m.Width == cfg.Width && m.Height == cfg.Height); }).ToList();
+                if (same.Count != 1)
+                    return Skip(r, "More than one row of three matching screens is connected, so Race Mode can't tell which to race on and left iRacing's screen settings alone");
+                rows = same;
+            }
+            var row3 = rows[0];
+            var inv = CultureInfo.InvariantCulture;
+            int x, y, width, height;
+            TripleWindow(row3, out x, out y, out width, out height);
+            if (width <= 0 || height <= 0)
+                return Skip(r, "Your three racing screens don't line up side by side in Windows' display settings right now, so iRacing's screen settings were left alone");
+            var want = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+            want["Display"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "fullScreen", "0" },
+                { "windowedXPos", x.ToString(inv) },
+                { "windowedYPos", y.ToString(inv) },
+                { "windowedWidth", width.ToString(inv) },
+                { "windowedHeight", height.ToString(inv) },
+                { "windowedMaximized", "0" },
+                { "border", "0" },
+            };
+            if (cfg.EnforcesFpsCap)
+                want["Graphics Options"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    { "LimitFrameRate", "1" },
+                    { "DesiredFPSLimit", cfg.FpsLimit.ToString(inv) },
+                };
+            var slow = row3.Where(m => m.Hz > 0 && m.Hz < cfg.RefreshRate).OrderBy(m => m.Hz).FirstOrDefault();
+            if (slow != null)
+                r.Warning = "Windows has one of your racing screens (the " + (row3.IndexOf(slow) == 0 ? "left" : row3.IndexOf(slow) == 1 ? "middle" : "right") + " one, " + slow.Width + "×" + slow.Height + ") at " + slow.Hz + " Hz, not " + cfg.RefreshRate + " Hz. Change it in Settings > Display > Advanced display";
+            // cfg.Width/Height: the whole window's size (older configs kept one screen's size, so either counts)
+            else if (!(width == cfg.Width && height == cfg.Height) && !row3.All(m => m.Width == cfg.Width && m.Height == cfg.Height))
+                r.Warning = "Windows has your racing screens at a different size than when you picked them. Change it in Settings > Display";
+            // Not Race Mode's to change: iRacing's own monitor settings decide how the picture is split.
+            string note = IniNumMonitors(path) == 1 ? "iRacing itself is set up for one screen, so the side screens look stretched: in the iRacing sim (not Windows), open its monitor settings and set it up for 3 screens" : null;
+            var desc = "your three racing screens (" + width + "×" + height + ")";
+            return Write(r, cfg, path, want, apply, desc, "across " + desc, "back across " + desc, note);
+        }
+
+        // Shared tail: write (or preview) the wanted values and describe what happened.
+        static GuardResult Write(GuardResult r, DisplayGuardConfig cfg, string path, Dictionary<string, Dictionary<string, string>> want, bool apply, string desc, string okWhere, string fixedWhere, string note)
+        {
+            var patch = IniFile.Patch(path, want, apply);
+            r.Changes = patch.Changes;
+            var missing = patch.Missing;
+            if (r.Changes.Count == 0)
+                r.Message = "Screen settings OK: iRacing is " + okWhere + (cfg.EnforcesFpsCap ? ", FPS cap " + cfg.FpsLimit : "");
+            else if (patch.ReadOnly)
+            {
+                r.Changes.Clear();
+                return Skip(r, "iRacing's screen settings file is read-only, so it couldn't be fixed. Right-click it, choose Properties and untick Read-only");
+            }
+            else if (apply)
+            {
+                r.Backup = patch.Backup;
+                r.Changed = patch.Written;
+                r.Message = "Put iRacing " + fixedWhere + " (" + r.Changes.Count + " setting" + (r.Changes.Count == 1 ? "" : "s") + " fixed): " + string.Join(", ", r.Changes.ToArray());
+            }
+            else r.Message = "Would fix (" + desc + "): " + string.Join(", ", r.Changes.ToArray());
+            if (missing.Count > 0) r.Message += " (not in the file: " + string.Join(", ", missing.ToArray()) + ")";
+            if (note != null) r.Message += ". " + note;
+            return r;
+        }
+
+        static bool IdMatches(MonitorInfo m, string id) { return id != null && (m.MonitorId ?? "").IndexOf(id.Trim(), StringComparison.OrdinalIgnoreCase) >= 0; }
+
+        // Three screens in a row, left to right: each starts where the one before ends and they overlap top to bottom.
+        // They don't have to match: the picker only offers rows once "I race on three screens" is ticked, and
+        // TripleWindow uses the height all three share.
+        public static List<List<MonitorInfo>> TripleRows(List<MonitorInfo> mons) { return TripleRows(mons, true); }
+
+        // band: false also keeps rows whose three screens share too little height (to say "line them up" instead
+        // of "not connected" when that's the only thing wrong)
+        static List<List<MonitorInfo>> TripleRows(List<MonitorInfo> mons, bool band)
+        {
+            var rows = new List<List<MonitorInfo>>();
+            if (mons == null) return rows;
+            Func<MonitorInfo, MonitorInfo, bool> next = (a, b) => b != a && b.Width > 0 && b.Height > 0 && b.X == a.X + a.Width
+                                                                  && b.Y < a.Y + a.Height && a.Y < b.Y + b.Height;
+            foreach (var a in mons.Where(m => m.Width > 0 && m.Height > 0).OrderBy(m => m.X))
+            {
+                // every screen touching a's right edge, then every one touching b's: a failed first pick mustn't
+                // hide a good row (two screens stacked on the right, say)
+                foreach (var b in mons.Where(m => next(a, m)).ToList())
+                    foreach (var c in mons.Where(m => m != a && next(b, m)).ToList())
+                    {
+                        // all three must share a band at least half the smallest screen's height: a staircase of
+                        // screens that only overlap in pairs would give a window a few pixels tall, or none at all
+                        var row = new List<MonitorInfo> { a, b, c };
+                        int shared = row.Min(m => m.Y + m.Height) - row.Max(m => m.Y);
+                        if (band && shared * 2 < row.Min(m => m.Height)) continue;
+                        rows.Add(row);
+                    }
+            }
+            return rows;
+        }
+
+        // The one window that spans a row: from the left screen's left edge to the right screen's right edge, over
+        // the height all three share (screens of different heights leave the rest of the taller ones empty).
+        public static void TripleWindow(List<MonitorInfo> row, out int x, out int y, out int width, out int height)
+        {
+            x = row[0].X;
+            y = row.Max(m => m.Y);
+            width = row[2].X + row[2].Width - x;
+            height = row.Min(m => m.Y + m.Height) - y;
+        }
+
+        // True when the three screens are the same size at the same height: the window covers all of each.
+        public static bool TripleMatches(List<MonitorInfo> row)
+        {
+            return row.All(m => m.Width == row[0].Width && m.Height == row[0].Height && m.Y == row[0].Y);
+        }
+
+        // One very wide display: almost always three screens joined by NVIDIA Surround or AMD Eyefinity
+        // (5760×1080 is 16:3). A 32:9 super-ultrawide is 3.6:1, so it doesn't count.
+        public static bool LooksJoined(MonitorInfo m) { return m != null && m.Height > 0 && m.Width >= 4 * m.Height; }
+
+        // iRacing's own [MonitorSetup] NumMonitors (1 or 3), or 0 if the file doesn't say.
+        public static int IniNumMonitors(string path)
+        {
+            try
+            {
+                var ini = IniFile.Read(path);
+                Dictionary<string, string> k; string v; int n;
+                if (ini.TryGetValue("MonitorSetup", out k) && k.TryGetValue("NumMonitors", out v) && int.TryParse(v.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out n)) return n;
+            }
+            catch { }
+            return 0;
         }
 
         static GuardResult Skip(GuardResult r, string why) { r.Skipped = true; r.Message = why; return r; }
@@ -186,7 +326,7 @@ namespace RaceMode
                 var fi = new FileInfo(path);
                 var file = fi.Exists ? fi.LastWriteTimeUtc.Ticks + ":" + fi.Length : "missing";
                 var mons = string.Join("|", ListMonitors().Select(m => m.ToString()).ToArray());
-                var c = cfg == null ? "" : cfg.Enabled + "," + cfg.MonitorId + "," + cfg.Width + "x" + cfg.Height + "@" + cfg.RefreshRate + "," + cfg.FullScreen + "," + cfg.FpsLimit + "," + cfg.KeepFpsCap;
+                var c = cfg == null ? "" : cfg.Enabled + "," + cfg.MonitorId + "," + cfg.Width + "x" + cfg.Height + "@" + cfg.RefreshRate + "," + cfg.FullScreen + "," + cfg.FpsLimit + "," + cfg.KeepFpsCap + "," + (cfg.IsTriple ? string.Join("/", cfg.Triple.ToArray()) : "");
                 return file + "#" + mons + "#" + c;
             }
             catch (Exception ex) { return "error:" + ex.Message; }
@@ -289,6 +429,7 @@ namespace RaceMode
         // If DXGI can't be read, falls back to its rule: primary first, then the rest in DISPLAYn order.
         public static List<MonitorInfo> ListMonitors()
         {
+            var fake = FakeMonitors(); if (fake != null) return fake;
             var raw = ListMonitorsRaw();
             var order = DxgiOrder();
             List<MonitorInfo> sorted;
@@ -298,6 +439,23 @@ namespace RaceMode
                 sorted = raw.OrderBy(m => m.Primary ? 0 : 1).ThenBy(m => m.Index).ToList();
             for (int i = 0; i < sorted.Count; i++) sorted[i].Index = i;
             return sorted;
+        }
+
+        // Trials only: under RACEMODE_TEST_ROOT, RACEMODE_TEST_MONITORS stands in for the real screens, as
+        // "id,x,y,width,height,hz[,primary]" entries separated by ';' (listed in deviceIdx order). Ignored otherwise.
+        static List<MonitorInfo> FakeMonitors()
+        {
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RACEMODE_TEST_ROOT"))) return null;
+            var spec = Environment.GetEnvironmentVariable("RACEMODE_TEST_MONITORS");
+            if (string.IsNullOrWhiteSpace(spec)) return null;
+            var list = new List<MonitorInfo>();
+            foreach (var e in spec.Split(';'))
+            {
+                var f = e.Split(','); int x, y, w, h, hz;
+                if (f.Length < 6 || !int.TryParse(f[1], out x) || !int.TryParse(f[2], out y) || !int.TryParse(f[3], out w) || !int.TryParse(f[4], out h) || !int.TryParse(f[5], out hz)) continue;
+                list.Add(new MonitorInfo { Index = list.Count, MonitorId = f[0].Trim(), DeviceName = "DISPLAY" + (list.Count + 1), Name = "Test screen", X = x, Y = y, Width = w, Height = h, Hz = hz, Primary = f.Length > 6 && f[6].Trim() == "primary" });
+            }
+            return list.Count > 0 ? list : null;
         }
 
         // Monitors attached to the desktop, in Windows' DISPLAYn order (Index = position in that order).

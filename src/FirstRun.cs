@@ -82,12 +82,126 @@ namespace RaceMode
         static string LaunchWhy(LaunchItem it)
         {
             var name = !string.IsNullOrEmpty(it.ProcessName) ? it.ProcessName : SafeFileName(it.Path);
-            var app = AppScan.Apps.FirstOrDefault(a => a.process.Contains(name, StringComparer.OrdinalIgnoreCase));
+            var app = AppScan.Apps.FirstOrDefault(a => a.process.Contains(name, StringComparer.OrdinalIgnoreCase) || (a.launch != null && a.launch.Contains(name, StringComparer.OrdinalIgnoreCase)));
             return app == null ? null : Cap(app.why);
         }
+        string LaunchPageIntro()
+        {
+            if (_launch.Count > 0)
+            {
+                // "found" only for what the scan of this PC turned up, not for apps the user added themselves
+                int fromScan = _launchFound == null ? 0 : _launch.Count(l => _launchFound.Any(f => string.Equals(f.Path, l.Path, StringComparison.OrdinalIgnoreCase)));
+                return "When you turn Race Mode on, it opens the ticked apps for you." +
+                    (fromScan == 0 ? "" : fromScan == _launch.Count ? " These race apps were found on your PC." : " Some of them were found on your PC.");
+            }
+            return LaunchSuggestions().Count > 0 ? "When you turn Race Mode on, it opens the apps you add here. Add the race apps you use from the ones found on your PC."
+                 : "When you turn Race Mode on, it opens the apps you add here. Race Mode didn't find any race apps it knows; add the ones you use, or skip this for now.";
+        }
+
+        // ---------------- race apps found on this PC (for the Launch list) ----------------
+        List<LaunchItem> _launchFound;   // null until the background scan has finished
+        bool _launchScanning;
+
+        // Looks for installed race apps (Start menu shortcuts, Settings > Apps) on a background thread. On a fresh
+        // config, before setup is finished, the ones it finds in Program Files, %LOCALAPPDATA%\Programs or the app's
+        // own default folder are added to the list ticked (copies, so the found list stays as found). Everything
+        // else, and everything found later, is only offered ("Found on your PC"), showing where it is.
+        void StartLaunchScan()
+        {
+            if (_launchScanning) return;
+            _launchScanning = true;
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                List<LaunchItem> found;
+                try { found = LaunchScan.Find(); }
+                catch (Exception ex) { LogCrash(ex); found = new List<LaunchItem>(); }
+                Window.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _launchScanning = false;
+                    _launchFound = found;
+                    if (_freshConfig && _cfg.SetupDone == false)
+                    {
+                        var add = LaunchSuggestions().Where(it => LaunchScan.AutoTick(AppScan.Apps, it)).ToList();
+                        foreach (var it in add) _launch.Add(CopyFound(it));
+                        if (add.Count > 0) SaveConfig();
+                    }
+                    RefreshLaunchSuggest();
+                    if (_firstRun != null && _firstRun.Current == 1) _firstRun.Refresh();
+                    if (_whatsNew != null && _whatsNew.Current == 1) _whatsNew.Refresh();
+                }));
+            });
+        }
+
+        // Found race apps that aren't on the Launch list.
+        List<LaunchItem> LaunchSuggestions()
+        {
+            return _launchFound == null ? new List<LaunchItem>() : LaunchScan.NotListed(AppScan.Apps, _launchFound, _launch);
+        }
+
+        void AddFoundLaunch(LaunchItem f, bool say)
+        {
+            if (f == null || LaunchScan.NotListed(AppScan.Apps, new[] { f }, _launch).Count == 0) return;
+            _launch.Add(CopyFound(f));
+            SaveConfig();
+            RefreshLaunchSuggest();
+            if (say) Tick("Added " + f.Name + " to the Launch list");
+        }
+
+        // A ticked Launch item made from a found one (never the same object as in _launchFound).
+        static LaunchItem CopyFound(LaunchItem f)
+        {
+            return new LaunchItem { Name = f.Name, Path = f.Path, Args = f.Args ?? "", ProcessName = f.ProcessName, Enabled = true };
+        }
+
+        // "Dashboards, haptics and telemetry · C:\Program Files (x86)\SimHub": what a found app is for and where it is.
+        static string FoundSubtitle(LaunchItem it)
+        {
+            var why = LaunchWhy(it);
+            string dir; try { dir = System.IO.Path.GetDirectoryName(it.Path ?? ""); } catch { dir = null; }
+            if (string.IsNullOrEmpty(dir)) dir = it.Path;
+            return string.IsNullOrEmpty(why) ? dir : string.IsNullOrEmpty(dir) ? why : why + " · " + dir;
+        }
+
+        // A setup row: the app's name, what it's for and its folder, with an Add button on the right.
+        UIElement SuggestRow(LaunchItem it, Action add)
+        {
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition());
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var t = (FrameworkElement)SetupFlow.Text(it.Name, FoundSubtitle(it));
+            t.VerticalAlignment = VerticalAlignment.Center; t.ToolTip = it.Path;
+            g.Children.Add(t);
+            var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "Add", FontSize = 12, Padding = new Thickness(12, 5, 12, 5), MinHeight = 28, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            System.Windows.Automation.AutomationProperties.SetName(b, "Add " + it.Name);
+            b.Click += (s, e) => add();
+            Grid.SetColumn(b, 1); g.Children.Add(b);
+            return g;
+        }
+
+        // Launch tab: one button per found app above Add App… ("Found on your PC: + SimHub").
+        void RefreshLaunchSuggest()
+        {
+            var panel = Window.FindName("LaunchSuggest") as WrapPanel;
+            if (panel == null) return;
+            panel.Children.Clear();
+            var found = LaunchSuggestions();
+            panel.Visibility = found.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (found.Count == 0) return;
+            panel.Children.Add(new TextBlock { Text = "Found on your PC:", Style = SetupFlow.Res<Style>("Sub"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 6) });
+            foreach (var f in found)
+            {
+                var item = f;
+                var b = new Button { Style = SetupFlow.Res<Style>("Btn"), Content = "+ " + item.Name, FontSize = 12, Padding = new Thickness(12, 5, 12, 5), MinHeight = 28, Margin = new Thickness(0, 0, 8, 6), ToolTip = item.Path };
+                System.Windows.Automation.AutomationProperties.SetName(b, "Add " + item.Name + " to the Launch list");
+                b.Click += (s, e) => AddFoundLaunch(item, true);
+                panel.Children.Add(b);
+            }
+        }
+
         static string SafeFileName(string p) { try { return System.IO.Path.GetFileNameWithoutExtension(p ?? ""); } catch { return ""; } }
 
-        static string Cap(string s) { return string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1); }
+        // "dashboards" -> "Dashboards", but names that start lower-case stay as they are ("iRacing overlays").
+        static string Cap(string s) { return string.IsNullOrEmpty(s) || (s.Length > 1 && char.IsUpper(s[1])) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1); }
 
         void MaybeStartFirstRun()
         {
@@ -103,46 +217,44 @@ namespace RaceMode
             if (_firstRun != null) { _firstRun.Start(Math.Max(0, startAt)); return; }
             var pages = new List<SetupPage>();
 
-            // 1. racing monitor (same list and rules as the Settings tab picker). Your screens first, "Don't check" last.
-            ComboBox pick = null;
+            // 1. racing monitor: the same picture and rules as Settings; the choice is kept until Next.
+            int draft = 0;
             bool suggested = false;
             pages.Add(new SetupPage
             {
                 Title = "Which screen do you race on?",
-                Intro = "Before each race, Race Mode makes sure iRacing opens on this screen and fills it (as a borderless window), and fixes that while iRacing is closed. Your FPS cap stays as it is.",
+                Intro = "Before each race, Race Mode checks that iRacing will open on this screen, or across your three screens, and fill it as a borderless window. Any fix is made while iRacing is closed. Your FPS cap is left alone.",
                 Build = () =>
                 {
                     FillMonitorPick();
                     var src = Get<ComboBox>("MonitorPick");
-                    pick = new ComboBox();
-                    System.Windows.Automation.AutomationProperties.SetName(pick, "Racing monitor");
-                    for (int k = 1; k < src.Items.Count; k++) pick.Items.Add(src.Items[k]);
-                    pick.Items.Add(src.Items[0]);
                     suggested = false;
-                    if (src.SelectedIndex > 0) pick.SelectedIndex = src.SelectedIndex - 1;
-                    else if (_pickMonitors.Count > 0) { pick.SelectedIndex = SuggestRacingMonitor(); suggested = true; }
-                    else pick.SelectedIndex = pick.Items.Count - 1;
-                    return SetupFlow.Group(SetupFlow.Stack(SetupFlow.Text("Racing monitor",
-                        (suggested ? (_pickMonitors.Count == 1 ? "Your only screen is picked. " : "Your biggest screen is picked. ") : "") + "Choose \"Don't check\" to leave iRacing's screen settings alone."), Pad(pick)));
+                    if (src.SelectedIndex > 0) draft = src.SelectedIndex;
+                    else if (_pickMonitors.Count > 0) { draft = 1 + SuggestRacingMonitor(); suggested = true; }
+                    else draft = 0;
+                    // iRacing is already set up for three screens and three sit side by side: those are the pick.
+                    bool tripleSuggested = suggested && _pickTriples.Count == 1 && DisplayGuard.IniNumMonitors(IniPath()) == 3;
+                    if (tripleSuggested) draft = 1 + _pickMonitors.Count;
+                    string why = !suggested ? "" : tripleSuggested ? "Your three screens are picked, because iRacing is set up for three."
+                        : _pickMonitors.Count == 1 ? "Your only screen is picked." : "Your biggest screen is picked.";
+                    return SetupFlow.Group(BuildScreenPicker(() => draft, i => draft = i, why));
                 },
                 OnNext = () =>
                 {
-                    if (pick == null) return true;
                     var src = Get<ComboBox>("MonitorPick");
-                    int want = pick.SelectedIndex == pick.Items.Count - 1 ? 0 : pick.SelectedIndex + 1;
-                    if (want != src.SelectedIndex) src.SelectedIndex = want;
+                    if (src != null && draft != src.SelectedIndex) src.SelectedIndex = draft;
                     return true;
                 }
             });
 
             // 2. apps to start
-            pages.Add(new SetupPage
+            SetupPage launchPage = null;
+            launchPage = new SetupPage
             {
                 Title = "Apps to start before a race",
-                Intro = _launch.Count > 0 ? "When you turn Race Mode on, it opens the ticked apps for you. These race apps were found on your PC."
-                                          : "When you turn Race Mode on, it opens the apps you add here. Race Mode didn't find any race apps it knows; add the ones you use, or skip this for now.",
                 Build = () =>
                 {
+                    launchPage.Intro = LaunchPageIntro();
                     var rows = new List<UIElement>();
                     foreach (var it in _launch.ToList())
                     {
@@ -151,11 +263,22 @@ namespace RaceMode
                         cb.Checked += (s, e) => { item.Enabled = true; SaveConfig(); };
                         cb.Unchecked += (s, e) => { item.Enabled = false; SaveConfig(); };
                     }
-                    if (rows.Count == 0) rows.Add(SetupFlow.Text("No race apps found", "Add the ones you use, like SimHub or Crew Chief."));
-                    return SetupFlow.Stack(SetupFlow.Group(rows.ToArray()),
+                    if (rows.Count == 0) rows.Add(SetupFlow.Text(_launchFound == null ? "Looking for race apps on this PC…" : "No race apps found",
+                        _launchFound == null ? "This takes a few seconds." : "Add the ones you use, like SimHub or Crew Chief."));
+                    // installed race apps that aren't on the list: one tap adds one (none are ticked for you here)
+                    var found = LaunchSuggestions();
+                    UIElement foundHead = null, foundGroup = null;
+                    if (found.Count > 0)
+                    {
+                        foundHead = SetupFlow.HeadingWithAction("Found on your PC", found.Count > 1 ? "Add All" : null,
+                            () => { foreach (var f in LaunchSuggestions()) AddFoundLaunch(f, false); _firstRun.Refresh(); });
+                        foundGroup = SetupFlow.Group(found.Select(f => { var item = f; return SuggestRow(item, () => { AddFoundLaunch(item, true); _firstRun.Refresh(); }); }).ToArray());
+                    }
+                    return SetupFlow.Stack(SetupFlow.Group(rows.ToArray()), foundHead, foundGroup,
                         SetupFlow.Button("Add App…", () => { AddLaunchApp(); _firstRun.Refresh(); }));
                 }
-            });
+            };
+            pages.Add(launchPage);
 
             // 3. apps to close: open apps (measured for a few seconds) with their memory in a column, heavy apps it
             // doesn't recognise on their own, then installed-but-closed apps folded away. A running total says what
@@ -207,7 +330,7 @@ namespace RaceMode
                         parts.Add(SetupFlow.Group(other.Select(a => row(a, true)).ToArray()));
                     }
                     if (known.Count == 0 && other.Count == 0)
-                        parts.Add(SetupFlow.Group(SetupFlow.Text("Nothing heavy is open right now", "You can add apps any time on the Close tab.")));
+                        parts.Add(SetupFlow.Group(SetupFlow.Text("Nothing heavy is open right now", "You can add apps any time under Close.")));
                     parts.Add(total);
                     if (notOpen.Count > 0)
                         parts.Add(SetupFlow.Fold(notOpen.Count + (notOpen.Count == 1 ? " more app" : " more apps") + " on this PC, not open now",
@@ -239,17 +362,17 @@ namespace RaceMode
             pages.Add(new SetupPage
             {
                 Title = "You're set",
-                Intro = "Turn Race Mode on when you're about to race. Your Race graphics start as a copy of your current iRacing graphics; change the quality any time on the Graphics tab.",
+                Intro = "Turn Race Mode on when you're about to race. Your Race graphics start as a copy of your current iRacing graphics; change the quality any time under Graphics.",
                 NextText = "Done", CanSkip = false, QuietNext = true,
                 Build = () =>
                 {
                     bool screen = _cfg.DisplayGuard != null && _cfg.DisplayGuard.Enabled;
                     int starts = _launch.Count(l => l.Enabled), closes = _close.Count;
                     return SetupFlow.Stack(SetupFlow.Group(
-                        SetupFlow.Status(screen ? "Screen check is on" : "Screen check is off", "Settings tab, Racing monitor", screen ? (bool?)true : null),
-                        SetupFlow.Status(starts == 0 ? "No apps start with Race Mode" : starts + (starts == 1 ? " app starts" : " apps start") + " with Race Mode", "Launch tab", starts > 0 ? (bool?)true : null),
-                        SetupFlow.Status(closes == 0 ? "No apps close before a race" : closes + (closes == 1 ? " app closes" : " apps close") + " before a race", "Close tab", closes > 0 ? (bool?)true : null),
-                        SetupFlow.Status(Installer.StartsWithWindows ? "Starts with Windows" : "Starts from its shortcut", "Settings tab, Windows", null)),
+                        SetupFlow.Status(screen ? "Screen check is on" : "Screen check is off", "Settings, Racing monitor", screen ? (bool?)true : null),
+                        SetupFlow.Status(starts == 0 ? "No apps start with Race Mode" : starts + (starts == 1 ? " app starts" : " apps start") + " with Race Mode", "Launch apps", starts > 0 ? (bool?)true : null),
+                        SetupFlow.Status(closes == 0 ? "No apps close before a race" : closes + (closes == 1 ? " app closes" : " apps close") + " before a race", "Close list", closes > 0 ? (bool?)true : null),
+                        SetupFlow.Status(Installer.StartsWithWindows ? "Starts with Windows" : "Starts from its shortcut", "Settings, Windows", null)),
                         SetupFlow.Button("Turn It On Now", () => { _firstRun.Finish(); var sw = Get<ToggleButton>("Switch"); if (sw != null && sw.IsChecked != true) sw.IsChecked = true; }, true));
                 }
             });
@@ -262,21 +385,16 @@ namespace RaceMode
         void FirstRunFinished()
         {
             if (_cfg.SetupDone != true) { _cfg.SetupDone = true; SaveConfig(); }
-            ApplyLayout();
-            // the window may have been maximised or narrowed while setup hid everything
-            var dash = Get<ScrollViewer>("Dash"); if (dash != null) dash.Visibility = _wide ? Visibility.Visible : Visibility.Collapsed;
+            MarkVersionRun();
+            // setup covered this version's features: What's new waits for the next stable series
+            var series = VersionSeries(Updater.Current);
+            if (series != null && (string.IsNullOrEmpty(_cfg.WhatsNewSeen) || Updater.Compare(_cfg.WhatsNewSeen + ".0", series + ".0") < 0)) { _cfg.WhatsNewSeen = series; SaveConfig(); }
+            ApplyLayout();   // the window may have been resized while setup hid everything
             if (_on) UpdateStatus();
             else SetText("StatusText", "All set. Flip the switch when you're about to race.");
             Tick("Setup done");
             var sw = Get<ToggleButton>("Switch");
             if (sw != null) Window.Dispatcher.BeginInvoke(new Action(() => sw.Focus()), DispatcherPriority.Input);
-        }
-
-        // The setup Helpers page on its own, from the CPU temperature tile.
-        void OpenHelpers()
-        {
-            if (_firstRun == null) StartFirstRun(3);
-            else _firstRun.Start(3);
         }
 
         // Most pixels, then the fastest refresh rate: usually the screen people race on (a fast 1080p side screen
@@ -313,33 +431,7 @@ namespace RaceMode
             Action render = null;
             render = () =>
             {
-                hw.Children.Clear();
-                if (_helperError != null && !File.Exists(HwinfoExe)) hw.Children.Add(SetupFlow.Status("HWiNFO didn't install", _helperError, false));
-                bool installed = File.Exists(HwinfoExe);
-                var live = _mon.Live; double temp = live == null ? double.NaN : live.CpuTemp;   // NaN until HWiNFO shares a CPU temperature
-                var hps = Process.GetProcessesByName("HWiNFO64"); bool hwRunning = hps.Length > 0; foreach (var hp in hps) hp.Dispose();
-                if (!double.IsNaN(temp))
-                    hw.Children.Add(SetupFlow.Status("CPU temperature works", "HWiNFO is sharing it: " + Math.Round(temp) + " °C right now.", true));
-                else if (!installed)
-                {
-                    hw.Children.Add(SetupFlow.Status("CPU temperature needs HWiNFO", "HWiNFO is a free sensor app. Race Mode reads the CPU temperature it shares.", null));
-                    hw.Children.Add(SetupFlow.Button(_helperBusy ? "Installing HWiNFO…" : "Install HWiNFO", InstallHwinfo, true));
-                }
-                else if (!hwRunning)
-                {
-                    hw.Children.Add(SetupFlow.Status("HWiNFO is installed but not running", "Open it, and Race Mode reads the CPU temperature it shares.", false));
-                    hw.Children.Add(SetupFlow.Button("Open HWiNFO", () => { StartHwinfo(); }, true));
-                }
-                else
-                {
-                    hw.Children.Add(SetupFlow.Status("HWiNFO is running but isn't sharing the CPU temperature yet", "It takes three clicks in HWiNFO. This line turns green by itself when it works.", false));
-                    var steps = (FrameworkElement)SetupFlow.Text("In HWiNFO",
-                        "1. Choose Sensors-only when it opens.\n2. Settings > HWiNFO Gadget: tick Enable reporting to Gadget.\n3. Right-click CPU Package in the sensor list > Report value in Gadget.\nTip: in HWiNFO's settings, tick Auto Start so it's always running.");
-                    steps.Margin = new Thickness(0, 10, 0, 0);
-                    steps.Visibility = _helperStepsShown ? Visibility.Visible : Visibility.Collapsed;
-                    hw.Children.Add(SetupFlow.Button(_helperStepsShown ? "Hide Steps" : "Show Me How", () => { _helperStepsShown = !_helperStepsShown; render(); }));
-                    hw.Children.Add(steps);
-                }
+                RenderHwinfo(hw, render);
                 obs.Children.Clear();
                 var cb = SetupFlow.Switch("I stream", "Turns on Streaming: OBS starts with Race Mode and gets a little more CPU.", _cfg.Streaming);
                 cb.Checked += (s, e) => { Get<CheckBox>("OptStream").IsChecked = true; };
@@ -354,6 +446,83 @@ namespace RaceMode
             _helperRender = render;
             _helperTimer.Start();
             return SetupFlow.Stack(SetupFlow.Group(hw), SetupFlow.Group(obs));
+        }
+
+        // HWiNFO's state and the one button that moves it on. Shared by setup's Helpers page and the Settings tab
+        // (CPU temperature), so fixing it never means going back into setup. rerender: called after a button press
+        // (null: the caller's timer refreshes it).
+        int _hwStage;          // 0 nothing running, 1 waiting for the user to quit HWiNFO, 2 started with sharing on
+        DateTime _hwStageAt;
+        void RenderHwinfo(StackPanel hw, Action rerender)
+        {
+            if (hw == null) return;
+            Action again = () => { if (rerender != null) rerender(); else RenderHwinfo(hw, null); };
+            hw.Children.Clear();
+            bool installed = File.Exists(HwinfoExe);
+            var live = _mon.Live; double temp = live == null ? double.NaN : live.CpuTemp;   // NaN until HWiNFO shares a CPU temperature
+            var hps = Process.GetProcessesByName("HWiNFO64"); bool hwRunning = hps.Length > 0; foreach (var hp in hps) hp.Dispose();
+            if (!double.IsNaN(temp))
+            {
+                _hwStage = 0;
+                hw.Children.Add(SetupFlow.Status("CPU temperature works", "HWiNFO is sharing it: " + Math.Round(Monitor.HwinfoFahrenheit ? temp * 9 / 5 + 32 : temp) + (Monitor.HwinfoFahrenheit ? " °F" : " °C") + " right now.", true));
+                return;
+            }
+            if (!installed)
+            {
+                if (_helperError != null) hw.Children.Add(SetupFlow.Status("HWiNFO didn't install", _helperError, false));
+                hw.Children.Add(SetupFlow.Status("CPU temperature needs HWiNFO", "HWiNFO is a free sensor app. Race Mode reads the CPU temperature it shares.", null));
+                hw.Children.Add(SetupFlow.Button(_helperBusy ? "Installing HWiNFO…" : "Install HWiNFO", InstallHwinfo, true));
+                return;
+            }
+            if (_hwStage == 1 && !hwRunning) SetUpAndStartHwinfo();   // the user quit it: switch sharing on, start it again
+            if (_hwStage == 1)
+            {
+                hw.Children.Add(SetupFlow.Status("Quit HWiNFO so Race Mode can switch on its sharing",
+                    "Right-click HWiNFO's icon in the system tray (next to the clock) and choose Exit. Race Mode carries on by itself once it has closed.", null));
+                hw.Children.Add(SetupFlow.Button("Cancel", () => { _hwStage = 0; again(); }));
+                return;
+            }
+            if (_hwStage == 2 && (DateTime.Now - _hwStageAt).TotalSeconds < 30)
+            {
+                hw.Children.Add(SetupFlow.Status("HWiNFO is starting with sharing switched on…",
+                    "Allow it if Windows asks for permission. If HWiNFO asks how to start, choose Sensors-only. This turns green by itself.", null));
+                return;
+            }
+            if (!hwRunning)
+            {
+                bool on = HwinfoSetup.SharingOn();
+                hw.Children.Add(SetupFlow.Status("HWiNFO is installed but not running",
+                    on ? "Open it, and Race Mode reads the CPU temperature it shares." : "Race Mode can switch on its sharing and open it for you.", false));
+                hw.Children.Add(SetupFlow.Button(on ? "Open HWiNFO" : "Set Up and Open HWiNFO", () => { SetUpAndStartHwinfo(); again(); }, true));
+                return;
+            }
+            bool afterSetup = _hwStage == 2;
+            hw.Children.Add(SetupFlow.Status(afterSetup ? "One step left in HWiNFO" : "HWiNFO is running but isn't sharing the CPU temperature yet",
+                afterSetup ? "Sharing is on, but HWiNFO didn't pick a CPU temperature for this processor. Do the step below; this turns green by itself."
+                           : "Race Mode can switch its sharing on for you. HWiNFO closes for a moment while it does.", false));
+            if (!afterSetup) hw.Children.Add(SetupFlow.Button("Set Up HWiNFO for Me", () => { _hwStage = 1; Tick("Quit HWiNFO, and Race Mode switches on its sharing"); again(); }, true));
+            var steps = (FrameworkElement)SetupFlow.Text("In HWiNFO", afterSetup
+                ? "In the sensor window, right-click your CPU's package temperature (CPU Package, or CPU (Tctl/Tdie) on AMD) and choose Report value in Gadget."
+                : "1. Choose Sensors-only when it opens.\n2. Settings > HWiNFO Gadget: tick Enable reporting to Gadget.\n3. Right-click CPU Package in the sensor list > Report value in Gadget.\nTip: in HWiNFO's settings, tick Auto Start so it's always running.");
+            steps.Margin = new Thickness(0, 10, 0, 0);
+            steps.Visibility = _helperStepsShown || afterSetup ? Visibility.Visible : Visibility.Collapsed;
+            if (!afterSetup) hw.Children.Add(SetupFlow.Button(_helperStepsShown ? "Hide Steps" : "Do It Myself", () => { _helperStepsShown = !_helperStepsShown; again(); }));
+            hw.Children.Add(steps);
+        }
+
+        // HWiNFO is closed: switch its sharing on (its own per-user settings), then start it (Windows asks first).
+        void SetUpAndStartHwinfo()
+        {
+            try
+            {
+                int n = HwinfoSetup.Apply();
+                _mon.Event("Switched on HWiNFO's sharing (" + n + " CPU readings added)");
+                Installer.Log("hwinfo", new[] { "sharing switched on, " + n + " CPU readings added" }, Shell.Data);
+            }
+            catch (Exception ex) { LogCrash(ex); Tick("Couldn't change HWiNFO's settings: " + ex.Message); _hwStage = 0; return; }
+            _hwStage = 2; _hwStageAt = DateTime.Now;
+            try { Process.Start(new ProcessStartInfo(HwinfoExe) { UseShellExecute = true }); _hwinfoCheckedAt = DateTime.MinValue; Tick("Starting HWiNFO with sharing switched on…"); }
+            catch (Exception ex) { Tick("Couldn't start HWiNFO: " + ex.Message); }
         }
 
         Action _helperRender;
@@ -377,7 +546,7 @@ namespace RaceMode
                     using (var p = Process.Start(psi)) { p.WaitForExit(10 * 60 * 1000); msg = File.Exists(HwinfoExe) ? "HWiNFO is installed. Now switch on its sharing (steps below)." : "HWiNFO didn't install (winget code " + (p.HasExited ? p.ExitCode.ToString() : "timeout") + "). You can get it from hwinfo.com."; }
                 }
                 catch (Exception ex) { msg = "Couldn't run winget (" + ex.Message + "). You can get HWiNFO from hwinfo.com."; }
-                Window.Dispatcher.BeginInvoke(new Action(() => { _helperBusy = false; _helperError = File.Exists(HwinfoExe) ? null : msg; Tick(msg); Installer.Log("hwinfo", new[] { msg }); if (_helperRender != null) _helperRender(); }));
+                Window.Dispatcher.BeginInvoke(new Action(() => { _helperBusy = false; _helperError = File.Exists(HwinfoExe) ? null : msg; Tick(msg); Installer.Log("hwinfo", new[] { msg }, Shell.Data); if (_helperRender != null) _helperRender(); }));
             });
         }
     }

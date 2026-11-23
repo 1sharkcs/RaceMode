@@ -71,11 +71,12 @@ namespace RaceMode
                 var old = target + ".old";
                 if (File.Exists(old)) File.Delete(old);
                 bool had = File.Exists(target);
+                var was = had ? InstalledVersion() : null;
                 if (had) File.Move(target, old);
                 try { File.Copy(ThisExe, target, false); }
                 catch { if (had && !File.Exists(target)) File.Move(old, target); throw; }
                 try { if (File.Exists(old)) File.Delete(old); } catch { }
-                done.Add((had ? "Updated" : "Installed") + " Race Mode " + Updater.Current + " in " + InstallDir);
+                done.Add(had ? DoneLine(was, Updater.Current) : "Installed Race Mode " + Updater.Current + " in " + InstallDir);
             }
             else done.Add("Race Mode is already in " + InstallDir);
             Directory.CreateDirectory(DataDir);
@@ -89,9 +90,41 @@ namespace RaceMode
             done.Add("Added Race Mode to Settings > Apps, so you can uninstall it there");
 
             SetStartWithWindows(startWithWindows, target);
-            done.Add(startWithWindows ? "Race Mode will start with Windows, in the system tray" : "Race Mode won't start with Windows (you can change this on the Settings tab)");
+            done.Add(startWithWindows ? "Race Mode will start with Windows, in the system tray" : "Race Mode won't start with Windows (you can change this in Settings)");
             Log("install", done);
             return done;
+        }
+
+        // The installed copy's version ("1.0.1", "1.0.2-rc.1"), or null if there's none or it can't be read.
+        public static string InstalledVersion()
+        {
+            try
+            {
+                if (!File.Exists(InstalledExe)) return null;
+                var v = (FileVersionInfo.GetVersionInfo(InstalledExe).ProductVersion ?? "").Trim();
+                return Updater.Parse(v) == null ? null : v;
+            }
+            catch { return null; }
+        }
+
+        // Re-running setup can go back to an older version (README: it swaps a test version for the latest normal
+        // release). Says so before Install is pressed; null when it doesn't go back or a version is unknown ("local").
+        public static string GoingBackNote(string installed, string setup)
+        {
+            if (Updater.Parse(installed) == null || Updater.Parse(setup) == null || Updater.Compare(installed, setup) <= 0) return null;
+            bool test = installed.IndexOf('-') >= 0, normal = setup.IndexOf('-') < 0;
+            return "Race Mode " + installed + (test ? " (a test version)" : "") + " is installed. Installing goes back to " + setup +
+                   (test && normal ? ", the latest normal release" : "") + "; your settings are kept.";
+        }
+
+        // The finished page's first line when setup replaced an installed copy.
+        public static string DoneLine(string installed, string setup)
+        {
+            if (Updater.Parse(installed) == null || Updater.Parse(setup) == null) return "Updated Race Mode " + setup + " in " + InstallDir;
+            int c = Updater.Compare(installed, setup);
+            if (c > 0) return "Went back to Race Mode " + setup + " (from " + installed + ")";
+            if (c < 0) return "Updated Race Mode from " + installed + " to " + setup;
+            return "Reinstalled Race Mode " + setup;
         }
 
         public static void WriteUninstallEntry(string exe)
@@ -193,12 +226,14 @@ namespace RaceMode
         }
 
         // data\setup.log: what install/uninstall did (never secrets), for diagnosing problems.
-        public static void Log(string what, IEnumerable<string> lines)
+        // The helpers (HWiNFO, OBS) pass the running copy's own data folder, so a portable copy logs beside itself.
+        public static void Log(string what, IEnumerable<string> lines, string dir = null)
         {
             try
             {
-                Directory.CreateDirectory(DataDir);
-                File.AppendAllText(Path.Combine(DataDir, "setup.log"),
+                if (string.IsNullOrEmpty(dir)) dir = DataDir;
+                Directory.CreateDirectory(dir);
+                File.AppendAllText(Path.Combine(dir, "setup.log"),
                     DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + "  " + what + " (" + Updater.Current + ")" + Environment.NewLine +
                     string.Concat(lines.Select(l => "  " + l + Environment.NewLine)));
             }
@@ -226,13 +261,40 @@ namespace RaceMode
         int _i;
 
         static Window _host;   // where the shared styles (Group, Row, Btn...) come from
+        // Setup and What's new share the overlay and its footer buttons; only the flow showing answers them.
+        static SetupFlow _active;
+
+        // The line above the title: "Step 2 of 5" unless a flow says otherwise (What's new: "What's new in 1.1 · 2 of 3").
+        public Func<int, int, string> StepText;
+        // Skip ends the whole flow instead of moving to the next page (What's new).
+        public bool SkipEnds;
+        // A card over the dimmed app (What's new) instead of the whole window (setup). The app stays visible behind,
+        // but can't be clicked or reached by the keyboard while the card shows.
+        public bool Modal;
 
         public SetupFlow(Window w, List<SetupPage> pages, Action finished)
         {
             _w = w; _pages = pages; _finished = finished; _host = w;
-            Btn("SetupNext").Click += (s, e) => Next(true);
-            Btn("SetupSkip").Click += (s, e) => Next(false);
-            Btn("SetupBack").Click += (s, e) => { if (_i > 0) { Leave(); _i--; Render(); } };
+            Btn("SetupNext").Click += (s, e) => { if (_active == this) Next(true); };
+            Btn("SetupSkip").Click += (s, e) => { if (_active != this) return; if (SkipEnds) Finish(); else Next(false); };
+            Btn("SetupBack").Click += (s, e) => { if (_active == this && _i > 0) { Leave(); _i--; Render(); } };
+            // Esc closes the card (What's new), as in other Windows dialogs; first-run setup ignores it
+            _w.PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key != System.Windows.Input.Key.Escape || !Modal || !Showing) return;
+                if (System.Windows.Input.Mouse.Captured is ComboBox) return;   // an open dropdown closes itself first
+                e.Handled = true; Finish();
+            };
+        }
+
+        // True while this flow is the one on screen.
+        public bool Showing
+        {
+            get { var o = (UIElement)_w.FindName("SetupOverlay"); return _active == this && o != null && o.Visibility == Visibility.Visible; }
+        }
+        public static bool AnyShowing
+        {
+            get { return _active != null && _active.Showing; }
         }
 
         Button Btn(string n) { return (Button)_w.FindName(n); }
@@ -242,6 +304,7 @@ namespace RaceMode
         // Opens setup at one page (e.g. the Helpers page from the CPU temperature tile).
         public void Start(int page)
         {
+            _active = this;
             ShowOverlay(true);
             _i = Math.Max(0, Math.Min(page, _pages.Count - 1)); Render();
         }
@@ -256,6 +319,67 @@ namespace RaceMode
 
         // While setup shows, everything behind it is hidden too, so the keyboard and screen readers only reach setup.
         readonly Dictionary<UIElement, Visibility> _behind = new Dictionary<UIElement, Visibility>();
+        readonly Dictionary<UIElement, bool> _behindEnabled = new Dictionary<UIElement, bool>();
+        System.Windows.Media.Brush _snapshot;
+
+        // The window below the title bar as it looks now, with the scrim over it: the background for the card.
+        System.Windows.Media.Brush Snapshot(Panel root)
+        {
+            try
+            {
+                var grid = root as Grid;
+                double w = root.ActualWidth, h = root.ActualHeight, top = grid != null && grid.RowDefinitions.Count > 0 ? grid.RowDefinitions[0].ActualHeight : 0;
+                if (w < 1 || h - top < 1) return null;
+                double sx = 1, sy = 1;
+                var src = PresentationSource.FromVisual(root);
+                if (src != null && src.CompositionTarget != null) { sx = src.CompositionTarget.TransformToDevice.M11; sy = src.CompositionTarget.TransformToDevice.M22; }
+                var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap((int)Math.Ceiling(w * sx), (int)Math.Ceiling(h * sy), 96 * sx, 96 * sy, System.Windows.Media.PixelFormats.Pbgra32);
+                bmp.Render(root); bmp.Freeze();
+                var scrim = Res<System.Windows.Media.Brush>("Scrim") ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xB8, 0, 0, 0));
+                var all = new Rect(0, 0, w, h);
+                var g = new System.Windows.Media.DrawingGroup();
+                g.Children.Add(new System.Windows.Media.ImageDrawing(bmp, all));
+                g.Children.Add(new System.Windows.Media.GeometryDrawing(scrim, null, new System.Windows.Media.RectangleGeometry(all)));
+                var brush = new System.Windows.Media.DrawingBrush(g)
+                {
+                    Viewbox = new Rect(0, top, w, h - top), ViewboxUnits = System.Windows.Media.BrushMappingMode.Absolute,
+                    Stretch = System.Windows.Media.Stretch.Fill
+                };
+                brush.Freeze();
+                return brush;
+            }
+            catch { return null; }
+        }
+
+        // Setup: the page fills the window. What's new: a centred card on a scrim, sized to the window.
+        void StyleOverlay(Border overlay)
+        {
+            var card = (Border)_w.FindName("SetupCard");
+            var grid = (FrameworkElement)_w.FindName("SetupGrid");
+            if (card == null || grid == null) return;
+            if (Modal)
+            {
+                if (_snapshot != null) overlay.Background = _snapshot; else overlay.SetResourceReference(Border.BackgroundProperty, "Scrim");
+                card.SetResourceReference(Border.BackgroundProperty, "Bg");
+                card.SetResourceReference(Border.BorderBrushProperty, "Hairline");
+                card.BorderThickness = new Thickness(1); card.CornerRadius = new CornerRadius(14);
+                card.HorizontalAlignment = HorizontalAlignment.Center; card.VerticalAlignment = VerticalAlignment.Center;
+                card.Margin = new Thickness(24, 12, 24, 24); card.MaxWidth = 640; card.MaxHeight = double.PositiveInfinity;   // the overlay's own size limits it
+                System.Windows.Automation.AutomationProperties.SetName(card, "What's new");
+                card.Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 32, ShadowDepth = 6, Opacity = 0.45, Color = System.Windows.Media.Colors.Black };
+                grid.Margin = new Thickness(24, 22, 24, 22);
+            }
+            else
+            {
+                overlay.SetResourceReference(Border.BackgroundProperty, "Bg");
+                card.Background = null; card.BorderThickness = new Thickness(0); card.CornerRadius = new CornerRadius(0);
+                card.HorizontalAlignment = HorizontalAlignment.Stretch; card.VerticalAlignment = VerticalAlignment.Stretch;
+                card.Margin = new Thickness(0); card.MaxWidth = double.PositiveInfinity; card.MaxHeight = double.PositiveInfinity;
+                card.Effect = null; card.RenderTransform = null;
+                System.Windows.Automation.AutomationProperties.SetName(card, "");
+                grid.Margin = new Thickness(20, 6, 20, 20);
+            }
+        }
         void ShowOverlay(bool on)
         {
             var overlay = (UIElement)_w.FindName("SetupOverlay");
@@ -263,20 +387,39 @@ namespace RaceMode
             if (on)
             {
                 if (overlay.Visibility == Visibility.Visible) return;   // already showing: keep the first snapshot
-                _behind.Clear();
+                _behind.Clear(); _behindEnabled.Clear();
+                // What's new: a dimmed picture of the app behind the card. The real controls are hidden, as for setup,
+                // so the keyboard and screen readers reach only the card.
+                _snapshot = Modal ? Snapshot(root) : null;
                 foreach (UIElement el in root.Children)
-                    if (el != overlay && !(el is FrameworkElement && ((FrameworkElement)el).Name == "TitleBar")) { _behind[el] = el.Visibility; el.Visibility = Visibility.Collapsed; }
+                    if (el != overlay && !(el is FrameworkElement && ((FrameworkElement)el).Name == "TitleBar"))
+                    { _behind[el] = el.Visibility; el.Visibility = Visibility.Collapsed; }
+                StyleOverlay((Border)overlay);
                 overlay.Visibility = Visibility.Visible;
+                if (Modal && SystemParameters.ClientAreaAnimation)
+                {
+                    // a short fade and lift (no motion when Windows' animations are off)
+                    var ease = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut };
+                    // the card fades in over the dimmed picture of the app (fading the whole overlay would flash an empty window)
+                    var card = (FrameworkElement)_w.FindName("SetupCard");
+                    card.BeginAnimation(UIElement.OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)) { EasingFunction = ease });
+                    var lift = new System.Windows.Media.TranslateTransform(0, 14); card.RenderTransform = lift;
+                    lift.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, new System.Windows.Media.Animation.DoubleAnimation(14, 0, TimeSpan.FromMilliseconds(220)) { EasingFunction = ease });
+                }
             }
             else
             {
                 overlay.Visibility = Visibility.Collapsed;
+                overlay.BeginAnimation(UIElement.OpacityProperty, null); overlay.Opacity = 1;
+                var cardEl = (FrameworkElement)_w.FindName("SetupCard"); if (cardEl != null) { cardEl.BeginAnimation(UIElement.OpacityProperty, null); cardEl.Opacity = 1; }
+                _snapshot = null;
                 foreach (var kv in _behind) kv.Key.Visibility = kv.Value;
-                _behind.Clear();
+                foreach (var kv in _behindEnabled) kv.Key.IsEnabled = kv.Value;
+                _behind.Clear(); _behindEnabled.Clear();
             }
         }
 
-        public void Refresh() { Render(); }
+        public void Refresh() { if (Showing) Render(); }   // never draws over the other flow
         public int Current { get { return _i; } }
 
         void Leave() { var p = _pages[_i]; if (p.OnLeave != null) p.OnLeave(); }
@@ -293,7 +436,7 @@ namespace RaceMode
         void Render()
         {
             var p = _pages[_i];
-            ((TextBlock)_w.FindName("SetupStep")).Text = _pages.Count > 1 ? "Step " + (_i + 1) + " of " + _pages.Count : "";
+            ((TextBlock)_w.FindName("SetupStep")).Text = StepText != null ? StepText(_i, _pages.Count) : _pages.Count > 1 ? "Step " + (_i + 1) + " of " + _pages.Count : "";
             ((TextBlock)_w.FindName("SetupTitle")).Text = p.Title;
             var intro = (TextBlock)_w.FindName("SetupIntro");
             intro.Text = p.Intro; intro.Visibility = string.IsNullOrEmpty(p.Intro) ? Visibility.Collapsed : Visibility.Visible;
@@ -328,7 +471,9 @@ namespace RaceMode
         public static UIElement Text(string title, string sub)
         {
             var sp = new StackPanel();
-            sp.Children.Add(new TextBlock { Text = title, Foreground = Res<Brush>("Ink"), TextWrapping = TextWrapping.Wrap });
+            var head = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap };
+            head.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
+            sp.Children.Add(head);
             if (!string.IsNullOrEmpty(sub)) sp.Children.Add(new TextBlock { Text = sub, Style = Res<Style>("Sub"), TextWrapping = TextWrapping.Wrap });
             return sp;
         }
@@ -362,7 +507,8 @@ namespace RaceMode
             var g = (Grid)CheckRow(title, sub, on, out box);
             if (string.IsNullOrEmpty(value)) return g;
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var v = new TextBlock { Text = value, FontFamily = Res<FontFamily>("Display"), FontSize = 15, Foreground = Res<Brush>("Ink"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            var v = new TextBlock { Text = value, FontFamily = Res<FontFamily>("Display"), FontSize = 15, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            v.SetResourceReference(TextBlock.ForegroundProperty, "Ink");
             Grid.SetColumn(v, 2); g.Children.Add(v);
             var cb = box; v.MouseLeftButtonUp += (s, e) => { cb.IsChecked = cb.IsChecked != true; };
             System.Windows.Automation.AutomationProperties.SetHelpText(cb, value + (string.IsNullOrEmpty(sub) ? "" : ". " + sub));
@@ -393,7 +539,8 @@ namespace RaceMode
             AutomationAttach(tb, title);
             var inner = new StackPanel();
             for (int i = 0; i < rows.Length; i++) inner.Children.Add(new Border { Style = Res<Style>(i == rows.Length - 1 ? "LastRow" : "Row"), Child = rows[i] });
-            var panel = new Border { BorderBrush = Res<Brush>("Hairline"), BorderThickness = new Thickness(0, 1, 0, 0), Child = inner, Visibility = open ? Visibility.Visible : Visibility.Collapsed };
+            var panel = new Border { BorderThickness = new Thickness(0, 1, 0, 0), Child = inner, Visibility = open ? Visibility.Visible : Visibility.Collapsed };
+            panel.SetResourceReference(Border.BorderBrushProperty, "Hairline");
             tb.Checked += (s, e) => { panel.Visibility = Visibility.Visible; if (changed != null) changed(true); };
             tb.Unchecked += (s, e) => { panel.Visibility = Visibility.Collapsed; if (changed != null) changed(false); };
             var sp = new StackPanel(); sp.Children.Add(tb); sp.Children.Add(panel);
@@ -407,9 +554,9 @@ namespace RaceMode
             g.ColumnDefinitions.Add(new ColumnDefinition());
             var dot = new System.Windows.Shapes.Ellipse
             {
-                Width = 8, Height = 8, Margin = new Thickness(0, 5, 10, 0), VerticalAlignment = VerticalAlignment.Top,
-                Fill = ok == true ? Res<Brush>("Live") : ok == false ? Res<Brush>("Warn") : (Brush)new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x60))
+                Width = 8, Height = 8, Margin = new Thickness(0, 5, 10, 0), VerticalAlignment = VerticalAlignment.Top
             };
+            dot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, ok == true ? "Live" : ok == false ? "Warn" : "DotOff");
             g.Children.Add(dot);
             var t = Text(title, sub); Grid.SetColumn(t, 1); g.Children.Add(t);
             return g;
@@ -443,10 +590,14 @@ namespace RaceMode
         {
             Window w;
             using (var fs = typeof(Installer).Assembly.GetManifestResourceStream("RaceMode.xaml")) w = (Window)XamlReader.Load(fs);
-            w.Height = Math.Min(w.Height, SystemParameters.WorkArea.Height - 16);
+            // setup is one column of questions: narrower and taller than the app's own default
+            w.MinWidth = 560; w.MinHeight = 620; w.Width = 600;
+            w.Height = Math.Min(820, SystemParameters.WorkArea.Height - 16);
             app.MainWindow = w;
+            Palette.Apply(w, Palette.IsLight("System"));   // no settings yet: follow Windows' app mode (Theme.cs)
             Shell.ApplyIcon(w);
             ((UIElement)w.FindName("MaxBtn")).Visibility = Visibility.Collapsed;
+            ((UIElement)w.FindName("SmallBtn")).Visibility = Visibility.Collapsed;
             ((Button)w.FindName("CloseBtn")).Click += (s, e) => w.Close();
             ((Button)w.FindName("MinBtn")).Click += (s, e) => w.WindowState = WindowState.Minimized;
             ((Grid)w.FindName("TitleBar")).MouseLeftButtonDown += (s, e) => { if (e.ButtonState == MouseButtonState.Pressed) try { w.DragMove(); } catch { } };
@@ -456,6 +607,7 @@ namespace RaceMode
             // shortcut they deleted isn't brought back. A first install starts with: shortcut yes, start with Windows no.
             bool reinstall = File.Exists(Installer.InstalledExe);
             bool desktop = !reinstall || File.Exists(Installer.DesktopLnk), autostart = reinstall && Installer.RunsAtStartup(Installer.InstalledExe);
+            var goingBack = reinstall ? Installer.GoingBackNote(Installer.InstalledVersion(), Updater.Current) : null;
             List<string> result = null; string error = null;
             var pages = new List<SetupPage>();
             pages.Add(new SetupPage
@@ -477,10 +629,11 @@ namespace RaceMode
                                                   SetupFlow.Button("Try Again", () => flow.Refresh())) : SetupFlow.Status("Race Mode is closed, ready to install", null, true));
                     var dcb = SetupFlow.Switch("Add a desktop shortcut", null, desktop);
                     dcb.Checked += (s, e) => desktop = true; dcb.Unchecked += (s, e) => desktop = false;
-                    var acb = SetupFlow.Switch("Start Race Mode with Windows", "Starts in the system tray, next to the clock, when you sign in, so it's ready before a race. You can change this later on the Settings tab.", autostart);
+                    var acb = SetupFlow.Switch("Start Race Mode with Windows", "Starts in the system tray, next to the clock, when you sign in, so it's ready before a race. You can change this later in Settings.", autostart);
                     acb.Checked += (s, e) => autostart = true; acb.Unchecked += (s, e) => autostart = false;
                     var errEl = error == null ? null : SetupFlow.Group(SetupFlow.Status("Install didn't finish", error, false));
-                    return SetupFlow.Stack(errEl, checks, SetupFlow.Group(dcb, acb));
+                    var backEl = goingBack == null ? null : SetupFlow.Group(SetupFlow.Status("This installs an older version", goingBack, null));
+                    return SetupFlow.Stack(errEl, backEl, checks, SetupFlow.Group(dcb, acb));
                 },
                 OnNext = () =>
                 {
@@ -491,7 +644,7 @@ namespace RaceMode
             });
             pages.Add(new SetupPage
             {
-                Title = reinstall ? "Race Mode is updated" : "Race Mode is installed",
+                Title = goingBack != null ? "Went back to Race Mode " + Updater.Current : reinstall ? "Race Mode is updated" : "Race Mode is installed",
                 Intro = reinstall ? "Your settings were kept. Open it to carry on where you left off." : "The next screens help you set it up. It takes about a minute.",
                 NextText = "Open Race Mode", CanSkip = false, CanGoBack = false,
                 Build = () => SetupFlow.Group((result ?? new List<string>()).Select(l => SetupFlow.Status(l, null, true)).ToArray()),

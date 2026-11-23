@@ -97,7 +97,10 @@ namespace RaceMode
             try
             {
                 // Unique per write: two writes in the same second (screen check, then graphics) must not overwrite each other's backup.
-                r.Backup = path + ".racemode-" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture) + ".bak";
+                // Two writes can land in the same millisecond: then the backup gets a number instead of failing the write.
+                var stamp = path + ".racemode-" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture);
+                r.Backup = stamp + ".bak";
+                for (int n = 2; File.Exists(r.Backup); n++) r.Backup = stamp + "-" + n + ".bak";
                 File.Copy(path, r.Backup, false);
                 File.SetAttributes(r.Backup, FileAttributes.Normal); // a backup must never be undeletable
                 // The very first file Race Mode ever changed is kept for good: a few Photo/Race flips would

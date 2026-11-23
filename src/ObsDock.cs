@@ -29,6 +29,23 @@ namespace RaceMode
         static byte[] _page;
 
         public static bool Running { get { return _listener != null; } }
+
+        // .NET Framework sockets are inheritable: any program Race Mode starts (a race app, the copy started by an
+        // update) would get its own handle to the dock's port and keep it open after Race Mode quits, so the next
+        // Race Mode couldn't listen there. Every socket here is made private to this process.
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool SetHandleInformation(IntPtr h, uint mask, uint flags);
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool GetHandleInformation(IntPtr h, out uint flags);
+        const uint HandleFlagInherit = 1;
+        static void NoInherit(Socket s) { try { SetHandleInformation(s.Handle, HandleFlagInherit, 0); } catch { } }
+        // For tests: whether the listening socket can be inherited by programs Race Mode starts.
+        public static bool ListenerInheritable
+        {
+            get { var l = _listener; uint f; return l != null && GetHandleInformation(l.Server.Handle, out f) && (f & HandleFlagInherit) != 0; }
+        }
+        // How many ports after the saved one to try when it is taken.
+        public const int PortsToTry = 10;
         public static string Url { get { return "http://127.0.0.1:" + Port.ToString(CultureInfo.InvariantCulture) + "/dock?t=" + _token; } }
 
         public static string NewToken()
@@ -59,10 +76,16 @@ namespace RaceMode
                 if (_page == null)
                     using (var s = typeof(ObsDock).Assembly.GetManifestResourceStream("dock.html"))
                     using (var ms = new MemoryStream()) { if (s != null) s.CopyTo(ms); _page = ms.ToArray(); }
-                Port = port; _token = token; _json = json;
-                var l = new TcpListener(IPAddress.Loopback, port);
-                l.Server.ExclusiveAddressUse = true;
-                l.Start(8);
+                _token = token; _json = json;
+                // the saved port first; if something holds it, the next few (the caller then makes a new link)
+                TcpListener l = null; Exception first = null;
+                for (int p = port; p < port + PortsToTry && p <= 65535 && l == null; p++)
+                {
+                    var tryL = new TcpListener(IPAddress.Loopback, p);
+                    try { tryL.Server.ExclusiveAddressUse = true; NoInherit(tryL.Server); tryL.Start(8); NoInherit(tryL.Server); l = tryL; Port = p; }
+                    catch (Exception ex) { if (first == null) first = ex; try { tryL.Stop(); } catch { } }
+                }
+                if (l == null) throw first ?? new IOException("no free port");
                 _listener = l;
                 var t = new Thread(() => Accept(l)) { IsBackground = true, Name = "RaceMode.Dock" };
                 t.Start();
@@ -83,6 +106,7 @@ namespace RaceMode
             {
                 TcpClient c;
                 try { c = l.AcceptTcpClient(); } catch { return; }
+                NoInherit(c.Client);
                 if (Interlocked.Increment(ref _open) > 4) { Interlocked.Decrement(ref _open); try { c.Close(); } catch { } continue; }
                 ThreadPool.QueueUserWorkItem(_ => { try { Handle(c); } catch { } finally { Interlocked.Decrement(ref _open); try { c.Close(); } catch { } } });
             }

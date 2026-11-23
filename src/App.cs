@@ -54,7 +54,7 @@ namespace RaceMode
         public bool CloseApps = true, LaunchApps = true, StartIRacing = true, SimHighPriority = true;
         public bool LowerBackground = true, GpuWarning = true, AutoOff = true, Logging = true;
         public int LogIntervalSec = 2;
-        public string IRacingUI = @"C:\Program Files (x86)\iRacing\ui\iRacingUI.exe";
+        public string IRacingUI = InstallFinder.IRacingUI();     // where iRacing is installed (registry), else the default folder
         public DisplayGuardConfig DisplayGuard = new DisplayGuardConfig();
         public string GraphicsMode = "Race";                    // "Race" or "Photo" (GraphicsPresets.cs)
         public bool Streaming = false, StreamBoost = true, VramCheck = true;
@@ -63,12 +63,24 @@ namespace RaceMode
         // Slider level + pinned settings (Advanced editor) behind the Race and Photo presets (GraphicsCatalog.cs).
         // Null until first run, then worked out from the saved presets.
         public GraphicsLevels GraphicsRace, GraphicsPhoto;
-        // Window size and state, restored at start (0 = default 580 x 840). Maximised shows the full dashboard.
+        // Window size and state, restored at start (0 = default 960 x 720).
         public double WindowWidth, WindowHeight;
+        // The size to go back to from the small panel (Layout.cs ToggleSmall).
+        public double FullWidth, FullHeight;
         public bool WindowMaximized;
-        // Updates (Updater.cs): check once a day; test versions = GitHub pre-releases from the dev branch.
+        // The side menu folded to icons by its own button (Layout.cs); under 760 px wide it is icons only anyway.
+        public bool NavCollapsed;
+        // Appearance (Theme.cs): "System" follows Windows' app mode, or "Dark" / "Light".
+        public string Theme = "System";
+        // Updates (Updater.cs): check every 12 hours; test versions = GitHub pre-releases from the dev branch.
         public bool UpdateCheck = true, UpdateTestVersions = false;
         public bool TrayOnClose = true, TrayHintShown = false;
+        // What's new (WhatsNew.cs): the last version series ("1.1") it was shown for, or that setup was done on.
+        public string WhatsNewSeen;
+        // The version that ran last time (WhatsNew.cs): What's new opens on the first start after it goes up.
+        public string LastRunVersion;
+        // The OBS dock moved to a new port and key (StreamUi.cs): show a note on the Stream page until the link is copied again.
+        public bool DockLinkChanged;
         public bool? SetupDone;   // false until first-run setup is finished; null in configs from before this existed   // closing the window keeps Race Mode in the tray
         // OBS dock (ObsDock.cs): local port and the private key in its link (made on first use).
         public int DockPort = 47815;
@@ -76,7 +88,7 @@ namespace RaceMode
 
         public static LaunchItem DefaultObs()
         {
-            return new LaunchItem { Name = "OBS Studio", Path = @"C:\Program Files\obs-studio\bin\64bit\obs64.exe", Args = "", ProcessName = "obs64", Enabled = true };
+            return new LaunchItem { Name = "OBS Studio", Path = InstallFinder.ObsExe() ?? InstallFinder.DefaultObs, Args = "", ProcessName = "obs64", Enabled = true };
         }
 
         public static Config Defaults()
@@ -84,16 +96,36 @@ namespace RaceMode
             // First run on a new PC: nothing to close or slow down, and only race apps that are actually
             // installed go on the Launch list. The screen check stays off until a racing monitor is picked
             // (Settings tab), so a friend's iRacing screen settings are never changed by someone else's defaults.
+            // Only quick default-path checks here (this runs on the UI thread); the full scan of Start menu
+            // shortcuts and Settings > Apps runs in the background later (Shell.StartLaunchScan).
+            List<LaunchItem> quick;
+            try { quick = LaunchScan.Find(AppScan.Apps, new string[0], null, null, LaunchScan.Budget); } catch { quick = null; }
+            return Defaults(quick);
+        }
+
+        // detected: race apps a LaunchScan found (null: only the fixed default paths).
+        public static Config Defaults(IEnumerable<LaunchItem> detected)
+        {
             var c = new Config { SetupDone = false };
             c.DisplayGuard = new DisplayGuardConfig { KeepFpsCap = false };
-            foreach (var it in KnownRaceApps())
-                if (File.Exists(it.Path)) c.Launch.Add(it);
+            c.Launch.AddRange(KnownRaceApps(detected));
             c.StreamLaunch.Add(DefaultObs());
             return c;
         }
 
-        // Common sim-racing helpers at their default install paths. Only the ones found are added.
-        static IEnumerable<LaunchItem> KnownRaceApps()
+        // Race apps on this PC: the detected ones first, then the fixed default paths below for apps the detection
+        // didn't find (one item per app). Only items whose exe exists are returned.
+        public static List<LaunchItem> KnownRaceApps(IEnumerable<LaunchItem> detected)
+        {
+            var list = (detected ?? new LaunchItem[0]).Where(i => i != null && File.Exists(i.Path)).ToList();
+            List<KnownApp> apps; try { apps = AppScan.Apps; } catch { apps = new List<KnownApp>(); }
+            var fixedFound = FixedRaceApps().Where(i => File.Exists(i.Path)).ToList();
+            foreach (var it in LaunchScan.NotListed(apps, fixedFound, list)) list.Add(it);
+            return list;
+        }
+
+        // Common sim-racing helpers at their default install paths (the fallback when detection finds nothing).
+        static IEnumerable<LaunchItem> FixedRaceApps()
         {
             var x86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
             yield return new LaunchItem { Name = "SimHub", Path = System.IO.Path.Combine(x86, @"SimHub\SimHubWPF.exe"), ProcessName = "SimHubWPF", Enabled = true };
@@ -218,10 +250,10 @@ namespace RaceMode
             // Test modes (--logtest, --savepreset, --selftest, --snapshot) skip this so they never
             // clash with the user's running app; they run from isolated copies.
             // Real modes (not tests): --after-update (updater), --install / --uninstall (Setup.cs),
-            // --minimized (start with Windows), --setup (show the first-run questions again).
+            // --minimized (start with Windows), --setup (show the first-run questions again), --whatsnew.
             string mode = args.Length >= 2 ? args[1] : "";
             bool afterUpdate = args.Length >= 3 && mode == "--after-update";
-            bool realMode = afterUpdate || mode == "--install" || mode == "--uninstall" || mode == "--minimized" || mode == "--setup";
+            bool realMode = afterUpdate || mode == "--install" || mode == "--uninstall" || mode == "--minimized" || mode == "--setup" || mode == "--whatsnew";
             bool testMode = mode.StartsWith("--", StringComparison.Ordinal) && !realMode;
             if (mode == "--install") { InstallerWindow.Run(app); return; }
             if (mode == "--uninstall") { RunUninstall(); return; }
@@ -240,6 +272,7 @@ namespace RaceMode
                     return;
                 }
                 _showSignal = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, @"Local\RaceMode.Show" + sfx);
+                if (!afterUpdate) Updater.NoticeEarlierUpdate();   // an update installed while on, starting only now
             }
             // Tests: read a fake iRacing telemetry map (see tests\IrsdkTests.cs) instead of the real one.
             for (int i = 1; i + 1 < args.Length; i++)
@@ -266,6 +299,10 @@ namespace RaceMode
                 try { File.WriteAllText(System.IO.Path.Combine(Shell.Data, "selftest.refused.txt"), "Refused: no selftest.ok next to the exe. Run --selftest only in an isolated copy with a throwaway config.json."); } catch { }
                 return;
             }
+            // --snapshot ... theme=light|dark: that theme for this run, whatever the config and Windows say (Theme.cs)
+            if (mode == "--snapshot")
+                foreach (var a in args.Skip(3))
+                    if (a == "theme=light" || a == "theme=dark" || a == "theme=flip") Shell.ThemeArg = a == "theme=light" ? "Light" : "Dark";
             var shell = new Shell();
             // Sign-out, restart or shutdown: really close (turn off, save, write the summary) instead of hiding to the tray.
             app.SessionEnding += (s2, e2) => shell.PrepareQuit();
@@ -295,10 +332,31 @@ namespace RaceMode
                     t1.Start();
                 };
             }
+            if (args.Length >= 3 && args[1] == "--uitest")
+            {
+                // Uses the window as a keyboard and screen-reader user would, off-screen, and writes what fails (UiTest.cs).
+                shell.Window.WindowStartupLocation = WindowStartupLocation.Manual; shell.Window.Left = -30000; shell.Window.Top = -30000;
+                shell.Window.ShowActivated = false; shell.Window.ShowInTaskbar = false;
+                var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                t.Tick += (s, e) => { t.Stop(); shell.RunUiTest(args[2]); shell.Window.Close(); };
+                shell.Window.Loaded += (s, e) => t.Start();
+            }
+            if (args.Length >= 3 && args[1] == "--layouttest")
+            {
+                // Lays the window out at a few hundred sizes, off-screen, and writes what breaks (LayoutTest.cs).
+                shell.Window.WindowStartupLocation = WindowStartupLocation.Manual; shell.Window.Left = -30000; shell.Window.Top = -30000;
+                shell.Window.ShowActivated = false; shell.Window.ShowInTaskbar = false;
+                var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                t.Tick += (s, e) => { t.Stop(); shell.RunLayoutTest(args[2], args.Length >= 4 && args[3] == "on"); shell.Window.Close(); };
+                shell.Window.Loaded += (s, e) => t.Start();
+            }
             if (args.Length >= 3 && args[1] == "--snapshot")
             {
                 // Renders the window to a PNG after a few seconds and exits (used to check the design).
-                var outPath = args[2]; int tab = ArgInt(args, 3, 0, 0, 5);
+                // It is drawn off-screen and never takes the keyboard, so checking many sizes doesn't flash windows at the user.
+                shell.Window.WindowStartupLocation = WindowStartupLocation.Manual; shell.Window.Left = -30000; shell.Window.Top = -30000;
+                shell.Window.ShowActivated = false; shell.Window.ShowInTaskbar = false;
+                var outPath = args[2]; int tab = ArgInt(args, 3, 0, 0, 6);   // 0 Overview, 1 Launch, 2 Close, 3 Stream, 4 Graphics, 5 Settings, 6 Logs
                 // wide snapshots wait longer so the 60 s charts have some history to show
                 var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(args.Length >= 5 && args[4].Contains("wide") ? 20 : 4) };
                 t.Tick += (s, e) =>
@@ -309,7 +367,13 @@ namespace RaceMode
                     var root = (FrameworkElement)shell.Window.Content;
                     var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap((int)shell.Window.ActualWidth, (int)shell.Window.ActualHeight, 96, 96, PixelFormats.Pbgra32);
                     var dv = new DrawingVisual();
-                    using (var dc = dv.RenderOpen()) dc.DrawRectangle(new VisualBrush(shell.Window) , null, new Rect(0, 0, shell.Window.ActualWidth, shell.Window.ActualHeight));
+                    using (var dc = dv.RenderOpen())
+                    {
+                        // the window's own fill first, then its content at 1:1 from the top left (a small window's content doesn't cover it)
+                        var all = new Rect(0, 0, shell.Window.ActualWidth, shell.Window.ActualHeight);
+                        dc.DrawRectangle(shell.Window.Background, null, all);
+                        dc.DrawRectangle(new VisualBrush(root) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top, ViewboxUnits = BrushMappingMode.Absolute, Viewbox = all }, null, all);
+                    }
                     bmp.Render(dv);
                     var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
                     enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
@@ -320,7 +384,23 @@ namespace RaceMode
                 {
                     var tabs = shell.Window.FindName("Tabs") as TabControl; if (tabs != null) tabs.SelectedIndex = tab;
                     if (args.Length >= 5 && args[4] == "on") shell.PreviewOn();
+                    // "setup": the first-run questions over the window, as on a new PC (without touching config.json)
+                    if (args.Length >= 5 && args[4] == "setup") shell.StartFirstRun();
+                    // "whatsnew": the What's new pages over the window
+                    if (args.Length >= 5 && args[4] == "whatsnew") shell.StartWhatsNew();
+                    if (args.Contains("theme=flip"))
+                    {
+                        var ft = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
+                        ft.Tick += (fs, fe) => { ft.Stop(); shell.SwitchThemeForSnapshot("Light"); };
+                        ft.Start();
+                    }
                     if (args.Length >= 5 && args[4].Contains("wide")) { shell.Window.Width = ArgInt(args, 5, 1600, 1100, 3840); shell.Window.Height = 900; }
+                    // size=WIDTHxHEIGHT anywhere after the tab: any window size, to check the layout at it
+                    foreach (var a in args.Skip(4))
+                    {
+                        var m = System.Text.RegularExpressions.Regex.Match(a, @"^size=(\d{3,4})x(\d{3,4})$");
+                        if (m.Success) { shell.Window.Width = Math.Max(shell.Window.MinWidth, int.Parse(m.Groups[1].Value)); shell.Window.Height = Math.Max(shell.Window.MinHeight, int.Parse(m.Groups[2].Value)); }
+                    }
                     if (args.Length >= 5 && args[4].Contains("mon"))
                         shell.Window.Dispatcher.BeginInvoke(new Action(() => { var l = shell.Window.FindName("OptTestVersions") as FrameworkElement; if (l != null) l.BringIntoView(); }), DispatcherPriority.ApplicationIdle);
                     if (args.Length >= 5 && args[4].Contains("adv"))
@@ -408,10 +488,12 @@ namespace RaceMode
 
             var migrated = DataDirs.MigrateIfNeeded(Data);
             LoadConfig();
+            InitTheme();   // Theme.cs: the palette (System / Dark / Light) before anything is drawn
             RestoreWindowSize();
             BindUi();
             if (migrated != null) Tick(migrated);
             MaybeStartFirstRun();
+            MaybeStartWhatsNew();
             Window.Loaded += (s, e) =>
             {
                 // An update just installed: once this window is up, the old exe isn't needed for a rollback.
@@ -430,6 +512,7 @@ namespace RaceMode
             _confirmTimer.Tick += (s, e) => ConfirmTick();
             // First run: if there's no Race preset yet, iRacing's current graphics become it (nothing changes in iRacing).
             GraphicsPresets.EnsureRaceSeeded(IniPath());
+            GraphicsPresets.EnsurePhotoSeeded(IniPath(), _cfg.GraphicsPhoto != null && _cfg.GraphicsPhoto.Level > 0 ? _cfg.GraphicsPhoto.Level : 2);
             InitGraphicsLevels();
             RefreshGraphicsStatus();
             Window.Closing += (s, e) =>
@@ -513,9 +596,11 @@ namespace RaceMode
             if (c.GraphicsPhoto != null) c.GraphicsPhoto.Level = Math.Max(0, Math.Min(3, c.GraphicsPhoto.Level));
             c.Close =c.Close.Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).ToList();
             c.Lower = c.Lower.Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).ToList();
-            if (string.IsNullOrWhiteSpace(c.IRacingUI)) c.IRacingUI = new Config().IRacingUI;
+            // Older configs saved the default folder: if iRacing isn't there, look up where it is installed.
+            if (string.IsNullOrWhiteSpace(c.IRacingUI) || !File.Exists(c.IRacingUI)) c.IRacingUI = InstallFinder.IRacingUI();
             if (c.DisplayGuard == null) c.DisplayGuard = new DisplayGuardConfig();
             if (c.DisplayGuard.IniPath == null) c.DisplayGuard.IniPath = "";
+            c.Theme = Palette.Normalize(c.Theme);
         }
 
         void SaveConfig()
@@ -532,6 +617,7 @@ namespace RaceMode
                 else File.Move(tmp, ConfigPath);
             }
             catch (Exception ex) { Tick("Couldn't save settings: " + ex.Message); }
+            RefreshNav();   // the side menu's counts and states (SideMenu.cs)
         }
 
         static string PrettyJson(string json)
@@ -562,28 +648,61 @@ namespace RaceMode
         }
 
         // ---------------- UI wiring ----------------
+        Point? _dragFromMax;   // where a drag started on the title bar of the maximised window
+
         void BindUi()
         {
             Get<Grid>("TitleBar").MouseLeftButtonDown += (s, e) =>
             {
                 if (e.ClickCount == 2) { ToggleMaximize(); return; }                 // double-click the title bar, like any Windows app
-                if (e.ButtonState == MouseButtonState.Pressed) Window.DragMove();
+                if (e.ButtonState != MouseButtonState.Pressed) return;
+                // maximised: DragMove does nothing, so start the drag ourselves once the pointer moves, like Windows does
+                if (Window.WindowState == WindowState.Maximized) { _dragFromMax = e.GetPosition(Window); return; }
+                try { Window.DragMove(); } catch { }
             };
+            Get<Grid>("TitleBar").MouseMove += (s, e) =>
+            {
+                if (_dragFromMax == null || e.LeftButton != MouseButtonState.Pressed || Window.WindowState != WindowState.Maximized) { _dragFromMax = null; return; }
+                var at = e.GetPosition(Window); var from = _dragFromMax.Value;
+                if (Math.Abs(at.X - from.X) < 4 && Math.Abs(at.Y - from.Y) < 4) return;
+                _dragFromMax = null;
+                // back to the normal size with the pointer at the same place across the title bar, then drag
+                double share = Window.ActualWidth > 0 ? at.X / Window.ActualWidth : 0.5;
+                var screen = Window.PointToScreen(at);
+                var src = PresentationSource.FromVisual(Window);
+                if (src != null && src.CompositionTarget != null) screen = src.CompositionTarget.TransformFromDevice.Transform(screen);
+                Window.WindowState = WindowState.Normal;
+                double w = Window.Width > 0 && !double.IsNaN(Window.Width) ? Window.Width : Window.RestoreBounds.Width;
+                Window.Left = screen.X - w * share; Window.Top = screen.Y - at.Y;
+                try { Window.DragMove(); } catch { }
+            };
+            Get<Grid>("TitleBar").MouseLeftButtonUp += (s, e) => _dragFromMax = null;
             Get<Button>("MinBtn").Click += (s, e) => Window.WindowState = WindowState.Minimized;
             Get<Button>("MaxBtn").Click += (s, e) => ToggleMaximize();
             Window.StateChanged += (s, e) => OnWindowState();
             Window.SizeChanged += (s, e) => ApplyLayout();
-            { var tc = Get<TabControl>("Tabs"); if (tc != null) for (int ti = 0; ti < tc.Items.Count; ti++) { var item = tc.Items[ti] as TabItem; if (item != null) item.ToolTip = item.Header + "  (Ctrl+" + (ti + 1) + ")"; } }
-            // Ctrl+1..6 jumps to a tab (Launch, Close, Stream, Graphics, Settings, Logs).
+            BuildSideNav();
+            // Ctrl+1..7 jumps to a section (Overview, Launch, Close, Stream, Graphics, Settings, Logs).
             Window.PreviewKeyDown += (s, e) =>
             {
                 if ((Keyboard.Modifiers & ModifierKeys.Control) == 0 || Get<UIElement>("SetupOverlay").Visibility == Visibility.Visible) return;
-                int n = e.Key >= Key.D1 && e.Key <= Key.D6 ? e.Key - Key.D1 : e.Key >= Key.NumPad1 && e.Key <= Key.NumPad6 ? e.Key - Key.NumPad1 : -1;
+                // Ctrl+Tab and Ctrl+Page Up/Down walk the sections (the hidden tab strip would otherwise do it out of sight,
+                // even in the small panel, which has no sections)
+                if (e.Key == Key.Tab || e.Key == Key.PageDown || e.Key == Key.PageUp)
+                {
+                    e.Handled = true;
+                    var tc = Get<TabControl>("Tabs"); if (tc == null || _small) return;
+                    bool back = e.Key == Key.PageUp || (e.Key == Key.Tab && (Keyboard.Modifiers & ModifierKeys.Shift) != 0);
+                    int count = tc.Items.Count; GoToSection((tc.SelectedIndex + (back ? count - 1 : 1)) % count);
+                    return;
+                }
+                int n = e.Key >= Key.D1 && e.Key <= Key.D7 ? e.Key - Key.D1 : e.Key >= Key.NumPad1 && e.Key <= Key.NumPad7 ? e.Key - Key.NumPad1 : -1;
                 if (n < 0) return;
-                var tabs = Get<TabControl>("Tabs"); if (tabs != null && n < tabs.Items.Count) { tabs.SelectedIndex = n; e.Handled = true; }
+                GoToSection(n); e.Handled = true;
             };
             Get<Button>("CloseBtn").Click += (s, e) => Window.Close();
             Window.SourceInitialized += (s, e) => RoundCorners();
+            HookMaximiseFit();   // maximised = the monitor's free area, so the taskbar stays visible
             LoadAppIcon();
             Get<Border>("CpuTempCell").MouseLeftButtonUp += (s, e) => CpuTempAction();
             Get<Border>("CpuTempCell").KeyDown += (s, e) => { if (e.Key == Key.Enter || e.Key == Key.Space) { CpuTempAction(); e.Handled = true; } };
@@ -613,6 +732,8 @@ namespace RaceMode
             }));
 
             foreach (var i in _cfg.Launch) _launch.Add(i);
+            _launch.CollectionChanged += (s, e) => RefreshLaunchSuggest();   // "Found on your PC" leaves out what's listed
+            StartLaunchScan();
             foreach (var c in _cfg.Close) _close.Add(c);
             foreach (var i in _cfg.StreamLaunch) _stream.Add(i);
             Get<ListBox>("LaunchList").ItemsSource = _launch;
@@ -729,11 +850,12 @@ namespace RaceMode
             Get<TextBox>("LowerBox").LostFocus += (s, e) => SaveConfig();
             FillMonitorPick();
             Get<ComboBox>("MonitorPick").SelectionChanged += (s, e) => OnMonitorPicked();
-            Get<ComboBox>("MonitorPick").DropDownOpened += (s, e) => { if (!_bindingMonitor) FillMonitorPick(); };
+            HostScreenPicker();
             BindUpdates();
             Get<CheckBox>("OptAutostart").IsChecked = Installer.StartsWithWindows;
             Get<CheckBox>("OptAutostart").Checked += (s, e) => SetAutostart(true);
             Get<CheckBox>("OptAutostart").Unchecked += (s, e) => SetAutostart(false);
+            BindThemeChoice();   // Settings > Windows > Appearance (Theme.cs)
             Get<ListBox>("LaunchList").AddHandler(ToggleButton.CheckedEvent, new RoutedEventHandler((s, e) => SaveConfig()));
             Get<ListBox>("LaunchList").AddHandler(ToggleButton.UncheckedEvent, new RoutedEventHandler((s, e) => SaveConfig()));
 
@@ -767,6 +889,13 @@ namespace RaceMode
             Get<ListBox>("RunningList").MouseDoubleClick += (s, e) => addPicked();
             Get<ListBox>("RunningList").KeyDown += (s, e) => { if (e.Key == Key.Enter) { addPicked(); e.Handled = true; } };
             Get<Button>("RerunSetupBtn").Click += (s, e) => StartFirstRun();
+            Get<Button>("WhatsNewBtn").Click += (s, e) => StartWhatsNew();
+            // Settings tab, CPU temperature: HWiNFO's state and the button that moves it on, refreshed while it shows.
+            var hwPanel = Get<StackPanel>("HwinfoPanel");
+            var hwTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            hwTimer.Tick += (s, e) => { if (hwPanel.IsVisible && !_helperBusy) RenderHwinfo(hwPanel, null); };
+            hwTimer.Start();
+            hwPanel.IsVisibleChanged += (s, e) => { if (hwPanel.IsVisible) RenderHwinfo(hwPanel, null); };
 
             Get<Button>("OpenLogsBtn").Click += (s, e) =>
             {
@@ -980,12 +1109,21 @@ namespace RaceMode
             SetText("GpuTempSub", double.IsNaN(s.GpuTemp) ? "NVIDIA only" : "VRAM " + N1(s.VramUsedMB / 1024.0) + " GB");
             SetMeter("GpuTempBar", s.GpuTemp, 100, s.GpuTemp >= 83);
             SetRun("RamVal", N1(s.RamTotalGB - s.RamUsedGB));
-            SetText("RamSub", "Used " + N0(s.RamUsedGB) + " of " + N0(s.RamTotalGB) + " GB");
+            SetText("RamSub", "Used " + N0(s.RamUsedGB) + "/" + N0(s.RamTotalGB) + " GB");
             var commitHot = s.CommitLimitGB > 0 && s.CommitGB > s.CommitLimitGB * 0.9;
             var ramHot = s.RamTotalGB > 0 && s.RamUsedGB > s.RamTotalGB * 0.9;
             SetMeter("RamBar", s.RamTotalGB > 0 ? 100.0 * s.RamUsedGB / s.RamTotalGB : double.NaN, 100, ramHot || commitHot);
-            Get<TextBlock>("RamSub").Foreground = commitHot ? (Brush)Window.Resources["Warn"] : (Brush)Window.Resources["Faint"];
+            Palette.Ref(Get<TextBlock>("RamSub"), TextBlock.ForegroundProperty, commitHot ? "Warn" : "Faint");
+            // FPS (the small panel's first number): words while iRacing isn't giving any
+            int fcap = FpsCap();
+            bool hasFps = !double.IsNaN(s.Fps);
+            bool slow = hasFps && fcap > 0 && s.Fps < fcap - 5;
+            SetRun("FpsVal", hasFps ? N0(s.Fps) : "");
+            SetRun("FpsUnit", hasFps ? " fps" : _fpsWait);
+            var fv = Window.FindName("FpsVal") as Run; if (fv != null) fv.SetResourceReference(System.Windows.Documents.TextElement.ForegroundProperty, slow ? "Warn" : "Ink");
+            SetText("FpsSub", !hasFps ? "for iRacing" : slow ? "Below cap " + fcap : (s.SimContext == "replay" ? "Replay" : fcap > 0 ? "Cap " + fcap : "iRacing"));
             FeedDashboard(s);
+            SyncSmall();
         }
 
         void SetMeter(string name, double value, double max, bool hot)
@@ -994,7 +1132,7 @@ namespace RaceMode
             if (bar == null) return;
             bar.Maximum = max;
             bar.Value = double.IsNaN(value) ? 0 : Math.Max(0, Math.Min(max, value));
-            bar.Foreground = hot ? (Brush)Window.Resources["Warn"] : (Brush)Window.Resources["Ink"];
+            bar.SetResourceReference(Control.ForegroundProperty, hot ? "Warn" : "Ink");
         }
 
         // CPU temperature comes from HWiNFO's Gadget registry values. Explain what is missing instead of a bare "--".
@@ -1002,15 +1140,7 @@ namespace RaceMode
         bool _hwinfoRunning;
         static string HwinfoExe
         {
-            get
-            {
-                foreach (var root in new[] { Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 })
-                {
-                    var p = System.IO.Path.Combine(Environment.GetFolderPath(root), @"HWiNFO64\HWiNFO64.EXE");
-                    if (File.Exists(p)) return p;
-                }
-                return @"C:\Program Files\HWiNFO64\HWiNFO64.EXE";
-            }
+            get { return InstallFinder.HwinfoExe(); }   // registry first, then Program Files (x86 too), then the default path
         }
 
         void RefreshCpuTempHint(LiveStats s)
@@ -1021,7 +1151,7 @@ namespace RaceMode
             if (!double.IsNaN(s.CpuTemp))
             {
                 SetText("CpuTempSub", s.CpuMHz > 0 ? (s.CpuMHz / 1000).ToString("0.00", CultureInfo.InvariantCulture) + " GHz" : "");
-                if (sub != null) { sub.Foreground = (Brush)Window.Resources["Faint"]; sub.TextDecorations = null; }
+                if (sub != null) { sub.SetResourceReference(TextBlock.ForegroundProperty, "Faint"); sub.TextDecorations = null; }
                 if (bar != null) bar.Visibility = _compact ? Visibility.Collapsed : Visibility.Visible;
                 if (cell != null) { cell.Cursor = null; cell.ToolTip = "CPU package temperature, from HWiNFO"; }
                 return;
@@ -1029,8 +1159,8 @@ namespace RaceMode
             // No reading: say so in words, and make the tile itself the way to fix it (no dead gauge).
             SetRun("CpuTempVal", "");
             SetRun("CpuTempUnit", "Not set up");
-            if (bar != null) bar.Visibility = Visibility.Hidden;
-            if (sub != null) { sub.Foreground = (Brush)Window.Resources["Ink"]; sub.TextDecorations = TextDecorations.Underline; }
+            if (bar != null) bar.Visibility = _shape != SmallShape.None ? Visibility.Collapsed : Visibility.Hidden;   // the small panel has no bars (and no gap for one)
+            if (sub != null) { sub.SetResourceReference(TextBlock.ForegroundProperty, "Ink"); sub.TextDecorations = TextDecorations.Underline; }
             if (cell != null) cell.Cursor = Cursors.Hand;
             if ((DateTime.Now - _hwinfoCheckedAt).TotalSeconds >= 5)
             {
@@ -1057,8 +1187,10 @@ namespace RaceMode
         void CpuTempAction()
         {
             if (!double.IsNaN(_mon.Live.CpuTemp)) return;
-            if (!_hwinfoRunning && File.Exists(HwinfoExe)) StartHwinfo();
-            else OpenHelpers();
+            var tabs = Get<TabControl>("Tabs");
+            var item = tabs == null ? null : tabs.Items.OfType<TabItem>().FirstOrDefault(t => "Settings".Equals(t.Header as string));
+            if (item != null) GoToSection(tabs.Items.IndexOf(item));   // from the small panel, this opens the full window first
+            Window.Dispatcher.BeginInvoke(new Action(() => { var p = Get<StackPanel>("HwinfoPanel"); if (p != null) { RenderHwinfo(p, null); p.BringIntoView(); } }), DispatcherPriority.Loaded);
         }
 
         void StartHwinfo()
@@ -1082,13 +1214,16 @@ namespace RaceMode
             var hc = Get<System.Windows.Controls.Primitives.UniformGrid>("HeroChecks");
             if (hc == null) return;
             hc.Children.Clear(); hc.Visibility = Visibility.Visible;
-            hc.Children.Add(MiniCheck("Apps", "3 of 3 running", "Live"));
+            hc.Children.Add(MiniCheck("Launch apps", "3 of 3 running", "Live"));
             hc.Children.Add(MiniCheck("Close list", "all closed", "Live"));
             hc.Children.Add(MiniCheck("iRacing", "racing, put first", "Live"));
-            hc.Children.Add(MiniCheck("Screen", "OK", "Live"));
+            hc.Children.Add(MiniCheck("Screen check", "OK", "Live"));
             hc.Children.Add(MiniCheck("Race graphics", "set", "Live"));
-            hc.Children.Add(MiniCheck("Background", "5 slowed down", "Live"));
+            hc.Children.Add(MiniCheck("Background apps", "5 slowed down", "Live"));
+            _previewOn = true;
+            UpdateChecklist();
         }
+        bool _previewOn;   // --snapshot ... on: the checklist shows the same made-up "all good" state as the switch card
 
         // Windows 11: ask DWM for rounded corners on the borderless window.
         [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
@@ -1192,7 +1327,7 @@ namespace RaceMode
 
             _on = true; _simSeen = false; _uiSeen = false; _simBoosted = false; _goneTicks = 0; _lowered.Clear(); _boosted.Clear();
             _simLoggedPid = -1; _prioNoted.Clear();
-            _onAt = DateTime.Now; _issues.Clear(); _started.Clear(); _alreadyOpen.Clear(); _closed.Clear(); _notInstalled.Clear();
+            _onAt = DateTime.Now; _issues.Clear(); _started.Clear(); _alreadyOpen.Clear(); _closed.Clear(); _notInstalled.Clear(); _leftOpen.Clear(); _reopened.Clear(); _runId++;
             _forced = 0; _confirmedRunning.Clear(); _vramWarned = false; _activation = "Turning on…";
             SetPhase("turning");
             try
@@ -1309,6 +1444,24 @@ namespace RaceMode
             return MessageBox.Show(Window, msg, "Race Mode", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
         }
 
+        // Apps Race Mode chose to leave open after asking (process name -> why), so turning on doesn't wait for them.
+        readonly Dictionary<string, string> _leftOpen = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // Apps that came straight back after closing (process names), kept apart so FinishActivation lists them again.
+        readonly List<string> _reopened = new List<string>();
+        int _runId;   // +1 on every TurnOn, so a timer from an earlier run does nothing
+
+        public enum PidState { Gone, Close, Window, Admin }
+
+        // Which pids may be force-closed: only those of apps with no pid left open. If any pid of an app still shows
+        // a window (maybe a "Save changes?" prompt) or runs as administrator, none of that app's pids are killed,
+        // because killing a helper can take the open document down with it.
+        public static List<int> PidsToKill(IDictionary<int, string> pids, IDictionary<int, PidState> states)
+        {
+            var held = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in states) if ((kv.Value == PidState.Window || kv.Value == PidState.Admin) && pids.ContainsKey(kv.Key)) held.Add(pids[kv.Key]);
+            return states.Where(kv => kv.Value == PidState.Close && pids.ContainsKey(kv.Key) && !held.Contains(pids[kv.Key])).Select(kv => kv.Key).OrderBy(k => k).ToList();
+        }
+
         void CloseApps()
         {
             var names = _close.Where(n => !ProtectedFromClose(n)).ToList();
@@ -1323,7 +1476,7 @@ namespace RaceMode
                     if (steam.Length > 0)
                     {
                         string exe = null; try { exe = steam[0].MainModule.FileName; } catch { }
-                        if (exe == null) exe = @"C:\Program Files (x86)\Steam\steam.exe";
+                        if (exe == null) exe = InstallFinder.SteamExe();
                         try { Process.Start(new ProcessStartInfo(exe, "-shutdown") { UseShellExecute = true }); asked.Add("steam"); _closed.Add("steam"); _mon.Event("Asked Steam to shut down"); } catch { }
                     }
                     foreach (var p in steam) p.Dispose();
@@ -1338,6 +1491,7 @@ namespace RaceMode
             }
             if (asked.Count == 0) { Tick("Nothing on the Close list was running"); return; }
             Tick("Closing " + asked.Count + " app" + (asked.Count == 1 ? "" : "s") + "…");
+            int run = _runId;
             var later = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
             _killTimer = later;
             later.Tick += (s, e) =>
@@ -1347,26 +1501,84 @@ namespace RaceMode
                 _killTimer = null;
                 int forced = 0;
                 var waiting = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+                var denied = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+                const string adminWhy = "runs as administrator, so Windows doesn't let Race Mode close it";
+                // Pass 1: what each pid is doing now. Nothing is closed yet.
+                var states = new Dictionary<int, PidState>();
                 foreach (var kv in pids)
                 {
+                    states[kv.Key] = PidState.Gone;
                     if (ProtectedFromClose(kv.Value)) continue;   // protected since (Streaming turned on, added to Launch)
                     Process p;
                     try { p = Process.GetProcessById(kv.Key); } catch { continue; }   // already gone
                     try
                     {
                         if (p.HasExited || !string.Equals(p.ProcessName, kv.Value, StringComparison.OrdinalIgnoreCase)) continue;   // gone, or the id was reused
+                        // runs as administrator: Windows doesn't let Race Mode close it
+                        bool locked = false; try { var h = p.Handle; } catch (System.ComponentModel.Win32Exception) { locked = true; }
+                        if (locked) { states[kv.Key] = PidState.Admin; denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = adminWhy; continue; }
                         // still showing a window: probably a "Save changes?" prompt, so it's left for the user
-                        if (p.MainWindowHandle != IntPtr.Zero) { waiting.Add(FriendlyApp(kv.Value)); continue; }
+                        if (p.MainWindowHandle != IntPtr.Zero) { states[kv.Key] = PidState.Window; waiting.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = "is still open: it may be asking you to save"; continue; }
+                        states[kv.Key] = PidState.Close;
+                    }
+                    catch (System.ComponentModel.Win32Exception) { states[kv.Key] = PidState.Admin; denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = adminWhy; }
+                    catch { }
+                    finally { p.Dispose(); }
+                }
+                // Pass 2: force-close only apps with nothing left open (see PidsToKill).
+                foreach (var id in PidsToKill(pids, states))
+                {
+                    var name = pids[id];
+                    Process p;
+                    try { p = Process.GetProcessById(id); } catch { continue; }
+                    try
+                    {
+                        if (p.HasExited || !string.Equals(p.ProcessName, name, StringComparison.OrdinalIgnoreCase)) continue;
                         p.Kill(); forced++;
                     }
+                    catch (System.ComponentModel.Win32Exception) { denied.Add(FriendlyApp(name)); _leftOpen[name] = adminWhy; }
                     catch { }
                     finally { p.Dispose(); }
                 }
                 _forced += forced;
+                // Apps left open on purpose (save prompt, admin) were asked to close but didn't: don't count them as closed.
+                _closed.RemoveAll(n => _leftOpen.ContainsKey(n));
                 if (forced > 0) _mon.Event("Force-closed " + forced + " leftover processes");
                 if (waiting.Count > 0) _mon.Event("Left open (still showing a window): " + string.Join(", ", waiting.ToArray()));
-                Tick(waiting.Count > 0 ? string.Join(", ", waiting.ToArray()) + (waiting.Count == 1 ? " is" : " are") + " still open: it may be asking you to save"
+                if (denied.Count > 0) _mon.Event("Couldn't close (runs as administrator): " + string.Join(", ", denied.ToArray()));
+                var notes = new List<string>();
+                if (denied.Count > 0) notes.Add(string.Join(", ", denied.ToArray()) + " runs as administrator, so Windows doesn't let Race Mode close it");
+                if (waiting.Count > 0) notes.Add(string.Join(", ", waiting.ToArray()) + (waiting.Count == 1 ? " is" : " are") + " still open: it may be asking you to save");
+                Tick(notes.Count > 0 ? string.Join(". ", notes.ToArray())
                      : "Closed " + asked.Count + " app" + (asked.Count == 1 ? "" : "s") + (forced > 0 ? " (" + forced + " forced)" : ""));
+                // 10 s later: anything that came straight back was reopened by its own background service
+                var recheck = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+                recheck.Tick += (s2, e2) =>
+                {
+                    recheck.Stop();
+                    if (!_on || run != _runId) return;   // turned off, or a timer from an earlier run
+                    var back = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var backNames = new List<string>();
+                    // Apps left open on purpose (save prompt, admin) never closed, so they didn't "come back".
+                    foreach (var name in asked.Where(n => !string.Equals(n, "steam", StringComparison.OrdinalIgnoreCase) && !ProtectedFromClose(n) && !_leftOpen.ContainsKey(n)))
+                        foreach (var p in Mine(name))
+                        {
+                            try { if (!pids.ContainsKey(p.Id) && AppScan.BelongsTo(name, AppScan.ImagePath(p.Id))) { back.Add(FriendlyApp(name)); if (!backNames.Contains(name)) backNames.Add(name); } } catch { }
+                            finally { p.Dispose(); }
+                        }
+                    if (back.Count == 0) return;
+                    _mon.Event("Reopened by itself after closing: " + string.Join(", ", back.ToArray()));
+                    foreach (var n in backNames) if (!_reopened.Contains(n)) _reopened.Add(n);
+                    // Still confirming: FinishActivation lists them from _reopened. Already confirmed: add them now.
+                    if (_confirmTimer.IsEnabled == false)
+                    {
+                        foreach (var b in back) if (!_issues.Contains(b + " reopened itself")) _issues.Add(b + " reopened itself");
+                        _activation = NeedsALook(); SetPhase("issues"); UpdateStatus();
+                    }
+                    Tick(string.Join(", ", back.ToArray()) + (back.Count == 1 ? " reopened itself" : " reopened themselves") +
+                         " (a background service starts it again). Turn off its start-with-Windows option in its own settings, or take it off the Close list");
+                };
+                recheck.Start();
             };
             later.Start();
         }
@@ -1437,7 +1649,19 @@ namespace RaceMode
             if (m.Primary) where = " · main screen";
             else if (main != null) where = m.X + m.Width <= main.X ? " · left of main" : m.X >= main.X + main.Width ? " · right of main" : m.Y + m.Height <= main.Y ? " · above main" : m.Y >= main.Y + main.Height ? " · below main" : "";
             bool twin = _pickMonitors != null && _pickMonitors.Count(x => x.Width == m.Width && x.Height == m.Height && x.Hz == m.Hz) > 1;
-            return "Screen " + (m.Index + 1) + " · " + m.Width + " × " + m.Height + " · " + m.Hz + " Hz" + where + (twin && !string.IsNullOrEmpty(m.MonitorId) ? "  (" + m.MonitorId + ")" : "");
+            // named by size and place, as the screen picture shows them (Windows' own screen numbers aren't available)
+            return m.Width + " × " + m.Height + " · " + m.Hz + " Hz" + where
+                + (DisplayGuard.LooksJoined(m) ? " · looks like joined screens (Surround or Eyefinity)" : "")
+                + (twin && !string.IsNullOrEmpty(m.MonitorId) ? "  (" + m.MonitorId + ")" : "");
+        }
+
+        // Rows of three same-size screens side by side, offered after the single screens.
+        List<List<MonitorInfo>> _pickTriples = new List<List<MonitorInfo>>();
+
+        static string TripleLabel(List<MonitorInfo> row)
+        {
+            int x, y, w, h; DisplayGuard.TripleWindow(row, out x, out y, out w, out h);
+            return "three screens side by side · " + w + " × " + h + " · " + row.Min(m => m.Hz) + " Hz";
         }
 
         void FillMonitorPick()
@@ -1447,19 +1671,26 @@ namespace RaceMode
             try
             {
                 try { _pickMonitors = DisplayGuard.ListMonitors(); } catch { _pickMonitors = new List<MonitorInfo>(); }
+                try { _pickTriples = DisplayGuard.TripleRows(_pickMonitors); } catch { _pickTriples = new List<List<MonitorInfo>>(); }
                 box.Items.Clear();
                 box.Items.Add("Don't check (leave iRacing's screen settings alone)");
                 int sel = 0;
                 var g = _cfg.DisplayGuard;
+                bool triple = g != null && g.Enabled && g.IsTriple;
                 foreach (var m in _pickMonitors)
                 {
                     box.Items.Add(MonitorLabel(m));
-                    if (sel == 0 && g != null && g.Enabled && !string.IsNullOrEmpty(g.MonitorId) && (m.MonitorId ?? "").IndexOf(g.MonitorId, StringComparison.OrdinalIgnoreCase) >= 0) sel = box.Items.Count - 1;
+                    if (sel == 0 && !triple && g != null && g.Enabled && !string.IsNullOrEmpty(g.MonitorId) && (m.MonitorId ?? "").IndexOf(g.MonitorId, StringComparison.OrdinalIgnoreCase) >= 0) sel = box.Items.Count - 1;
+                }
+                foreach (var row in _pickTriples)
+                {
+                    box.Items.Add(TripleLabel(row));
+                    if (sel == 0 && triple && Enumerable.Range(0, 3).All(k => (row[k].MonitorId ?? "").IndexOf(g.Triple[k], StringComparison.OrdinalIgnoreCase) >= 0)) sel = box.Items.Count - 1;
                 }
                 // The picked monitor is switched off right now: keep the choice and say so.
                 if (sel == 0 && g != null && g.Enabled && !string.IsNullOrEmpty(g.MonitorId))
                 {
-                    box.Items.Add("Your racing monitor (" + g.MonitorId + ") · not connected right now");
+                    box.Items.Add(triple ? "Your three racing screens · not all connected side by side right now" : "Your racing monitor (" + g.MonitorId + ") · not connected right now");
                     sel = box.Items.Count - 1;
                 }
                 box.SelectedIndex = sel;
@@ -1474,14 +1705,29 @@ namespace RaceMode
             int i = box.SelectedIndex;
             var g = _cfg.DisplayGuard ?? (_cfg.DisplayGuard = new DisplayGuardConfig());
             if (i <= 0) { g.Enabled = false; SaveConfig(); _guardSig = null; Tick("Screen check off: iRacing's screen settings are left alone"); UpdateStatus(); return; }
-            if (i > _pickMonitors.Count) return;   // the "not connected" entry: nothing changes
-            var m = _pickMonitors[i - 1];
-            if (string.IsNullOrEmpty(m.MonitorId) || m.Width <= 0 || m.Height <= 0 || m.Hz <= 0) { Tick("Couldn't read that screen's details, so nothing changed"); FillMonitorPick(); return; }
-            g.MonitorId = m.MonitorId; g.Width = m.Width; g.Height = m.Height; g.RefreshRate = m.Hz;
+            if (i > _pickMonitors.Count + _pickTriples.Count) return;   // the "not connected" entry: nothing changes
+            string label;
+            if (i > _pickMonitors.Count)
+            {
+                var row = _pickTriples[i - 1 - _pickMonitors.Count];
+                if (row.Any(x => string.IsNullOrEmpty(x.MonitorId) || x.Hz <= 0)) { Tick("Couldn't read those screens' details, so nothing changed"); FillMonitorPick(); return; }
+                g.Triple = row.Select(x => x.MonitorId).ToList();
+                int wx, wy, ww, wh; DisplayGuard.TripleWindow(row, out wx, out wy, out ww, out wh);
+                g.MonitorId = row[1].MonitorId; g.Width = ww; g.Height = wh; g.RefreshRate = row.Min(x => x.Hz);
+                label = TripleLabel(row);
+            }
+            else
+            {
+                var m = _pickMonitors[i - 1];
+                if (string.IsNullOrEmpty(m.MonitorId) || m.Width <= 0 || m.Height <= 0 || m.Hz <= 0) { Tick("Couldn't read that screen's details, so nothing changed"); FillMonitorPick(); return; }
+                g.Triple = null;
+                g.MonitorId = m.MonitorId; g.Width = m.Width; g.Height = m.Height; g.RefreshRate = m.Hz;
+                label = MonitorLabel(m);
+            }
             g.Enabled = true;
             SaveConfig();
             _guardSig = null;
-            Tick("Racing monitor set to " + MonitorLabel(m) + (g.EnforcesFpsCap ? ", FPS cap kept at " + g.FpsLimit : ""));
+            Tick("Racing monitor set to " + label + (g.EnforcesFpsCap ? ", FPS cap kept at " + g.FpsLimit : ""));
             CheckDisplay("monitor picked", true);
             UpdateStatus();
         }
@@ -1514,6 +1760,13 @@ namespace RaceMode
         void BindUpdates()
         {
             SetText("VersionText", "Race Mode " + (Updater.Enabled ? Updater.Current : "(local build)"));
+            // the version beside the name in the title bar and on the taskbar, like OBS ("OBS 33.0.1")
+            if (Updater.Parse(Updater.Current) != null)
+            {
+                var tv = Get<System.Windows.Documents.Run>("TitleVersion");
+                if (tv != null) tv.Text = " " + Updater.Current;
+                Window.Title = "Race Mode " + Updater.Current;
+            }
             Get<CheckBox>("OptUpdateCheck").IsChecked = _cfg.UpdateCheck;
             Get<CheckBox>("OptTestVersions").IsChecked = _cfg.UpdateTestVersions;
             Get<CheckBox>("OptUpdateCheck").Checked += (s, e) => SaveConfig();
@@ -1527,8 +1780,8 @@ namespace RaceMode
                 Get<Button>("UpdateBtn").IsEnabled = false;
                 return;
             }
-            // First check 45 s after start (out of the way of the race-start rush), then once a day.
-            _updateTimer.Tick += (s, e) => { _updateTimer.Interval = TimeSpan.FromHours(24); if (_cfg.UpdateCheck) CheckForUpdate(true); };
+            // First check 45 s after start (out of the way of the race-start rush), then every 12 hours.
+            _updateTimer.Tick += (s, e) => { _updateTimer.Interval = TimeSpan.FromHours(12); if (_cfg.UpdateCheck) CheckForUpdate(true); };
             _updateTimer.Start();
         }
 
@@ -1551,9 +1804,10 @@ namespace RaceMode
                     else
                     {
                         SetText("UpdateText", (u.Prerelease ? "Test version " : "Version ") + u.Version + " is ready");
-                        Tick("Race Mode " + u.Version + " is ready to install (Settings tab, Updates)");
+                        Tick("Race Mode " + u.Version + " is ready to install (Settings, Updates)");
                     }
                     Get<Button>("UpdateBtn").Content = u != null ? "Update" : "Check Now";
+                    RefreshNav();
                 }));
             });
         }
@@ -1585,7 +1839,12 @@ namespace RaceMode
                     }
                     Tick("Installed " + u.Version + ", restarting Race Mode");
                     try { Updater.StartNew(); }
-                    catch (Exception ex) { SetText("UpdateText", "Installed, but couldn't restart: " + ex.Message + ". Start Race Mode again to use it."); return; }
+                    catch (Exception ex)
+                    {
+                        SetText("UpdateText", "Installed, but couldn't restart: " + ex.Message + ". Start Race Mode again to use it.");
+                        if (_cfg.Streaming && !ObsDock.Running) StartObsFeatures();   // StartNew let go of the dock first
+                        return;
+                    }
                     Quit();
                 }));
             });
@@ -1612,7 +1871,7 @@ namespace RaceMode
                     // Once per new problem: iRacing can't fix a monitor Windows is running at the wrong mode.
                     MessageBox.Show(Window, r.Warning + ".\n\niRacing runs in a window that fills the screen, so it uses whatever size and refresh rate Windows has set for that monitor. Change it in Windows display settings.", "Race Mode", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
-                else if (r.Changed) Tick("Put iRacing back on the right screen (" + r.Changes.Count + " setting" + (r.Changes.Count == 1 ? "" : "s") + " fixed)");
+                else if (r.Changed) Tick("Put iRacing back " + (_cfg.DisplayGuard.IsTriple ? "across your three screens" : "on the right screen") + " (" + r.Changes.Count + " setting" + (r.Changes.Count == 1 ? "" : "s") + " fixed)");
                 else if (newSkip || (force && r.Skipped)) Tick(r.Message);
             }
             finally { _guardBusy = false; }
@@ -1669,6 +1928,7 @@ namespace RaceMode
         {
             if (_bindingGraphics) return;
             _cfg.GraphicsMode = GraphicsPresets.Normalize(mode);
+            if (_cfg.GraphicsMode == "Photo" && GraphicsPresets.EnsurePhotoSeeded(IniPath(), _cfg.GraphicsPhoto != null ? _cfg.GraphicsPhoto.Level : 2)) { DerivePhotoLevel(); ShowGraphicsLevels(); }
             SaveConfig();
             ApplyGraphics("Photo mode " + (_cfg.GraphicsMode == "Photo" ? "on" : "off"));
         }
@@ -1742,71 +2002,32 @@ namespace RaceMode
             var t = Get<TextBlock>("GraphicsStatus");
             if (t == null) return;
             t.Text = _graphicsLine;
-            t.Foreground = _graphicsOk || _graphicsPending ? (Brush)Window.Resources["Dim"] : (Brush)Window.Resources["Warn"];
+            t.SetResourceReference(TextBlock.ForegroundProperty, _graphicsOk || _graphicsPending ? "Dim" : "Warn");
         }
 
-        // ---------------- window: maximise, compact/wide layout, remembered size ----------------
-        const double WideAt = 1100;   // at this width (e.g. maximised) the dashboard appears beside the app
-        bool _wide;
-
+        // ---------------- window: maximise, remembered size (the layout itself is in Layout.cs) ----------------
         void ToggleMaximize() { Window.WindowState = Window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized; }
 
         void OnWindowState()
         {
             bool max = Window.WindowState == WindowState.Maximized;
-            // With a custom title bar, Windows lets a maximised window hang over the screen edges by the frame size.
+            // Maximised, the window is exactly the monitor's free area (WindowFit.cs), so nothing hangs over the edges.
             var root = Get<Grid>("Root");
-            if (root != null)
-            {
-                var f = SystemParameters.WindowResizeBorderThickness;
-                root.Margin = max ? new Thickness(f.Left + 2, f.Top + 2, f.Right + 2, f.Bottom + 2) : new Thickness(0);
-            }
+            if (root != null) root.Margin = new Thickness(0);
             var icon = Get<System.Windows.Shapes.Path>("MaxIcon");
             if (icon != null) icon.Data = Geometry.Parse(max ? "M2.5,0.5 H9.5 V7.5 M0.5,2.5 H7.5 V9.5 H0.5 Z" : "M0.5,0.5 H9.5 V9.5 H0.5 Z");
             var btn = Get<Button>("MaxBtn");
-            if (btn != null) { btn.ToolTip = max ? "Restore" : "Maximize: shows the full dashboard"; AutomationProperties.SetName(btn, max ? "Restore" : "Maximize"); }
+            if (btn != null) { btn.ToolTip = max ? "Restore" : "Maximize"; AutomationProperties.SetName(btn, max ? "Restore" : "Maximize"); }
             if (Window.WindowState != WindowState.Minimized) RenderDashboard();
-        }
-
-        // Short windows (a 1080p laptop at 150% scaling has about 690 px): a tighter hero and stats strip, so the
-        // tabs keep room for their content. Nothing is hidden that carries meaning; only padding and the meters go.
-        bool _compact;
-        void ApplyCompact(bool compact)
-        {
-            if (compact == _compact) return;
-            _compact = compact;
-            var hero = Get<Border>("Hero");
-            if (hero != null) hero.Padding = compact ? new Thickness(16, 12, 18, 12) : new Thickness(16, 22, 22, 22);
-            var head = Get<TextBlock>("Headline"); if (head != null) head.FontSize = compact ? 22 : 28;
-            var tel = Get<UniformGrid>("Telemetry");
-            if (tel != null)
-                foreach (var cell in tel.Children.OfType<Border>()) cell.Padding = compact ? new Thickness(cell.Padding.Left, 8, cell.Padding.Right, 8) : new Thickness(cell.Padding.Left, 14, cell.Padding.Right, 14);
-            foreach (var n in new[] { "CpuBar", "CpuTempBar", "GpuBar", "GpuTempBar", "RamBar" })
-            { var b = Get<ProgressBar>(n); if (b != null && b.Visibility != Visibility.Hidden) b.Visibility = compact ? Visibility.Collapsed : Visibility.Visible; }
-        }
-
-        void ApplyLayout()
-        {
-            bool wide = Window.ActualWidth >= WideAt;
-            ApplyCompact(!wide && Window.ActualHeight < 720);
-            if (wide)
-            {
-                // the dashboard is the window minus the 580 px app column and margins
-                double dash = Window.ActualWidth - 620;
-                var cg = Get<UniformGrid>("ChartGrid"); if (cg != null) cg.Columns = dash >= 900 ? 3 : 2;
-                var bg = Get<UniformGrid>("DashBottom"); if (bg != null) bg.Columns = dash >= 900 ? 2 : 1;
-            }
-            if (wide == _wide && _chartsBuilt == wide) return;
-            _wide = wide;
-            Get<ColumnDefinition>("MainCol").Width = wide ? new GridLength(580) : new GridLength(1, GridUnitType.Star);
-            Get<ColumnDefinition>("DashCol").Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-            Get<ScrollViewer>("Dash").Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
-            if (wide) { BuildDashboard(); UpdateChecklist(); ShowLastSession(); RenderDashboard(); }
         }
 
         void RestoreWindowSize()
         {
             var work = SystemParameters.WorkArea;
+            // 580 x 840 was the old default (a tall column under a tab bar): nobody chose it, so it becomes the new default
+            // (1.0.1 shrank it to fit short screens and saved that, so any 580-wide size up to 840 tall from before 1.1 counts)
+            if (_cfg.WindowWidth == 580 && _cfg.WindowHeight <= 840 && string.IsNullOrEmpty(_cfg.LastRunVersion)) { _cfg.WindowWidth = 0; _cfg.WindowHeight = 0; }
+            if (Window.Width > work.Width) Window.Width = Math.Max(Window.MinWidth, work.Width);
             if (_cfg.WindowWidth >= Window.MinWidth) Window.Width = Math.Min(_cfg.WindowWidth, work.Width);
             if (_cfg.WindowHeight >= Window.MinHeight) Window.Height = Math.Min(_cfg.WindowHeight, work.Height - 16);
             if (_cfg.WindowMaximized) Window.Loaded += (s, e) => Window.WindowState = WindowState.Maximized;
@@ -1848,9 +2069,10 @@ namespace RaceMode
         {
             if (_chartsBuilt) return;
             if (_charts == null) CreateCharts();
+            // FPS is the lead chart in its own card; the rest are small multiples sharing one card (Overview.cs lays them out)
+            Get<Border>("FpsHost").Child = _fpsChart.Build(Window.Resources);
             var grid = Get<UniformGrid>("ChartGrid");
-            grid.Margin = new Thickness(-7, -7, -7, -7);
-            foreach (var c in _charts) grid.Children.Add(c.Build(Window.Resources));
+            foreach (var c in _charts) if (c != _fpsChart) grid.Children.Add(c.Build(Window.Resources));
             _chartsBuilt = true;
         }
 
@@ -1860,23 +2082,43 @@ namespace RaceMode
             _fpsChart = new ChartTile { Label = "FPS (iRacing)", Unit = "fps", Min = cap > 0 ? Math.Max(0, cap - 85) : 0, Max = cap > 0 ? cap + 10 : 160,
                                         Ref = cap > 0 ? cap : double.NaN, RefLabel = cap > 0 ? "cap " + cap : "",
                                         IsHot = v => cap > 0 && v < cap - 5, HotWord = v => "below " + (cap - 5),
-                                        Idle = () => "Shows up once you're in iRacing", Note = () => _mon.Live.SimContext == "replay" ? "replay" : "" };
+                                        Idle = () => "Shows up once you're in iRacing", Note = () => _mon.Live.SimContext == "replay" ? "replay" : "",
+                                        StripWords = "Waiting for iRacing",
+                                        ValueSize = 28, PlotHeight = 120 };
+            // the CPU column: the busiest core is what iRacing runs out of first; the all-cores figure rides along in its note
             _coreChart = new ChartTile { Label = "Busiest CPU core", Unit = "%", Ref = 95, RefLabel = "95%", IsHot = v => v >= 95, HotWord = v => "maxed",
-                                         Note = () => "iRacing usually maxes out this core first" };
+                                         Note = () => { var s = _mon.Live; var m = s.CpuMHz; return "All cores " + N0(s.Cpu) + "%" + (m > 0 ? " · " + (m / 1000).ToString("0.00", CultureInfo.InvariantCulture) + " GHz" : ""); },
+                                         Boxed = false, ValueSize = 22, PlotHeight = 44 };
             _cpuChart = new ChartTile { Label = "CPU, all cores", Unit = "%", Note = () => { var m = _mon.Live.CpuMHz; return m > 0 ? (m / 1000).ToString("0.00", CultureInfo.InvariantCulture) + " GHz" : ""; } };
-            _gpuChart = new ChartTile { Label = "GPU", Unit = "%", Note = () => double.IsNaN(_mon.Live.GpuPower) ? "" : N0(_mon.Live.GpuPower) + " W" };
-            _tempChart = new ChartTile { Label = "CPU temperature", Unit = Monitor.HwinfoFahrenheit ? "°F" : "°C", Min = 30, Max = 105, Ref = 85,
+            _gpuChart = new ChartTile { Label = "GPU", Unit = "%", Note = () => double.IsNaN(_mon.Live.GpuPower) ? "" : N0(_mon.Live.GpuPower) + " W",
+                                        Idle = () => "NVIDIA only", Boxed = false, ValueSize = 22, PlotHeight = 44 };
+            _tempChart = new ChartTile { Label = "CPU temp", Unit = Monitor.HwinfoFahrenheit ? "°F" : "°C", Min = 30, Max = 105, Ref = 85,
                                          RefLabel = Monitor.HwinfoFahrenheit ? "185 °F" : "85 °C", IsHot = v => v >= 85, HotWord = v => "hot",
                                          Show = v => Monitor.HwinfoFahrenheit ? v * 9 / 5 + 32 : v,
-                                         Idle = () => Get<TextBlock>("CpuTempSub") != null ? "No reading · " + Get<TextBlock>("CpuTempSub").Text : "No reading" };
+                                         Idle = () => { var t = Get<TextBlock>("CpuTempSub"); return t != null && t.Text.Length > 0 && t.Text != "Reading…" ? t.Text : "No reading"; },
+                                         IdleWords = () => { var t = Get<TextBlock>("CpuTempSub"); return t != null && t.Text != "Reading…" ? "Not set up" : ""; },
+                                         IdleAction = CpuTempAction, Boxed = false, ValueSize = 22, PlotHeight = 44 };
+            _gpuTempChart = new ChartTile { Label = "GPU temp", Unit = Monitor.HwinfoFahrenheit ? "°F" : "°C", Min = 30, Max = 100, Ref = 83,
+                                            RefLabel = Monitor.HwinfoFahrenheit ? "181 °F" : "83 °C", IsHot = v => v >= 83, HotWord = v => "hot",
+                                            Show = v => Monitor.HwinfoFahrenheit ? v * 9 / 5 + 32 : v, Idle = () => "NVIDIA only",
+                                            Boxed = false, ValueSize = 22, PlotHeight = 44 };
             _vramChart = new ChartTile { Label = "Video memory", Unit = "GB", Min = 0, Max = 8, Ref = 7, RefLabel = "",
                                          IsHot = v => false, HotWord = v => "nearly full", Format = v => v.ToString("0.0", CultureInfo.InvariantCulture),
-                                         Note = () => double.IsNaN(_mon.Live.VramTotalMB) ? "" : "of " + (_mon.Live.VramTotalMB / 1024).ToString("0", CultureInfo.InvariantCulture) + " GB" };
-            _charts = new List<ChartTile> { _fpsChart, _coreChart, _cpuChart, _gpuChart, _tempChart, _vramChart };
+                                         Note = () => double.IsNaN(_mon.Live.VramTotalMB) ? "" : "of " + (_mon.Live.VramTotalMB / 1024).ToString("0", CultureInfo.InvariantCulture) + " GB",
+                                         Idle = () => "NVIDIA only", Boxed = false, ValueSize = 22, PlotHeight = 44 };
+            _ramChart = new ChartTile { Label = "Free RAM", Unit = "GB", Min = 0, Max = 32, Format = v => v.ToString("0.0", CultureInfo.InvariantCulture),
+                                        HotWord = v => "nearly full",
+                                        Note = () => { var s = _mon.Live; return s.RamTotalGB > 0 ? "Used " + N0(s.RamUsedGB) + " of " + N0(s.RamTotalGB) + " GB" : ""; },
+                                        Boxed = false, ValueSize = 22, PlotHeight = 44 };
+            // small multiples in reading order for three columns: load on top, heat and memory under it
+            _charts = new List<ChartTile> { _fpsChart, _coreChart, _gpuChart, _ramChart, _tempChart, _gpuTempChart, _vramChart };
         }
+        ChartTile _gpuTempChart, _ramChart;
 
         // Called every second from RefreshStats: always records, only draws while the dashboard is on screen.
         int _chartCap = -1;
+        const int FpsIdleAfter = 5;                 // seconds without an FPS reading before the FPS chart folds to a strip
+        int _fpsGap = FpsIdleAfter; bool _fpsIdle = true;   // starts folded: there is no FPS until iRacing sends some
         void FeedDashboard(LiveStats s)
         {
             if (_charts == null) CreateCharts();
@@ -1897,81 +2139,58 @@ namespace RaceMode
                 _fpsChart.IsHot = v => cap > 0 && v < cap - 5; _fpsChart.HotWord = v => "below " + (cap - 5);
             }
             _fpsChart.Push(s.Fps);
+            // No FPS for a few seconds (iRacing closed): the lead chart becomes a short strip and the other readings
+            // take the width (Overview.cs). The first frame brings the chart back; a single missed reading doesn't.
+            if (double.IsNaN(s.Fps)) { if (_fpsGap < FpsIdleAfter) _fpsGap++; } else _fpsGap = 0;
+            bool idle = _fpsGap >= FpsIdleAfter;
+            if (idle != _fpsIdle) { _fpsIdle = idle; ApplyLayout(); }
             _coreChart.Push(s.CpuMaxCore);
             _cpuChart.Push(s.Cpu);
             _gpuChart.Push(s.GpuUtil);
+            // HWiNFO's unit is only known after its first reading, which comes after the tiles are built
+            bool fahr = Monitor.HwinfoFahrenheit;
+            _tempChart.Unit = fahr ? "°F" : "°C"; _tempChart.RefLabel = fahr ? "185 °F" : "85 °C";
+            _gpuTempChart.Unit = _tempChart.Unit; _gpuTempChart.RefLabel = fahr ? "181 °F" : "83 °C";
             _tempChart.Push(s.CpuTemp);
             _vramChart.Push(double.IsNaN(s.VramUsedMB) ? double.NaN : s.VramUsedMB / 1024.0);
+            _gpuTempChart.Push(s.GpuTemp);
+            if (s.RamTotalGB > 0)
+            {
+                // same rule as the numbers strip: hot past 90% used, or the commit charge past 90% of its limit
+                _ramChart.Max = Math.Round(s.RamTotalGB);
+                double total = s.RamTotalGB; bool commitHot = s.CommitLimitGB > 0 && s.CommitGB > s.CommitLimitGB * 0.9;
+                _ramChart.IsHot = v => commitHot || v < total * 0.1;
+                _ramChart.Push(s.RamTotalGB - s.RamUsedGB);
+            }
+            else _ramChart.Push(double.NaN);
             if (++_dashTick % 3 == 0) UpdateChecklist();
             RenderDashboard();
         }
 
         void RenderDashboard()
         {
-            if (!_chartsBuilt || !_wide || Window.WindowState == WindowState.Minimized || !Window.IsVisible) return;
+            if (!_chartsBuilt || !_dashOn || Window.WindowState == WindowState.Minimized || !Window.IsVisible) return;
             foreach (var c in _charts) c.Render();
         }
 
-        // One checklist row: a dot plus words, so the state never depends on colour alone.
-        FrameworkElement CheckRow(string name, string state, string brushKey)
-        {
-            var g = new Grid { Margin = new Thickness(0, 5, 0, 5) };
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            g.ColumnDefinitions.Add(new ColumnDefinition());
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var dot = new Ellipse { Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 1, 10, 0),
-                                    Fill = brushKey == "Off" ? new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x60)) : (Brush)Window.Resources[brushKey] };
-            var n = new TextBlock { Text = name, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
-            var st = new TextBlock { Text = state, Style = (Style)Window.Resources["Sub"], TextWrapping = TextWrapping.NoWrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0),
-                                     Foreground = brushKey == "Warn" ? (Brush)Window.Resources["Warn"] : (Brush)Window.Resources["Dim"] };
-            Grid.SetColumn(n, 1); Grid.SetColumn(st, 2);
-            g.Children.Add(dot); g.Children.Add(n); g.Children.Add(st);
-            return g;
-        }
-
+        // The checklist is the steps view: what Race Mode does, in order (Steps.cs). It is refreshed every 3 s and
+        // when the switch moves; the rows are updated in place, so the keyboard stays where it was.
         void UpdateChecklist()
         {
-            var list = Get<StackPanel>("Checklist");
-            if (list == null || !_wide) return;
-            list.Children.Clear();
-            bool on = _on;
-            list.Children.Add(CheckRow("Race Mode", _phase == "off" ? "off" : _phase == "turning" ? "turning on" : _phase == "issues" ? "on, needs a look" : "on, all checked",
-                                       _phase == "off" ? "Off" : _phase == "issues" ? "Warn" : _phase == "turning" ? "Dim" : "Live"));
-            foreach (var item in _launch.Where(i => i.Enabled && !string.IsNullOrEmpty(i.ProcessName)))
-            {
-                bool run = IsRunning(item.ProcessName);
-                list.Children.Add(CheckRow(item.Name, !item.Installed ? "not installed" : run ? "running" : "not running", run ? "Live" : on ? "Warn" : "Off"));
-            }
-            if (_cfg.Streaming)
-                foreach (var item in _stream.Where(i => i.Enabled && !string.IsNullOrEmpty(i.ProcessName)))
-                {
-                    bool run = IsRunning(item.ProcessName);
-                    list.Children.Add(CheckRow(item.Name, !item.Installed ? "not installed" : run ? "running" : "not running", run ? "Live" : on && item.Installed ? "Warn" : "Off"));
-                }
-            bool sim = IsRunning(Monitor.SimName), ui = IsRunning("iRacingUI");
-            list.Children.Add(CheckRow("iRacing", sim ? "racing" + (_simBoosted ? ", put first" : "") : ui ? "app open" : "closed", sim || ui ? "Live" : "Off"));
-            if (on)
-            {
-                int open = _close.Count(n => !ProtectedFromClose(n) && IsRunning(n));
-                list.Children.Add(CheckRow("Close list", open == 0 ? "all closed" : open + " still running", open == 0 ? "Live" : "Warn"));
-            }
-            list.Children.Add(CheckRow("Screen", string.IsNullOrEmpty(_displayLine) ? (_cfg.DisplayGuard != null && _cfg.DisplayGuard.Enabled ? "checked when Race Mode turns on" : "check is off") : _displayLine.Replace("screen ", ""),
-                                       _displayLine == "screen OK" ? "Live" : _displayLine == "screen needs a look" ? "Warn" : "Off"));
-            list.Children.Add(CheckRow(_cfg.GraphicsMode + " graphics", _graphicsPending ? "waiting for iRacing to close" : _graphicsOk ? "set" : "see the Graphics tab",
-                                       _graphicsPending ? "Dim" : _graphicsOk ? "Live" : "Warn"));
-            if (_cfg.Streaming)
-            {
-                var o = Obs.Latest;
-                list.Children.Add(CheckRow("OBS", !o.Connected ? (o.Status.StartsWith("OBS isn't open") ? "not open" : o.Status.Contains("remote control is off") ? "remote control is off" : "not connected") :!o.Streaming ? "connected" : (double.IsNaN(o.Kbps) ? "streaming" : "streaming " + N0(o.Kbps) + " kbps") + (o.Reconnecting ? ", reconnecting" : ""),
-                                           !o.Connected ? "Off" : o.Reconnecting ? "Warn" : "Live"));
-            }
+            var list = Get<UniformGrid>("Checklist");
+            if (list == null || !_dashOn) return;
+            // (Race Mode's own state isn't a row: the switch card or the menu's switch is always beside this list)
+            UpdateSteps(list);
         }
 
         // The last session's key lines from summary.txt, as label / value rows.
         void ShowLastSession()
         {
+            // with no session yet there is nothing to show: the block appears with the first one
+            var lastBlock = Get<FrameworkElement>("LastBlock");
+            if (lastBlock != null) lastBlock.Visibility = string.IsNullOrEmpty(_lastSummary) ? Visibility.Collapsed : Visibility.Visible;
             var box = Get<StackPanel>("LastSession");
-            if (box == null || !_wide) return;
+            if (box == null || !_dashOn) return;
             box.Children.Clear();
             if (string.IsNullOrEmpty(_lastSummary))
             {
@@ -1990,8 +2209,8 @@ namespace RaceMode
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });
                 g.ColumnDefinitions.Add(new ColumnDefinition());
                 g.Children.Add(new TextBlock { Text = label, Style = (Style)Window.Resources["Sub"] });
-                var v = new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, FontSize = 12, LineHeight = 17,
-                                        Foreground = value.Contains("<<") ? (Brush)Window.Resources["Warn"] : (Brush)Window.Resources["Ink"] };
+                var v = new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap, FontSize = 12, LineHeight = 17 };
+                v.SetResourceReference(TextBlock.ForegroundProperty, value.Contains("<<") ? "Warn" : "Ink");
                 Grid.SetColumn(v, 1); g.Children.Add(v);
                 box.Children.Add(g);
             }
@@ -2149,7 +2368,7 @@ namespace RaceMode
                     if (_cfg.GraphicsMode == "Race") { apply = true; why = "Race quality " + g.Level; }
                     else Tick("Race quality " + g.Level + " saved. Used when Photo mode is off.");
                 }
-                if (_photoDirty && GraphicsPresets.Exists("Photo"))
+                if (_photoDirty && (GraphicsPresets.Exists("Photo") || GraphicsPresets.EnsurePhotoSeeded(IniPath(), _cfg.GraphicsPhoto.Level)))
                 {
                     var g = _cfg.GraphicsPhoto;
                     GraphicsPresets.Write("Photo", GraphicsCatalog.ComposePhoto(g.Level, g.Overrides, GraphicsPresets.Load("Photo")), "Replay quality " + GraphicsCatalog.PhotoNames[g.Level]);
@@ -2234,10 +2453,13 @@ namespace RaceMode
             var def = AdvDefault(k, g, raceBase);
             var current = pinned ?? def;
 
-            var tag = new Border { BorderBrush = (Brush)Window.Resources["Line"], BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
+            var tagText = new TextBlock { Text = "Custom", Style = (Style)Window.Resources["Caption"] };
+            tagText.SetResourceReference(TextBlock.ForegroundProperty, "Dim");
+            var tag = new Border { BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
                                    Padding = new Thickness(6, 0, 6, 1), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
-                                   Child = new TextBlock { Text = "Custom", Style = (Style)Window.Resources["Caption"], Foreground = (Brush)Window.Resources["Dim"] },
+                                   Child = tagText,
                                    Visibility = pinned != null && (k.IsSlider || _advPhoto) ? Visibility.Visible : Visibility.Collapsed };
+            tag.SetResourceReference(Border.BorderBrushProperty, "Line");
             var title = new StackPanel { Orientation = Orientation.Horizontal };
             title.Children.Add(new TextBlock { Text = k.label ?? k.key });
             title.Children.Add(tag);
@@ -2306,17 +2528,18 @@ namespace RaceMode
         void SetPhase(string phase)
         {
             _phase = phase;
+            NavPhase(phase);
             SetText("Headline", phase == "off" ? "Race Mode is off" : phase == "turning" ? "Turning on…" : "Race Mode is on");
             var dot = Get<Shape>("StatusDot");
             if (dot == null) return;
             if (phase == "off")
             {
-                dot.Fill = new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x60));
+                dot.SetResourceReference(Shape.FillProperty, "DotOff");
                 var hc = Get<System.Windows.Controls.Primitives.UniformGrid>("HeroChecks");
                 if (hc != null) { hc.Children.Clear(); hc.Visibility = Visibility.Collapsed; }
             }
-            else if (phase == "turning") dot.Fill = (Brush)Window.Resources["Dim"];
-            else dot.Fill = (Brush)Window.Resources[phase == "issues" ? "Warn" : "Live"];
+            else if (phase == "turning") dot.SetResourceReference(Shape.FillProperty, "Dim");
+            else dot.SetResourceReference(Shape.FillProperty, phase == "issues" ? "Warn" : "Live");
         }
 
         // Apps that should be running once Race Mode is on (enabled, installed, with a process name to check).
@@ -2338,7 +2561,7 @@ namespace RaceMode
             if (_cfg.StartIRacing && File.Exists(_cfg.IRacingUI) && !IsRunning("iRacingUI") && !IsRunning(Monitor.SimName)) waiting.Add("iRacing");
             var stillOpen = new List<string>();
             if (_cfg.CloseApps && secs >= 6.5)
-                stillOpen = _close.Where(n => !ProtectedFromClose(n) && IsRunning(n)).ToList();
+                stillOpen = _close.Where(n => !ProtectedFromClose(n) && !_leftOpen.ContainsKey(n) && !_reopened.Contains(n) && IsRunning(n)).ToList();
 
             if (secs >= 6.5 && waiting.Count == 0 && stillOpen.Count == 0) { FinishActivation(new List<string>()); return; }
             if (secs >= 45)
@@ -2358,6 +2581,8 @@ namespace RaceMode
         {
             _confirmTimer.Stop();
             _issues.Clear(); _issues.AddRange(problems);
+            foreach (var kv in _leftOpen) if (!ProtectedFromClose(kv.Key) && IsRunning(kv.Key)) _issues.Add(FriendlyApp(kv.Key) + " " + kv.Value);
+            foreach (var n in _reopened) if (!ProtectedFromClose(n) && IsRunning(n) && !_issues.Contains(FriendlyApp(n) + " reopened itself")) _issues.Add(FriendlyApp(n) + " reopened itself");
             if (_notInstalled.Count > 0) _issues.Add(string.Join(", ", _notInstalled.ToArray()) + " not installed");
             _confirmedRunning.Clear();
             foreach (var i in ExpectedApps()) if (IsRunning(i.ProcessName)) _confirmedRunning.Add(i.ProcessName);
@@ -2387,13 +2612,13 @@ namespace RaceMode
             LaunchItems(_stream.Where(i => i.Enabled), "streaming app");
             BoostStreamApps();
             if (_phase == "active" || _phase == "issues") { _onAt = DateTime.Now.AddSeconds(-6.5); _confirmTimer.Start(); }
-            _mon.Event("Streaming on");
+            _mon.Event("Streaming on"); RefreshNav();
             Tick("Streaming on");
         }
 
         void StreamOff()
         {
-            _cfg.Streaming = false;
+            _cfg.Streaming = false; RefreshNav();
             int restored = 0;
             foreach (var kv in _boosted.Where(k => InList(_stream, k.Value) || string.Equals(k.Value, "obs64", StringComparison.OrdinalIgnoreCase)).ToList())
             {
@@ -2519,6 +2744,20 @@ namespace RaceMode
                 var label = item != null ? item.Name : name;
                 AddIssue(label + " stopped");
             }
+            // An app left open (save prompt, admin) that has since closed, or is now protected (e.g. OBS once
+            // Streaming is on), is no longer a problem: drop its issue.
+            bool cleared = false;
+            foreach (var kv in _leftOpen.ToList())
+            {
+                bool prot = ProtectedFromClose(kv.Key);
+                if (!prot && IsRunning(kv.Key)) continue;
+                _leftOpen.Remove(kv.Key);
+                _issues.Remove(FriendlyApp(kv.Key) + " " + kv.Value);
+                if (!prot && !_closed.Contains(kv.Key)) _closed.Add(kv.Key);
+                _mon.Event(prot ? "Left " + kv.Key + " open: it's protected now" : kv.Key + " was closed after all");
+                cleared = true;
+            }
+            if (cleared) { _activation = NeedsALook(); SetPhase(_issues.Count == 0 ? "active" : "issues"); }
             if (_cfg.Streaming && _cfg.VramCheck && !_vramWarned && _simSeen)
             {
                 var s = _mon.Live;
@@ -2572,7 +2811,7 @@ namespace RaceMode
             if (expected.Count > 0)
             {
                 int running = expected.Count(i => IsRunning(i.ProcessName));
-                hc.Children.Add(MiniCheck("Apps", running + " of " + expected.Count + " running", running == expected.Count ? "Live" : turning ? "Dim" : "Warn"));
+                hc.Children.Add(MiniCheck("Launch apps", running + " of " + expected.Count + " running", running == expected.Count ? "Live" : turning ? "Dim" : "Warn"));
             }
             if (_cfg.CloseApps && _close.Count > 0)
             {
@@ -2581,9 +2820,9 @@ namespace RaceMode
             }
             bool simNow = IsRunning(Monitor.SimName);
             hc.Children.Add(MiniCheck("iRacing", simNow ? (_simBoosted && _cfg.SimHighPriority ? "racing, put first" : "racing") : _simSeen ? "between sessions" : "not in a session yet", simNow ? "Live" : "Off"));
-            if (_displayLine.Length > 0) hc.Children.Add(MiniCheck("Screen", _displayLine == "screen OK" ? "OK" : "needs a look", _displayLine == "screen OK" ? "Live" : "Warn"));
+            if (_displayLine.Length > 0) hc.Children.Add(MiniCheck("Screen check", _displayLine == "screen OK" ? "OK" : "needs a look", _displayLine == "screen OK" ? "Live" : "Warn"));
             hc.Children.Add(MiniCheck(_cfg.GraphicsMode + " graphics", _graphicsPending ? "after iRacing closes" : _graphicsOk ? "set" : "see Graphics", _graphicsPending ? "Dim" : _graphicsOk ? "Live" : "Warn"));
-            if (_lowered.Count > 0) hc.Children.Add(MiniCheck("Background", _lowered.Count + " slowed down", "Live"));
+            if (_lowered.Count > 0) hc.Children.Add(MiniCheck("Background apps", _lowered.Count + " slowed down", "Live"));
             if (_cfg.Streaming) hc.Children.Add(MiniCheck("OBS", IsRunning("obs64") ? "running" : "not running", IsRunning("obs64") ? "Live" : "Warn"));
             if (_mon.IsLogging) hc.Children.Add(MiniCheck("Log", "recording", "Live"));
         }
@@ -2594,11 +2833,11 @@ namespace RaceMode
             var g = new Grid { Margin = new Thickness(0, 3, 10, 3) };
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             g.ColumnDefinitions.Add(new ColumnDefinition());
-            var dot = new Ellipse { Width = 6, Height = 6, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 1, 8, 0),
-                                    Fill = brushKey == "Off" ? new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x60)) : (Brush)Window.Resources[brushKey] };
+            var dot = new Ellipse { Width = 6, Height = 6, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 1, 8, 0) };
+            dot.SetResourceReference(Shape.FillProperty, brushKey == "Off" ? "DotOff" : brushKey);
             var t = new TextBlock { FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
-            t.Inlines.Add(new Run(name + "  ") { Foreground = (Brush)Window.Resources["Ink"] });
-            t.Inlines.Add(new Run(state) { Foreground = brushKey == "Warn" ? (Brush)Window.Resources["Warn"] : (Brush)Window.Resources["Dim"] });
+            t.Inlines.Add(Palette.Run(name + "  ", "Ink"));
+            t.Inlines.Add(Palette.Run(state, brushKey == "Warn" ? "Warn" : "Dim"));
             Grid.SetColumn(t, 1);
             g.Children.Add(dot); g.Children.Add(t);
             System.Windows.Automation.AutomationProperties.SetName(g, name + ": " + state);

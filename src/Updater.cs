@@ -178,6 +178,7 @@ namespace RaceMode
 
         public static void StartNew()
         {
+            ObsDock.Stop();   // let go of the dock's port before the new copy starts (it listens there next)
             Process.Start(new ProcessStartInfo(ExePath, "--after-update " + Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture))
             { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(ExePath) });
         }
@@ -189,6 +190,14 @@ namespace RaceMode
             int pid;
             if (!int.TryParse(oldPid, NumberStyles.None, CultureInfo.InvariantCulture, out pid)) return;
             try { using (var p = Process.GetProcessById(pid)) p.WaitForExit(20000); } catch { }
+        }
+
+        // A normal start (no --after-update) of the installed copy that finds RaceMode.exe.old next to it: an update
+        // was installed while Race Mode was on and starts only now. Treat this start like the restart after an update,
+        // so a new version that can't start still rolls back, and the old exe goes once this one is up.
+        public static void NoticeEarlierUpdate()
+        {
+            if (File.Exists(ExePath + ".old") && Installer.IsInstalledCopy) _fresh = true;
         }
 
         // New copy, once its window is up: the update worked, so the old exe can go.
@@ -211,6 +220,7 @@ namespace RaceMode
                 if (File.Exists(bad)) File.Delete(bad);
                 File.Move(exe, bad);
                 File.Move(old, exe);
+                ObsDock.Stop();
                 Process.Start(new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) });
                 return true;
             }

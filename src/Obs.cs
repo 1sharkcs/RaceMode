@@ -20,11 +20,8 @@ namespace RaceMode
         {
             get
             {
-                foreach (var p in new[] {
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"obs-studio\bin\64bit\obs64.exe"),
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"Steam\steamapps\common\OBS Studio\bin\64bit\obs64.exe") })
-                    if (File.Exists(p)) return p;
-                return null;
+                // Registry (Uninstall / App Paths) first, then the usual Program Files and Steam folders. Null if not installed.
+                return InstallFinder.ObsExe();
             }
         }
 
@@ -130,7 +127,7 @@ namespace RaceMode
                 panel.Children.Add(SetupFlow.Button("Turn It On", () =>
                 {
                     err = EnableRemoteControl();
-                    Installer.Log("obs", new[] { err ?? "OBS remote control switched on" });
+                    Installer.Log("obs", new[] { err ?? "OBS remote control switched on" }, Shell.Data);
                     MessageBox.Show(err ?? "Done. OBS's remote control is on.", "Race Mode", MessageBoxButton.OK, err == null ? MessageBoxImage.Information : MessageBoxImage.Warning);
                 }));
                 return panel;
