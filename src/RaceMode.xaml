@@ -1216,6 +1216,9 @@
                     <StackPanel>
                       <TextBlock Text="Race Mode inside OBS" Foreground="{DynamicResource Ink}"/>
                       <TextBlock Style="{StaticResource Sub}" TextWrapping="Wrap" Text="A small panel with FPS, temperatures, stream health and the on/off switch.&#x0a;1. Click Copy Dock Link.&#x0a;2. In OBS: Docks &gt; Custom Browser Docks.&#x0a;3. Name it Race Mode, paste the link, Apply."/>
+                      <!-- shown after the dock had to move to a new port and key, until the new link is copied (StreamUi.cs) -->
+                      <TextBlock x:Name="DockChangedNote" Style="{StaticResource Sub}" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{DynamicResource Warn}" Visibility="Collapsed"
+                                 Text="The dock's link changed, so the Race Mode dock in OBS is blank. Click Copy Dock Link and paste it into that dock again (Docks &gt; Custom Browser Docks)."/>
                     </StackPanel>
                     <Button x:Name="DockLinkBtn" Grid.Column="1" Style="{StaticResource Btn}" Content="Copy Dock Link" Margin="12,0,0,0" IsEnabled="False" ToolTipService.ShowOnDisabled="True"
                             ToolTip="Works while Streaming is on. The link has a private key in it: don't share it."/>

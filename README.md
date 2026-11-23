@@ -18,8 +18,8 @@ It never changes iRacing while iRacing is running, and it leaves your FPS cap al
 ## The window
 
 - **Overview** has the switch and the last minute of FPS, CPU, graphics card and memory. While Race Mode is on it shows the checklist of what Race Mode did; while it's off it shows your last session.
-- The menu down the left opens Launch apps, Close list, Streaming, Graphics, Settings and Logs (Ctrl+1 to Ctrl+7), and shows what each is set to. A small switch sits at the top of the menu on every page except the Overview, which has the big one. Make the window narrow and the menu shrinks to icons.
-- From 1440 pixels wide, the charts stay beside the Launch, Close, Streaming and Graphics pages.
+- The menu down the left opens the Overview, Launch apps, Close list, Streaming, Graphics, Settings and Logs (Ctrl+1 to Ctrl+7), and shows what each is set to. Tab moves through it and Enter opens a page. A small switch sits under the menu's pages on every page except the Overview, which has the big one. Make the window narrow and the menu shrinks to icons.
+- On a wide window (about 1360 pixels and up), the charts stay beside the Launch, Close, Streaming and Graphics pages.
 - The Small panel button in the title bar shrinks the window to the switch, FPS and the live numbers, for a corner of a side monitor. Drag it wide and short for a strip, or narrow and tall for a column. Click the button again to go back.
 
 ## Install

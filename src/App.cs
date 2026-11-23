@@ -79,6 +79,8 @@ namespace RaceMode
         public string WhatsNewSeen;
         // The version that ran last time (WhatsNew.cs): What's new opens on the first start after it goes up.
         public string LastRunVersion;
+        // The OBS dock moved to a new port and key (StreamUi.cs): show a note on the Stream page until the link is copied again.
+        public bool DockLinkChanged;
         public bool? SetupDone;   // false until first-run setup is finished; null in configs from before this existed   // closing the window keeps Race Mode in the tray
         // OBS dock (ObsDock.cs): local port and the private key in its link (made on first use).
         public int DockPort = 47815;
@@ -1837,7 +1839,12 @@ namespace RaceMode
                     }
                     Tick("Installed " + u.Version + ", restarting Race Mode");
                     try { Updater.StartNew(); }
-                    catch (Exception ex) { SetText("UpdateText", "Installed, but couldn't restart: " + ex.Message + ". Start Race Mode again to use it."); return; }
+                    catch (Exception ex)
+                    {
+                        SetText("UpdateText", "Installed, but couldn't restart: " + ex.Message + ". Start Race Mode again to use it.");
+                        if (_cfg.Streaming && !ObsDock.Running) StartObsFeatures();   // StartNew let go of the dock first
+                        return;
+                    }
                     Quit();
                 }));
             });
@@ -2018,7 +2025,8 @@ namespace RaceMode
         {
             var work = SystemParameters.WorkArea;
             // 580 x 840 was the old default (a tall column under a tab bar): nobody chose it, so it becomes the new default
-            if (_cfg.WindowWidth == 580 && _cfg.WindowHeight == 840) { _cfg.WindowWidth = 0; _cfg.WindowHeight = 0; }
+            // (1.0.1 shrank it to fit short screens and saved that, so any 580-wide size up to 840 tall from before 1.1 counts)
+            if (_cfg.WindowWidth == 580 && _cfg.WindowHeight <= 840 && string.IsNullOrEmpty(_cfg.LastRunVersion)) { _cfg.WindowWidth = 0; _cfg.WindowHeight = 0; }
             if (Window.Width > work.Width) Window.Width = Math.Max(Window.MinWidth, work.Width);
             if (_cfg.WindowWidth >= Window.MinWidth) Window.Width = Math.Min(_cfg.WindowWidth, work.Width);
             if (_cfg.WindowHeight >= Window.MinHeight) Window.Height = Math.Min(_cfg.WindowHeight, work.Height - 16);

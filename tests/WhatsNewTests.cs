@@ -20,6 +20,9 @@ class WhatsNewTests
         Check("09 nothing for a series without pages", !Shell.ShouldShowWhatsNew("1.0.2", null, false) && !Shell.ShouldShowWhatsNew("9.4.0", "9.3.0", false), null);
         Check("10 numbers, not text: 1.1.10 is after 1.1.9", Shell.ShouldShowWhatsNew("1.1.10", "1.1.9", false), null);
         Check("11 an unreadable saved version counts as unknown, not newer", !Shell.ShouldShowWhatsNew("1.1.0", "garbage", false), null);
+        Check("12 a normal patch in a series already seen doesn't repeat the pages", !Shell.ShouldShowWhatsNew("1.1.1", "1.1.0", false, "1.1"), null);
+        Check("13 ...but a test version, or test -> release, still shows them", Shell.ShouldShowWhatsNew("1.1.1-rc.1", "1.1.0", false, "1.1") && Shell.ShouldShowWhatsNew("1.1.0", "1.1.0-rc.7", false, "1.1"), null);
+        Check("14 updating from 1.0.1 (nothing seen) shows them", Shell.ShouldShowWhatsNew("1.1.0", null, false, null) && Shell.ShouldShowWhatsNew("1.1.0", null, false, "1.0"), null);
         Console.WriteLine(pass + " passed, " + fail + " failed");
         Environment.Exit(fail == 0 ? 0 : 1);
     }
