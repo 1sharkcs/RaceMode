@@ -521,7 +521,8 @@
     <Style x:Key="NavList" TargetType="ListBox">
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="KeyboardNavigation.TabNavigation" Value="Once"/>
+      <!-- every section is its own Tab stop (Enter or Space opens it; the arrow keys still move and open) -->
+      <Setter Property="KeyboardNavigation.TabNavigation" Value="Continue"/>
       <Setter Property="AutomationProperties.Name" Value="Sections"/>
       <Setter Property="Template">
         <Setter.Value>
