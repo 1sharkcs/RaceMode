@@ -261,13 +261,30 @@ namespace RaceMode
         int _i;
 
         static Window _host;   // where the shared styles (Group, Row, Btn...) come from
+        // Setup and What's new share the overlay and its footer buttons; only the flow showing answers them.
+        static SetupFlow _active;
+
+        // The line above the title: "Step 2 of 5" unless a flow says otherwise (What's new: "What's new in 1.1 · 2 of 3").
+        public Func<int, int, string> StepText;
+        // Skip ends the whole flow instead of moving to the next page (What's new).
+        public bool SkipEnds;
 
         public SetupFlow(Window w, List<SetupPage> pages, Action finished)
         {
             _w = w; _pages = pages; _finished = finished; _host = w;
-            Btn("SetupNext").Click += (s, e) => Next(true);
-            Btn("SetupSkip").Click += (s, e) => Next(false);
-            Btn("SetupBack").Click += (s, e) => { if (_i > 0) { Leave(); _i--; Render(); } };
+            Btn("SetupNext").Click += (s, e) => { if (_active == this) Next(true); };
+            Btn("SetupSkip").Click += (s, e) => { if (_active != this) return; if (SkipEnds) Finish(); else Next(false); };
+            Btn("SetupBack").Click += (s, e) => { if (_active == this && _i > 0) { Leave(); _i--; Render(); } };
+        }
+
+        // True while this flow is the one on screen.
+        public bool Showing
+        {
+            get { var o = (UIElement)_w.FindName("SetupOverlay"); return _active == this && o != null && o.Visibility == Visibility.Visible; }
+        }
+        public static bool AnyShowing
+        {
+            get { return _active != null && _active.Showing; }
         }
 
         Button Btn(string n) { return (Button)_w.FindName(n); }
@@ -277,6 +294,7 @@ namespace RaceMode
         // Opens setup at one page (e.g. the Helpers page from the CPU temperature tile).
         public void Start(int page)
         {
+            _active = this;
             ShowOverlay(true);
             _i = Math.Max(0, Math.Min(page, _pages.Count - 1)); Render();
         }
@@ -311,7 +329,7 @@ namespace RaceMode
             }
         }
 
-        public void Refresh() { Render(); }
+        public void Refresh() { if (Showing) Render(); }   // never draws over the other flow
         public int Current { get { return _i; } }
 
         void Leave() { var p = _pages[_i]; if (p.OnLeave != null) p.OnLeave(); }
@@ -328,7 +346,7 @@ namespace RaceMode
         void Render()
         {
             var p = _pages[_i];
-            ((TextBlock)_w.FindName("SetupStep")).Text = _pages.Count > 1 ? "Step " + (_i + 1) + " of " + _pages.Count : "";
+            ((TextBlock)_w.FindName("SetupStep")).Text = StepText != null ? StepText(_i, _pages.Count) : _pages.Count > 1 ? "Step " + (_i + 1) + " of " + _pages.Count : "";
             ((TextBlock)_w.FindName("SetupTitle")).Text = p.Title;
             var intro = (TextBlock)_w.FindName("SetupIntro");
             intro.Text = p.Intro; intro.Visibility = string.IsNullOrEmpty(p.Intro) ? Visibility.Collapsed : Visibility.Visible;

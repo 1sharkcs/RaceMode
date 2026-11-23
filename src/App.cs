@@ -75,6 +75,8 @@ namespace RaceMode
         // Updates (Updater.cs): check every 12 hours; test versions = GitHub pre-releases from the dev branch.
         public bool UpdateCheck = true, UpdateTestVersions = false;
         public bool TrayOnClose = true, TrayHintShown = false;
+        // What's new (WhatsNew.cs): the last version series ("1.1") it was shown for, or that setup was done on.
+        public string WhatsNewSeen;
         public bool? SetupDone;   // false until first-run setup is finished; null in configs from before this existed   // closing the window keeps Race Mode in the tray
         // OBS dock (ObsDock.cs): local port and the private key in its link (made on first use).
         public int DockPort = 47815;
@@ -380,6 +382,8 @@ namespace RaceMode
                     if (args.Length >= 5 && args[4] == "on") shell.PreviewOn();
                     // "setup": the first-run questions over the window, as on a new PC (without touching config.json)
                     if (args.Length >= 5 && args[4] == "setup") shell.StartFirstRun();
+                    // "whatsnew": the What's new pages over the window
+                    if (args.Length >= 5 && args[4] == "whatsnew") shell.StartWhatsNew();
                     if (args.Contains("theme=flip"))
                     {
                         var ft = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
@@ -485,6 +489,7 @@ namespace RaceMode
             BindUi();
             if (migrated != null) Tick(migrated);
             MaybeStartFirstRun();
+            MaybeStartWhatsNew();
             Window.Loaded += (s, e) =>
             {
                 // An update just installed: once this window is up, the old exe isn't needed for a rollback.
@@ -858,6 +863,7 @@ namespace RaceMode
             Get<ListBox>("RunningList").MouseDoubleClick += (s, e) => addPicked();
             Get<ListBox>("RunningList").KeyDown += (s, e) => { if (e.Key == Key.Enter) { addPicked(); e.Handled = true; } };
             Get<Button>("RerunSetupBtn").Click += (s, e) => StartFirstRun();
+            Get<Button>("WhatsNewBtn").Click += (s, e) => StartWhatsNew();
             // Settings tab, CPU temperature: HWiNFO's state and the button that moves it on, refreshed while it shows.
             var hwPanel = Get<StackPanel>("HwinfoPanel");
             var hwTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
