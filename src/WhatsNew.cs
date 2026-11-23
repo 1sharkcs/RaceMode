@@ -88,7 +88,7 @@ namespace RaceMode
             var back = _focusBeforeWhatsNew as UIElement;
             Window.Dispatcher.BeginInvoke(new Action(() =>
             {
-                if (back != null && back.IsVisible && back.Focus()) return;
+                if (back != null && back != Window && back.IsVisible && back.Focus()) return;
                 var sw = Get<ToggleButton>("Switch");
                 if (sw != null && sw.IsVisible) sw.Focus();
                 else { var nav = Get<ListBox>("Nav"); if (nav != null) nav.Focus(); }

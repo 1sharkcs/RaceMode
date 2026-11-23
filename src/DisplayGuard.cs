@@ -174,6 +174,8 @@ namespace RaceMode
         static GuardResult RunTriple(GuardResult r, DisplayGuardConfig cfg, string path, bool apply)
         {
             var rows = TripleRows(r.Monitors).Where(row => IdMatches(row[0], cfg.Triple[0]) && IdMatches(row[1], cfg.Triple[1]) && IdMatches(row[2], cfg.Triple[2])).ToList();
+            if (rows.Count == 0 && TripleRows(r.Monitors, false).Any(row => IdMatches(row[0], cfg.Triple[0]) && IdMatches(row[1], cfg.Triple[1]) && IdMatches(row[2], cfg.Triple[2])))
+                return Skip(r, "Your three racing screens are connected but don't line up side by side in Windows' display settings, so iRacing's screen settings were left alone. Line them up in Settings > Display");
             if (rows.Count == 0)
                 return Skip(r, "Your three racing screens aren't all connected side by side right now, so iRacing's screen settings were left alone (looking for " + string.Join(", ", cfg.Triple.ToArray()) + ", found " + string.Join(", ", r.Monitors.Select(m => m.MonitorId).ToArray()) + ")");
             if (rows.Count > 1)
@@ -211,7 +213,7 @@ namespace RaceMode
                 };
             var slow = row3.Where(m => m.Hz > 0 && m.Hz < cfg.RefreshRate).OrderBy(m => m.Hz).FirstOrDefault();
             if (slow != null)
-                r.Warning = "Windows has one of your racing screens (" + slow.Width + "×" + slow.Height + (slow.Primary ? ", your main screen" : "") + ") at " + slow.Hz + " Hz, not " + cfg.RefreshRate + " Hz. Change it in Settings > Display > Advanced display";
+                r.Warning = "Windows has one of your racing screens (the " + (row3.IndexOf(slow) == 0 ? "left" : row3.IndexOf(slow) == 1 ? "middle" : "right") + " one, " + slow.Width + "×" + slow.Height + ") at " + slow.Hz + " Hz, not " + cfg.RefreshRate + " Hz. Change it in Settings > Display > Advanced display";
             // cfg.Width/Height: the whole window's size (older configs kept one screen's size, so either counts)
             else if (!(width == cfg.Width && height == cfg.Height) && !row3.All(m => m.Width == cfg.Width && m.Height == cfg.Height))
                 r.Warning = "Windows has your racing screens at a different size than when you picked them. Change it in Settings > Display";
@@ -251,7 +253,11 @@ namespace RaceMode
         // Three screens in a row, left to right: each starts where the one before ends and they overlap top to bottom.
         // They don't have to match: the picker only offers rows once "I race on three screens" is ticked, and
         // TripleWindow uses the height all three share.
-        public static List<List<MonitorInfo>> TripleRows(List<MonitorInfo> mons)
+        public static List<List<MonitorInfo>> TripleRows(List<MonitorInfo> mons) { return TripleRows(mons, true); }
+
+        // band: false also keeps rows whose three screens share too little height (to say "line them up" instead
+        // of "not connected" when that's the only thing wrong)
+        static List<List<MonitorInfo>> TripleRows(List<MonitorInfo> mons, bool band)
         {
             var rows = new List<List<MonitorInfo>>();
             if (mons == null) return rows;
@@ -259,14 +265,18 @@ namespace RaceMode
                                                                   && b.Y < a.Y + a.Height && a.Y < b.Y + b.Height;
             foreach (var a in mons.Where(m => m.Width > 0 && m.Height > 0).OrderBy(m => m.X))
             {
-                var b = mons.FirstOrDefault(m => next(a, m)); if (b == null) continue;
-                var c = mons.FirstOrDefault(m => m != a && next(b, m)); if (c == null) continue;
-                // all three must share a band at least half the smallest screen's height: a staircase of screens
-                // that only overlap in pairs would give a window a few pixels tall, or none at all
-                var row = new List<MonitorInfo> { a, b, c };
-                int shared = row.Min(m => m.Y + m.Height) - row.Max(m => m.Y);
-                if (shared * 2 < row.Min(m => m.Height)) continue;
-                rows.Add(row);
+                // every screen touching a's right edge, then every one touching b's: a failed first pick mustn't
+                // hide a good row (two screens stacked on the right, say)
+                foreach (var b in mons.Where(m => next(a, m)).ToList())
+                    foreach (var c in mons.Where(m => m != a && next(b, m)).ToList())
+                    {
+                        // all three must share a band at least half the smallest screen's height: a staircase of
+                        // screens that only overlap in pairs would give a window a few pixels tall, or none at all
+                        var row = new List<MonitorInfo> { a, b, c };
+                        int shared = row.Min(m => m.Y + m.Height) - row.Max(m => m.Y);
+                        if (band && shared * 2 < row.Min(m => m.Height)) continue;
+                        rows.Add(row);
+                    }
             }
             return rows;
         }
