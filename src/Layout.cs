@@ -186,7 +186,6 @@ namespace RaceMode
             double w = Window.ActualWidth, h = Window.ActualHeight;
             var tabs = Get<TabControl>("Tabs"); var rail = Get<FrameworkElement>("NavRail");
             if (!_layoutReady || tabs == null || rail == null || w <= 0 || h <= 0) return;
-            UpdateNavSwitch();
             var bodyEl = Get<UIElement>("Body");
             bool hadFocus = bodyEl != null && bodyEl.IsKeyboardFocusWithin;
 
@@ -206,6 +205,7 @@ namespace RaceMode
                 }
             }
             if (!small && Window.WindowState == WindowState.Normal) { _cfg.FullWidth = Math.Round(w); _cfg.FullHeight = Math.Round(h); }
+            UpdateNavSwitch();   // after _small and the section are settled (leaving the small panel onto the Overview)
             bool overview = tabs.SelectedIndex == 0;
             bool names = w >= NavNamesAt && !_cfg.NavCollapsed;   // the window's width, then the menu's own button
             double navW = small ? 0 : names ? NavWide : NavNarrow;
@@ -218,7 +218,8 @@ namespace RaceMode
             if (!small)
             {
                 rail.Width = navW;
-                // the switch block heads the menu on every section, the Overview too, so the rows never move
+                // the switch block heads the menu on every section but the Overview (its big switch is right there);
+                // the rows move up by the block's height there, which reads better than an empty slot
                 LayoutNav(names, w >= NavNamesAt);
             }
 

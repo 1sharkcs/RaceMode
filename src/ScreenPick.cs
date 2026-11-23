@@ -54,6 +54,7 @@ namespace RaceMode
 
             int lastOn = 0;          // the choice before "Don't check" was ticked, to come back to
             bool wantThree = false;  // ticked: clicking a screen picks the row of three around it
+            bool userTouched = false; // the tick box was changed here (a missing saved row no longer decides it)
             bool busy = false;
             Action render = null;
 
@@ -80,8 +81,11 @@ namespace RaceMode
                 try
                 {
                     int i = get();
+                    bool missing = i > n() + _pickTriples.Count;   // the saved choice isn't connected right now
+                    bool savedThree = _cfg.DisplayGuard != null && _cfg.DisplayGuard.IsTriple;
                     if (isTriple(i)) wantThree = true;
                     else if (isSingle(i)) wantThree = false;
+                    else if (missing && !userTouched) wantThree = savedThree;
                     if (i > 0) lastOn = i;
                     var mons = _pickMonitors;
                     MonitorInfo single = isSingle(i) ? mons[i - 1] : null;
@@ -92,13 +96,17 @@ namespace RaceMode
                     three.IsEnabled = _pickTriples.Count > 0 || wantThree;
                     off.IsChecked = i == 0;
                     var threeSub = ((Panel)((Grid)threeRow).Children[1]).Children.OfType<TextBlock>().Skip(1).FirstOrDefault();
+                    bool joined = mons.Any(DisplayGuard.LooksJoined);
                     string tsub = _pickTriples.Count == 0
-                        ? (mons.Count < 3 ? "Windows sees " + (mons.Count == 1 ? "one screen" : mons.Count + " screens") + " right now." : "Race Mode needs three screens next to each other in Windows' display settings.")
+                        ? (joined ? "Three screens joined by NVIDIA Surround or AMD Eyefinity count as one screen: pick that one."
+                           : mons.Count < 3 ? "Windows sees " + (mons.Count == 1 ? "one screen" : mons.Count + " screens") + " right now." : "Race Mode needs three screens next to each other in Windows' display settings.")
                         : "iRacing runs as one borderless window across all three.";
                     if (threeSub == null) ((Panel)((Grid)threeRow).Children[1]).Children.Add(new TextBlock { Text = tsub, Style = SetupFlow.Res<Style>("Sub"), TextWrapping = TextWrapping.Wrap });
                     else threeSub.Text = tsub;
 
-                    // the picture
+                    // the picture (rebuilt each time; the tile that had the keyboard gets it back below)
+                    MonitorInfo focused = null;
+                    foreach (var c in map.Children.OfType<Button>()) if (c.IsKeyboardFocusWithin) focused = c.Tag as MonitorInfo;
                     map.Children.Clear();
                     if (mons.Count > 0 && map.ActualWidth > 0)
                     {
@@ -123,7 +131,9 @@ namespace RaceMode
                                 }
                                 else choose(1 + mons.IndexOf(mon));
                             };
+                            tile.Tag = m;
                             map.Children.Add(tile);
+                            if (focused == m && tile.IsEnabled) { var t = tile; t.Dispatcher.BeginInvoke(new Action(() => t.Focus()), System.Windows.Threading.DispatcherPriority.Input); }
                         }
                     }
                     else if (mons.Count == 0)
@@ -140,13 +150,19 @@ namespace RaceMode
                     {
                         int x, y, w, h; DisplayGuard.TripleWindow(row, out x, out y, out w, out h);
                         say = "iRacing spans your three screens, left to right, as one " + w + " × " + h + " borderless window.";
-                        if (row.Any(m => m.Height != h || m.Y != y))
-                            say += " Your screens aren't the same height, so it uses the " + h + " pixels they share and the rest of the taller screen stays dark.";
+                        bool sameHeights = row.All(m => m.Height == row[0].Height);
+                        if (!sameHeights)
+                            say += " Your screens aren't the same height, so it uses the " + h + " pixels they share; the extra height of the taller screens stays dark.";
+                        else if (row.Any(m => m.Y != y))
+                            say += " Your screens aren't lined up in Windows' display settings, so it uses the " + h + " pixels they share. Line them up in Settings > Display to use all of them.";
                         else if (!DisplayGuard.TripleMatches(row))
                             say += " Your screens are different widths; iRacing's three-screen view works best when all three match.";
-                        say += " Set iRacing itself to three screens in its monitor settings.";
+                        if (DisplayGuard.IniNumMonitors(IniPath()) != 3)
+                            say += " Then, in iRacing, open Settings > Display > Monitor and set the monitor type to three screens.";
                     }
-                    else say = "Your racing screen isn't connected right now. Click a screen to race on it instead, or leave it until it's back.";
+                    else say = savedThree
+                        ? "Your three racing screens aren't all connected side by side right now. Race Mode leaves iRacing's screen settings alone until they're back."
+                        : "Your racing screen isn't connected right now. Click a screen to race on it instead, or leave it until it's back.";
                     status.Text = (string.IsNullOrEmpty(why) ? "" : why + " ") + say;
                 }
                 finally { busy = false; }
@@ -155,7 +171,7 @@ namespace RaceMode
             three.Checked += (s, e) =>
             {
                 if (busy) return;
-                wantThree = true;
+                wantThree = true; userTouched = true;
                 int i = get();
                 if (isTriple(i) || _pickTriples.Count == 0) { render(); return; }
                 // keep the screen they had in the middle when it has neighbours on both sides
@@ -165,7 +181,7 @@ namespace RaceMode
             three.Unchecked += (s, e) =>
             {
                 if (busy) return;
-                wantThree = false;
+                wantThree = false; userTouched = true;
                 int i = get();
                 if (isTriple(i)) choose(1 + _pickMonitors.IndexOf(_pickTriples[i - 1 - n()][1]));
                 else render();
@@ -228,6 +244,8 @@ namespace RaceMode
             }
             string what = m.Width + " by " + m.Height + " screen, " + m.Hz + " hertz" + Where(m, ", ", "");
             AutomationProperties.SetName(b, what + (on ? ", " + (role == "iRacing" ? "iRacing opens here" : role + " racing screen") : ""));
+            if (!canPick) AutomationProperties.SetHelpText(b, "Not next to two other screens, so it can't be one of three.");
+            ToolTipService.SetShowOnDisabled(b, true);   // the tooltip says why a greyed-out screen can't be picked
             b.ToolTip = what + (on ? "" : canPick ? ". Click to race on it." : ". Not next to two other screens.");
             return b;
         }
