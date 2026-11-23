@@ -24,7 +24,16 @@ namespace RaceMode
     //   wide          from 1360 wide (WideAt): the dashboard also shows beside the list sections
     public partial class Shell
     {
-        const double SmallW = 500, SmallH = 460;
+        const double SmallW = 500, SmallH = 460, FullFloor = 392;
+        // Below this height the window is the small panel: 460, or less on a screen that has less room than that
+        // (a laptop at 150% scaling can have about 430), so the full window still fits there, maximised or not.
+        // Found on a test PC: with a fixed 460 the menu and every section were out of reach on such a screen.
+        double SmallHere()
+        {
+            double room = ScreenRoomH();
+            // never under FullFloor (392): the lowest height the whole menu was checked to fit above the switch; lower, the small panel suits better
+            return room <= 0 ? SmallH : Math.Min(SmallH, Math.Max(FullFloor, room - 40));
+        }
         const double NavNamesAt = 760;
         const double WideAt = 1360;
         const double NavWide = 208, NavNarrow = 60;
@@ -190,16 +199,36 @@ namespace RaceMode
             RefreshNav();
         }
 
+        // The small-panel height follows the screen the window is on (SmallHere), so moving the window to another
+        // screen, or a change to the screens or the taskbar, lays it out again; otherwise the window kept the old
+        // screen's choice until the next unrelated layout (a section click, or iRacing starting).
+        bool _screenHooked;
+        double _smallHereWas = -1;
+        void HookScreenChanges()
+        {
+            if (_screenHooked) return;
+            _screenHooked = true;
+            Action recheck = () => { if (Math.Abs(SmallHere() - _smallHereWas) > 0.5) ApplyLayout(); };
+            Window.LocationChanged += (s, e) => recheck();
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += (s, e) => Window.Dispatcher.BeginInvoke(recheck);
+            Microsoft.Win32.SystemEvents.UserPreferenceChanged += (s, e) => { if (e.Category == Microsoft.Win32.UserPreferenceCategory.Desktop) Window.Dispatcher.BeginInvoke(recheck); };
+        }
+
         void ApplyLayout()
         {
             double w = Window.ActualWidth, h = Window.ActualHeight;
             var tabs = Get<TabControl>("Tabs"); var rail = Get<FrameworkElement>("NavRail");
             if (!_layoutReady || tabs == null || rail == null || w <= 0 || h <= 0) return;
+            HookScreenChanges();
+            _smallHereWas = SmallHere();
+            // A fresh install opens on first-run setup, which hides the sections before the TabControl ever picks
+            // one; when setup ends nothing was selected and the page stayed blank (found on a clean test PC).
+            if (tabs.SelectedIndex < 0 && tabs.Items.Count > 0) tabs.SelectedIndex = 0;
             var bodyEl = Get<UIElement>("Body");
             bool hadFocus = bodyEl != null && bodyEl.IsKeyboardFocusWithin;
 
             // ---- which size is this ----
-            bool small = w < SmallW || h < SmallH;
+            bool small = w < SmallW || h < SmallHere();
             var shape = small ? ShapeFor(w, h) : SmallShape.None;
             if (small != _small)
             {
@@ -229,6 +258,8 @@ namespace RaceMode
                 rail.Width = navW;
                 // the switch block sits under the sections on every section but the Overview (its big switch is right
                 // there); being under them, the rows never move when it comes and goes
+                _navShort = h < 540; _navTiny = h < 400;
+                _navRoomShort = _navShort && SmallHere() < SmallH;   // a short screen, not just a short window
                 LayoutNav(names, w >= NavNamesAt);
             }
 
@@ -343,18 +374,17 @@ namespace RaceMode
             if (Window.WindowState == WindowState.Maximized)
             {
                 var rb = Window.RestoreBounds;
-                if (rb.Width >= SmallW && rb.Height >= SmallH) { _cfg.FullWidth = Math.Round(rb.Width); _cfg.FullHeight = Math.Round(rb.Height); }
+                if (rb.Width >= SmallW && rb.Height >= SmallHere()) { _cfg.FullWidth = Math.Round(rb.Width); _cfg.FullHeight = Math.Round(rb.Height); }
                 Window.WindowState = WindowState.Normal;
             }
-            var work = SystemParameters.WorkArea;
+            var work = ScreenWork();   // the screen the window is on, not the main one
             if (!_small) { Window.Width = PanelW; Window.Height = PanelH; return; }
-            double fw = _cfg.FullWidth >= SmallW ? _cfg.FullWidth : 960, fh = _cfg.FullHeight >= SmallH ? _cfg.FullHeight : 720;
+            double fw = _cfg.FullWidth >= SmallW ? _cfg.FullWidth : 960, fh = _cfg.FullHeight >= SmallHere() ? _cfg.FullHeight : 720;
             fw = Math.Min(fw, work.Width); fh = Math.Min(fh, work.Height - 16);
-            Window.Width = Math.Max(fw, SmallW); Window.Height = Math.Max(fh, SmallH);
+            Window.Width = Math.Max(fw, SmallW); Window.Height = Math.Max(fh, SmallHere());
             // growing back must not push the window off the screens
-            double right = SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth, bottom = SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight;
-            if (Window.Left + Window.Width > right) Window.Left = Math.Max(SystemParameters.VirtualScreenLeft, right - Window.Width);
-            if (Window.Top + Window.Height > bottom) Window.Top = Math.Max(SystemParameters.VirtualScreenTop, bottom - Window.Height);
+            if (Window.Left + Window.Width > work.Right) Window.Left = Math.Max(work.Left, work.Right - Window.Width);
+            if (Window.Top + Window.Height > work.Bottom) Window.Top = Math.Max(work.Top, work.Bottom - Window.Height);
         }
     }
 }

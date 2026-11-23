@@ -38,9 +38,16 @@ set "WORK=%TEMP%\RaceMode-setup-%RANDOM%%RANDOM%"
 if exist "%WORK%" set "WORK=%WORK%-%RANDOM%"
 mkdir "%WORK%" || (echo Couldn't create a temporary folder. & goto :fail)
 
+rem Only when Windows couldn't reach the certificate-revocation server (curl error 35, seen right after a PC
+rem starts) is a download tried once more, with that check made best-effort: a certificate that is reported
+rem revoked still fails. Any other error stops here. (The SHA-256 check below catches a damaged download.)
 echo Downloading Race Mode...
-"%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 -o "%WORK%\RaceMode.zip" "%BASE%/RaceMode.zip" || goto :dlfail
-"%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 -o "%WORK%\RaceMode.zip.sha256" "%BASE%/RaceMode.zip.sha256" || goto :dlfail
+"%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 -o "%WORK%\RaceMode.zip" "%BASE%/RaceMode.zip"
+if errorlevel 35 if not errorlevel 36 (echo Windows couldn't check the download's certificate. Trying once more... & "%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 --ssl-revoke-best-effort -o "%WORK%\RaceMode.zip" "%BASE%/RaceMode.zip")
+if errorlevel 1 goto :dlfail
+"%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 -o "%WORK%\RaceMode.zip.sha256" "%BASE%/RaceMode.zip.sha256"
+if errorlevel 35 if not errorlevel 36 ("%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 --ssl-revoke-best-effort -o "%WORK%\RaceMode.zip.sha256" "%BASE%/RaceMode.zip.sha256")
+if errorlevel 1 goto :dlfail
 
 rem ---- 3. check the download ----
 echo Checking the download...

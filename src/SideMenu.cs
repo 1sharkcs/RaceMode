@@ -107,15 +107,19 @@ namespace RaceMode
 
         // Names or icons only, and the switch block and the collapse button to match.
         // canFold: the window is wide enough for names, so the button can fold or unfold them.
+        bool _navShort;   // set by the layout: the window is short, so the menu's rows are tightened
+        bool _navRoomShort;   // ...and the screen itself is short, so the collapse button makes room too
+        bool _navTiny;   // under 400 tall: tighter still, so all seven sections fit above the switch
         void LayoutNav(bool names, bool canFold)
         {
             var fold = Get<Button>("NavCollapse"); var chevron = Get<Path>("NavCollapseIcon");
             if (fold != null)
             {
-                fold.Visibility = canFold ? Visibility.Visible : Visibility.Collapsed;
+                // a short screen (not just a short window) has no room for it under the switch: the menu stays as it is
+                fold.Visibility = canFold && !_navRoomShort ? Visibility.Visible : Visibility.Collapsed;
                 // with names it sits under the icon column; icon-only, centred like the icons
                 fold.HorizontalAlignment = names ? HorizontalAlignment.Left : HorizontalAlignment.Center;
-                fold.Margin = names ? new Thickness(5, 8, 0, 0) : new Thickness(0, 8, 0, 0);
+                fold.Margin = names ? new Thickness(5, _navShort ? 4 : 8, 0, 0) : new Thickness(0, _navShort ? 4 : 8, 0, 0);
                 string what = names ? "Collapse menu" : "Expand menu";
                 AutomationProperties.SetName(fold, what);
                 fold.ToolTip = names ? "Collapse menu: icons only" : "Expand menu: show the names";
@@ -127,7 +131,11 @@ namespace RaceMode
                 {
                     // icon-only rows centre the icon in the 60 px menu: 1 + 19 + 20 + 19 + 1. (20 a side left 18 px for
                     // the 20 px icon, so WPF clipped the row and the attention dot on the icon's corner never showed.)
-                    _navRows[i].Padding = names ? new Thickness(12, 8, 12, 8) : new Thickness(19, 8, 19, 8);
+                    // a short window (a laptop at 150% scaling) tightens the rows so all seven and the switch fit
+                    double v = _navTiny ? 3 : _navShort ? 4 : 8;
+                    _navRows[i].Padding = names ? new Thickness(12, v, 12, v) : new Thickness(19, v, 19, v);
+                    // the gaps that group the menu (above Launch apps and Settings) shrink too
+                    _navRows[i].Margin = new Thickness(0, i == 1 || i == 5 ? (_navTiny ? 3 : _navShort ? 6 : 14) : 0, 0, _navShort ? 1 : 2);
                     _navName[i].Visibility = names ? Visibility.Visible : Visibility.Collapsed;
                     ((FrameworkElement)_navValue[i].Parent).Visibility = names ? Visibility.Visible : Visibility.Collapsed;
                 }
@@ -136,10 +144,12 @@ namespace RaceMode
             if (status == null || words == null || dot == null || sw == null) return;
             // with names: light, words, switch on one row, lined up with the icons and names above.
             // icon-only: the switch centred, its light under it.
-            status.Padding = names ? new Thickness(12, 9, 9, 9) : new Thickness(0, 10, 0, 10);
+            double sv = _navTiny ? 4 : _navShort ? 5 : 9;
+            status.Padding = names ? new Thickness(12, sv, 9, sv) : new Thickness(0, sv + 1, 0, sv + 1);
+            status.Margin = new Thickness(0, _navTiny ? 4 : _navShort ? 6 : 14, 0, 0);
             words.Visibility = names ? Visibility.Visible : Visibility.Collapsed;
             Grid.SetRow(dot, names ? 0 : 1); Grid.SetColumn(dot, 0); Grid.SetColumnSpan(dot, names ? 1 : 3);
-            dot.Margin = names ? new Thickness(0) : new Thickness(0, 8, 0, 0);
+            dot.Margin = names ? new Thickness(0) : new Thickness(0, _navShort ? 4 : 8, 0, 0);
             Grid.SetColumn(sw, names ? 2 : 0); Grid.SetColumnSpan(sw, names ? 1 : 3);
             sw.HorizontalAlignment = names ? HorizontalAlignment.Right : HorizontalAlignment.Center;
             var grid = Get<Grid>("NavStatusGrid");
@@ -153,7 +163,8 @@ namespace RaceMode
             if (_navRows == null || _cfg == null) return;
             // icon-only, a grey light under an off switch only repeats the switch; it keeps its place so nothing jumps
             var light = Get<FrameworkElement>("NavDot");
-            if (light != null) light.Visibility = !_navWithNames && _phase == "off" ? Visibility.Hidden : Visibility.Visible;            // Overview: what needs a look (count, amber)
+            // icons only on a short window: no light at all (the switch shows on or off), so it takes no room
+            if (light != null) light.Visibility = !_navWithNames && _navShort ? Visibility.Collapsed : !_navWithNames && _phase == "off" ? Visibility.Hidden : Visibility.Visible;            // Overview: what needs a look (count, amber)
             bool issues = _phase == "issues" && _issues.Count > 0;
             SetNavValue(0, issues ? _issues.Count.ToString(CultureInfo.InvariantCulture) : null, issues ? "Warn" : null, true,
                         issues ? NeedsALook() : null);

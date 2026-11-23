@@ -30,14 +30,22 @@ namespace RaceMode
         static ObsStats _latest = new ObsStats();
         static Thread _thread;
         static volatile bool _run;
+        // +1 on every Start: a loop from an earlier Start that is still waiting out its sleep when Streaming is turned
+        // off and on again quickly sees it isn't current and ends, so there is only ever one connection to OBS
+        static volatile int _gen;
+        [ThreadStatic] static int _myGen;
+        static bool Live { get { return _run && _myGen == _gen; } }
         public static string Host = "127.0.0.1";       // tests point this and Port at a fake server
         public static int PortOverride;                  // 0 = the port in OBS's settings
         public static Func<string> PasswordSource = ReadPassword;
         public static Func<bool> IsRunning = Running;
 
         public static ObsStats Latest { get { lock (_lock) return _latest.Clone(); } }
-        static void Set(ObsStats s) { s.Time = DateTime.Now; lock (_lock) _latest = s; }
-        static void SetStatus(string status) { var s = new ObsStats { Status = status }; Set(s); }
+        // Only the current loop may write what OBS reported: after a quick off and on, the earlier loop can still be
+        // finishing a request and would otherwise put its old (or "stats are off") reading back. Checked under the
+        // lock, so a write can't land between Stop's "off" and the check.
+        static void Set(ObsStats s) { s.Time = DateTime.Now; lock (_lock) { if (Live) _latest = s; } }
+        static void SetStatus(string status) { Set(new ObsStats { Status = status }); }
 
         public static bool Active { get { return _run; } }
 
@@ -45,19 +53,21 @@ namespace RaceMode
         {
             if (_run) return;
             _run = true;
-            _thread = new Thread(Loop) { IsBackground = true, Name = "RaceMode.Obs", Priority = ThreadPriority.BelowNormal };
+            int gen = ++_gen;
+            _thread = new Thread(() => { _myGen = gen; Loop(); }) { IsBackground = true, Name = "RaceMode.Obs", Priority = ThreadPriority.BelowNormal };
             _thread.Start();
         }
 
         public static void Stop()
         {
             _run = false;
-            SetStatus("OBS stats are off");
+            // written directly: Set only takes the loop's own readings, and this is the UI thread
+            lock (_lock) _latest = new ObsStats { Status = "OBS stats are off", Time = DateTime.Now };
         }
 
         static void Loop()
         {
-            while (_run)
+            while (Live)
             {
                 int wait = 5000;
                 try
@@ -72,7 +82,7 @@ namespace RaceMode
                 }
                 catch (ObsAuthException ex) { SetStatus(ex.Message); wait = 30000; }
                 catch (Exception ex) { SetStatus("Couldn't reach OBS (" + Short(ex) + ")"); }
-                for (int i = 0; i < wait / 250 && _run; i++) Thread.Sleep(250);
+                for (int i = 0; i < wait / 250 && Live; i++) Thread.Sleep(250);
             }
         }
 
@@ -106,7 +116,7 @@ namespace RaceMode
                 if (identified == null || Op(identified) != 2) throw new ObsAuthException("OBS didn't accept Race Mode's login. If you changed OBS's remote control password, restart Race Mode");
 
                 long lastBytes = -1; DateTime lastAt = DateTime.MinValue; int id = 0;
-                while (_run && ws.State == WebSocketState.Open)
+                while (Live && ws.State == WebSocketState.Open)
                 {
                     var stats = Request(ws, "GetStats", ++id);
                     var stream = Request(ws, "GetStreamStatus", ++id);
@@ -130,7 +140,7 @@ namespace RaceMode
                     }
                     s.Status = !s.Streaming ? "OBS is connected, not streaming" : s.Reconnecting ? "OBS is reconnecting to the stream" : "Streaming";
                     Set(s);
-                    for (int i = 0; i < 8 && _run; i++) Thread.Sleep(250);
+                    for (int i = 0; i < 8 && Live; i++) Thread.Sleep(250);
                 }
                 if (ws.State == WebSocketState.Open)
                     try { using (var c = new CancellationTokenSource(2000)) ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", c.Token).Wait(); } catch { }

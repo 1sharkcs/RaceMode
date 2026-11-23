@@ -40,11 +40,28 @@ namespace RaceMode
 
         public static bool IsInstalledCopy { get { return SamePath(ThisExe, InstalledExe); } }
 
+        // The end of Race Mode's lock and signal names. Empty for the real app. Under RACEMODE_TEST_ROOT: ".Test." and a short
+        // hash of the test folder, so a test copy never meets the real Race Mode, nor another test run's copies (two
+        // test runs at once on one PC, e.g. a long soak test while the suites run, must not see each other's locks).
+        public static string NameSuffix { get { return TestSuffix(TestRoot); } }
+
+        public static string TestSuffix(string testRoot)
+        {
+            if (string.IsNullOrEmpty(testRoot)) return "";
+            string key;
+            try { key = Path.GetFullPath(testRoot).TrimEnd('\\').ToLowerInvariant(); } catch { key = testRoot.ToLowerInvariant(); }
+            using (var sha = System.Security.Cryptography.SHA1.Create())
+            {
+                var h = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(key));
+                return ".Test." + BitConverter.ToString(h, 0, 4).Replace("-", "").ToLowerInvariant();
+            }
+        }
+
         // Another Race Mode (installed or not) is open right now.
         public static bool RaceModeRunning()
         {
             System.Threading.Mutex m;
-            if (!System.Threading.Mutex.TryOpenExisting(TestRoot == null ? @"Local\RaceMode.Instance" : @"Local\RaceMode.Instance.Test", out m)) return false;
+            if (!System.Threading.Mutex.TryOpenExisting(@"Local\RaceMode.Instance" + NameSuffix, out m)) return false;
             m.Dispose(); return true;
         }
 
@@ -591,8 +608,13 @@ namespace RaceMode
             Window w;
             using (var fs = typeof(Installer).Assembly.GetManifestResourceStream("RaceMode.xaml")) w = (Window)XamlReader.Load(fs);
             // setup is one column of questions: narrower and taller than the app's own default
-            w.MinWidth = 560; w.MinHeight = 620; w.Width = 600;
-            w.Height = Math.Min(820, SystemParameters.WorkArea.Height - 16);
+            // never taller or wider than the screen's free area: on a short screen (a laptop at 150% has about 430
+            // of room) a fixed 620 put the title bar and the Install button off the screen (found on a test PC);
+            // the page scrolls and its buttons stay put, so less height is fine
+            var work = SystemParameters.WorkArea;
+            w.MinWidth = Math.Min(560, work.Width); w.Width = Math.Min(600, work.Width);
+            w.MinHeight = Math.Min(620, work.Height - 16);
+            w.Height = Math.Min(820, work.Height - 16);
             app.MainWindow = w;
             Palette.Apply(w, Palette.IsLight("System"));   // no settings yet: follow Windows' app mode (Theme.cs)
             Shell.ApplyIcon(w);

@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Windows;
 using System.Windows.Interop;
 
 namespace RaceMode
@@ -21,6 +22,35 @@ namespace RaceMode
         [DllImport("shell32.dll")] static extern IntPtr SHAppBarMessage(uint message, ref AppBarData data);
 
         const int WmGetMinMaxInfo = 0x0024;
+
+        // The free area (taskbar left out) of the screen the window is on, in the window's own units; the main
+        // screen's when that can't be told. The layout test sets TestRoomH to try a short screen on any PC.
+        internal static double TestRoomH;
+        Rect ScreenWork()
+        {
+            var fallback = SystemParameters.WorkArea;
+            try
+            {
+                var hwnd = new WindowInteropHelper(Window).Handle;
+                if (hwnd == IntPtr.Zero) return fallback;
+                var monitor = MonitorFromWindow(hwnd, 2);   // MONITOR_DEFAULTTONEAREST
+                var mi = new MonitorInfoEx { Size = Marshal.SizeOf(typeof(MonitorInfoEx)) };
+                if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref mi)) return fallback;
+                var src = PresentationSource.FromVisual(Window);
+                if (src == null || src.CompositionTarget == null) return fallback;
+                var m = src.CompositionTarget.TransformFromDevice;
+                return new Rect(m.Transform(new Point(mi.Work.Left, mi.Work.Top)), m.Transform(new Point(mi.Work.Right, mi.Work.Bottom)));
+            }
+            catch { return fallback; }
+        }
+
+        // The free height of the window's screen (0 if unknown).
+        double ScreenRoomH()
+        {
+            if (TestRoomH > 0) return TestRoomH;
+            var r = ScreenWork();
+            return r.IsEmpty ? 0 : r.Height;
+        }
 
         void HookMaximiseFit()
         {
