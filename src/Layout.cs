@@ -44,6 +44,15 @@ namespace RaceMode
             BuildNavRows(nav);
             nav.SelectedIndex = tabs.SelectedIndex;
             nav.SelectionChanged += (s, e) => { if (nav.SelectedIndex >= 0 && tabs.SelectedIndex != nav.SelectedIndex) tabs.SelectedIndex = nav.SelectedIndex; };
+            // Tab moves between sections without opening them; Enter or Space opens the one with the keyboard
+            nav.PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key != System.Windows.Input.Key.Enter && e.Key != System.Windows.Input.Key.Space) return;
+                var row = System.Windows.Input.Keyboard.FocusedElement as ListBoxItem;
+                if (row == null) return;
+                int i = nav.ItemContainerGenerator.IndexFromContainer(row);
+                if (i >= 0) { nav.SelectedIndex = i; e.Handled = true; }
+            };
             // e.Source: lists and dropdowns inside a section raise the same event on their way up
             tabs.SelectionChanged += (s, e) =>
             {

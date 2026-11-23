@@ -101,6 +101,10 @@ namespace RaceMode
                     string sec = (string)((TabItem)tabs.Items[s]).Header;
                     var order = TabWalk();
                     if (order == null) { sb.AppendLine("SKIP  tab order, " + sec + ": WPF's Tab logic couldn't be reached on this .NET version"); continue; }
+                    // Tab reaches every section in the menu, not just the menu once
+                    var navList = Get<ListBox>("Nav");
+                    int navStops = order.Count(el => el is ListBoxItem && navList != null && navList.IsAncestorOf(el));
+                    check(navList == null || navStops == navList.Items.Count, "tab order, " + sec + ": Tab reaches each of the " + (navList == null ? 0 : navList.Items.Count) + " menu sections (reached " + navStops + ")");
                     // a list is one stop that the arrow keys move within: its rows count once
                     var names = new List<string>();
                     foreach (var stop in order.Select(DescribeStop)) if (names.Count == 0 || names[names.Count - 1] != stop) names.Add(stop);
@@ -121,6 +125,24 @@ namespace RaceMode
                     int firstBar = names.FindIndex(x => x.EndsWith("(title bar)", StringComparison.Ordinal));
                     check(firstBar >= 0 && names.Skip(firstBar).All(x => x.EndsWith("(title bar)", StringComparison.Ordinal)), "tab order, " + sec + ": the title bar's buttons come last");
                     orders.AppendLine(sec + ": " + string.Join(" > ", names));
+                }
+
+                // ---- Enter on a menu section (reached with Tab) opens it ----
+                {
+                    var navList = Get<ListBox>("Nav");
+                    tabs.SelectedIndex = 0; Pump();
+                    var row = navList == null ? null : navList.ItemContainerGenerator.ContainerFromIndex(4) as ListBoxItem;
+                    if (row != null)
+                    {
+                        row.Focus(); Pump();
+                        var src = PresentationSource.FromVisual(row);
+                        if (src != null)
+                        {
+                            var key = new KeyEventArgs(Keyboard.PrimaryDevice, src, 0, Key.Enter) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+                            row.RaiseEvent(key); Pump();
+                        }
+                    }
+                    check(tabs.SelectedIndex == 4, "keyboard: Enter on a menu section opens it (now on section " + tabs.SelectedIndex + ")");
                 }
 
                 // ---- the Small panel button, and a section asked for from the small panel ----
