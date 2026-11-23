@@ -191,7 +191,7 @@ namespace RaceMode
         {
             const string T = "Uninstall Race Mode";
             bool first;
-            var only = new System.Threading.Mutex(true, @"Local\RaceMode.Uninstall" + (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RACEMODE_TEST_ROOT")) ? "" : ".Test"), out first);
+            var only = new System.Threading.Mutex(true, @"Local\RaceMode.Uninstall" + Installer.NameSuffix, out first);
             if (!first) { only.Dispose(); MessageBox.Show("Race Mode is already being uninstalled.", T, MessageBoxButton.OK, MessageBoxImage.Information); return; }
             try { RunUninstallOnce(T); } finally { only.ReleaseMutex(); only.Dispose(); }
         }
@@ -263,7 +263,7 @@ namespace RaceMode
                 bool created;
                 // Under RACEMODE_TEST_ROOT (tests) the names get ".Test", matching Installer.RaceModeRunning, so a test
                 // copy never talks to (or is mistaken for) the real Race Mode.
-                var sfx = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RACEMODE_TEST_ROOT")) ? "" : ".Test";
+                var sfx = Installer.NameSuffix;
                 _instance = new System.Threading.Mutex(true, @"Local\RaceMode.Instance" + sfx, out created);
                 if (!created)
                 {
@@ -1057,14 +1057,24 @@ namespace RaceMode
         {
             if (AlwaysProtected.Any(p => string.Equals(p, name, StringComparison.OrdinalIgnoreCase))) return true;
             // streaming apps are only protected while Streaming is on (a racer who doesn't stream can close OBS)
-            return InList(_launch, name) || (_cfg.Streaming && InList(_stream, name));
+            if (ProtectedOwn(name)) return true;
+            // a helper of a protected app is protected with it: OBS's browser sources (obs-browser-page) die with the
+            // stream's overlays if they're closed while OBS itself is kept (the catalog lists an app's processes together)
+            var apps = AppScan.Apps;
+            if (apps != null)
+                foreach (var k in apps)
+                    if (k.process != null && k.process.Length > 1 && k.process.Any(x => string.Equals(x, name, StringComparison.OrdinalIgnoreCase))
+                        && k.process.Any(x => !string.Equals(x, name, StringComparison.OrdinalIgnoreCase) && ProtectedOwn(x))) return true;
+            return false;
         }
+        bool ProtectedOwn(string name) { return InList(_launch, name) || (_cfg.Streaming && InList(_stream, name)); }
 
         // Never lowered: iRacing etc. and streaming apps (OBS must keep its priority). Launch apps CAN be lowered
         // when you list them under Lower (e.g. Discord: started with Race Mode, but shouldn't compete with the sim).
         bool ProtectedFromLower(string name)
         {
             if (AlwaysProtected.Any(p => string.Equals(p, name, StringComparison.OrdinalIgnoreCase))) return true;
+            if (ObsGuard.IsObs(name)) return true;   // OBS and its parts are never slowed down: dropped frames on a live stream
             return InList(_stream, name);
         }
 
@@ -1464,9 +1474,30 @@ namespace RaceMode
 
         void CloseApps()
         {
-            var names = _close.Where(n => !ProtectedFromClose(n)).ToList();
+            // Helpers whose main app is on the list too end with it (GentleClose.cs): Steam's own shutdown ends its web
+            // helpers after syncing, and OBS ends its browser sources; asking or killing them separately did harm.
+            var names = GentleClose.WithoutHelpers(_close.Where(n => !ProtectedFromClose(n)));
+            // Other streaming apps: no way to tell if they're live, so never closed (ObsGuard.cs)
+            foreach (var n in names.Where(ObsGuard.IsOtherStreamApp).ToList())
+            {
+                names.Remove(n);
+                if (IsRunning(n)) { _leftOpen[n] = "was left open: Race Mode can't tell whether it's streaming or recording, so it never closes it"; _mon.Event("Left " + n + " open: streaming app, live state unknown"); }
+            }
+            // OBS live (streaming, recording, replay buffer, virtual camera), or no way to tell: not even asked (ObsGuard.cs)
+            if (names.Any(ObsGuard.IsObs))
+            {
+                var o = Obs.Latest;
+                var obs = ObsGuard.Now(o.Connected && o.Streaming);
+                if (obs.State != ObsState.Idle)
+                {
+                    names.RemoveAll(ObsGuard.IsObs);
+                    string why = obs.State == ObsState.Live ? "it's " + obs.ActiveText : "Race Mode couldn't tell whether it's streaming or recording (" + obs.Why + ")";
+                    if (IsRunning("obs64") || IsRunning("obs32")) { _leftOpen["obs64"] = "was left open: " + why; _mon.Event("Left OBS open: " + why); }
+                }
+            }
             var asked = new List<string>();
             var pids = new Dictionary<int, string>();   // every process asked to close, by id: only these can be force-closed
+            var born = new Dictionary<int, DateTime>(); // when each was started: an id Windows reused for a new process isn't ours to kill
             foreach (var name in names)
             {
                 if (string.Equals(name, "steam", StringComparison.OrdinalIgnoreCase))
@@ -1484,7 +1515,10 @@ namespace RaceMode
                 }
                 var procs = Mine(name).Where(p => { bool ok = AppScan.BelongsTo(name, AppScan.ImagePath(p.Id)); if (!ok) p.Dispose(); return ok; }).ToArray();
                 if (procs.Length == 0) continue;
-                foreach (var p in procs) { try { pids[p.Id] = name; if (p.MainWindowHandle != IntPtr.Zero) p.CloseMainWindow(); } catch { } finally { p.Dispose(); } }
+                foreach (var p in procs) { try { pids[p.Id] = name; try { born[p.Id] = p.StartTime; } catch { }
+                        if (p.MainWindowHandle != IntPtr.Zero) p.CloseMainWindow();
+                        else if (ObsGuard.IsObs(name) && GentleClose.AskHidden(p.Id, "OBS ") > 0) { }   // idle OBS in the tray: ask its hidden main window only
+                    } catch { } finally { p.Dispose(); } }
                 asked.Add(name);
                 _closed.Add(name);
                 _mon.Event("Asked " + name + " to close (" + procs.Length + " processes)");
@@ -1515,13 +1549,21 @@ namespace RaceMode
                     {
                         if (p.HasExited || !string.Equals(p.ProcessName, kv.Value, StringComparison.OrdinalIgnoreCase)) continue;   // gone, or the id was reused
                         // runs as administrator: Windows doesn't let Race Mode close it
-                        bool locked = false; try { var h = p.Handle; } catch (System.ComponentModel.Win32Exception) { locked = true; }
+                        // (asked of Windows directly: a sandboxed helper that only refuses full access isn't an admin app)
+                        bool locked = GentleClose.Elevated(kv.Key) == true;
                         if (locked) { states[kv.Key] = PidState.Admin; denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = adminWhy; continue; }
+                        // never force-closed (OBS, browsers, mail): still running means it's recording, saving or asking
+                        if (GentleClose.NeverForce(kv.Value)) { states[kv.Key] = PidState.Window; waiting.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = "is still open: it may be recording, saving or asking you something"; continue; }
                         // still showing a window: probably a "Save changes?" prompt, so it's left for the user
                         if (p.MainWindowHandle != IntPtr.Zero) { states[kv.Key] = PidState.Window; waiting.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = "is still open: it may be asking you to save"; continue; }
                         states[kv.Key] = PidState.Close;
                     }
-                    catch (System.ComponentModel.Win32Exception) { states[kv.Key] = PidState.Admin; denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = adminWhy; }
+                    catch (System.ComponentModel.Win32Exception)
+                    {
+                        // Windows refused a look: only an elevated process counts as "runs as administrator"; anything else
+                        // (a sandboxed helper, one exiting right now) is left to end with its app
+                        if (GentleClose.Elevated(kv.Key) == true) { states[kv.Key] = PidState.Admin; denied.Add(FriendlyApp(kv.Value)); _leftOpen[kv.Value] = adminWhy; }
+                    }
                     catch { }
                     finally { p.Dispose(); }
                 }
@@ -1534,9 +1576,10 @@ namespace RaceMode
                     try
                     {
                         if (p.HasExited || !string.Equals(p.ProcessName, name, StringComparison.OrdinalIgnoreCase)) continue;
+                        DateTime b; if (born.TryGetValue(id, out b)) { try { if (p.StartTime != b) continue; } catch { } }   // same id, a different process
                         p.Kill(); forced++;
                     }
-                    catch (System.ComponentModel.Win32Exception) { denied.Add(FriendlyApp(name)); _leftOpen[name] = adminWhy; }
+                    catch (System.ComponentModel.Win32Exception) { if (GentleClose.Elevated(id) == true) { denied.Add(FriendlyApp(name)); _leftOpen[name] = adminWhy; } }
                     catch { }
                     finally { p.Dispose(); }
                 }
@@ -1544,7 +1587,7 @@ namespace RaceMode
                 // Apps left open on purpose (save prompt, admin) were asked to close but didn't: don't count them as closed.
                 _closed.RemoveAll(n => _leftOpen.ContainsKey(n));
                 if (forced > 0) _mon.Event("Force-closed " + forced + " leftover processes");
-                if (waiting.Count > 0) _mon.Event("Left open (still showing a window): " + string.Join(", ", waiting.ToArray()));
+                if (waiting.Count > 0) _mon.Event("Left open (still showing a window, or recording or saving): " + string.Join(", ", waiting.ToArray()));
                 if (denied.Count > 0) _mon.Event("Couldn't close (runs as administrator): " + string.Join(", ", denied.ToArray()));
                 var notes = new List<string>();
                 if (denied.Count > 0) notes.Add(string.Join(", ", denied.ToArray()) + " runs as administrator, so Windows doesn't let Race Mode close it");
@@ -1603,6 +1646,9 @@ namespace RaceMode
                     var dir = System.IO.Path.GetDirectoryName(item.Path);
                     if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir)) psi.WorkingDirectory = dir;
                     Process.Start(psi);
+                    // the running-apps snapshot is up to 900 ms old: count it as running now, so the streaming list
+                    // (started right after this one) doesn't start the same app a second time
+                    if (!string.IsNullOrEmpty(item.ProcessName)) _runSet.Add(item.ProcessName);
                     started++;
                     _started.Add(item.Name);
                     _mon.Event("Started " + item.Name);

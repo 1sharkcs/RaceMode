@@ -164,6 +164,9 @@ namespace RaceMode
                         ? "Your three racing screens aren't all connected side by side right now. Race Mode leaves iRacing's screen settings alone until they're back. Untick the box to race on one screen instead."
                         : "Your racing screen isn't connected right now. Click a screen to race on it instead, or leave it until it's back.";
                     status.Text = (string.IsNullOrEmpty(why) ? "" : why + " ") + say;
+                    // the Settings card's title follows the choice (setup has its own page title)
+                    var keep = why == null ? Get<TextBlock>("MonitorKeepTitle") : null;
+                    if (keep != null) keep.Text = wantThree ? "Keep iRacing across these three screens" : "Keep iRacing on this screen";
                 }
                 finally { busy = false; }
             };
@@ -208,6 +211,17 @@ namespace RaceMode
             return w.Length == 0 ? "" : before + w + after;
         }
 
+        // For screen readers, when two screens would sound the same ("right of main"): where it is counting
+        // from the left, so each one is heard apart ("screen 3 of 3 from the left").
+        string Order(MonitorInfo m)
+        {
+            if (_pickMonitors == null || _pickMonitors.Count < 2) return "";
+            string mine = Where(m, "", "");
+            if (!_pickMonitors.Any(x => x != m && Where(x, "", "") == mine && x.Width == m.Width && x.Height == m.Height && x.Hz == m.Hz)) return "";
+            var row = _pickMonitors.OrderBy(x => x.X).ThenBy(x => x.Y).ToList();
+            return ", screen " + (row.IndexOf(m) + 1) + " of " + row.Count + " from the left";
+        }
+
         // One screen in the picture: its size and refresh rate, and what it's for ("iRacing", "Left"...).
         Button ScreenTile(MonitorInfo m, string role, bool canPick, double w, double h)
         {
@@ -242,7 +256,7 @@ namespace RaceMode
                 b.MouseEnter += (s, e) => face.SetResourceReference(Border.BackgroundProperty, "ScreenTileHover");
                 b.MouseLeave += (s, e) => face.SetResourceReference(Border.BackgroundProperty, "ScreenTile");
             }
-            string what = m.Width + " by " + m.Height + " screen, " + m.Hz + " hertz" + Where(m, ", ", "");
+            string what = m.Width + " by " + m.Height + " screen, " + m.Hz + " hertz" + Where(m, ", ", "") + Order(m);
             AutomationProperties.SetName(b, what + (on ? ", " + (role == "iRacing" ? "iRacing opens here" : role + " racing screen") : ""));
             if (!canPick) AutomationProperties.SetHelpText(b, "Not next to two other screens, so it can't be one of three.");
             ToolTipService.SetShowOnDisabled(b, true);   // the tooltip says why a greyed-out screen can't be picked

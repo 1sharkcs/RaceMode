@@ -40,11 +40,28 @@ namespace RaceMode
 
         public static bool IsInstalledCopy { get { return SamePath(ThisExe, InstalledExe); } }
 
+        // The end of Race Mode's lock and signal names. Empty for the real app. Under RACEMODE_TEST_ROOT: ".Test." and a short
+        // hash of the test folder, so a test copy never meets the real Race Mode, nor another test run's copies (two
+        // test runs at once on one PC, e.g. a long soak test while the suites run, must not see each other's locks).
+        public static string NameSuffix { get { return TestSuffix(TestRoot); } }
+
+        public static string TestSuffix(string testRoot)
+        {
+            if (string.IsNullOrEmpty(testRoot)) return "";
+            string key;
+            try { key = Path.GetFullPath(testRoot).TrimEnd('\\').ToLowerInvariant(); } catch { key = testRoot.ToLowerInvariant(); }
+            using (var sha = System.Security.Cryptography.SHA1.Create())
+            {
+                var h = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(key));
+                return ".Test." + BitConverter.ToString(h, 0, 4).Replace("-", "").ToLowerInvariant();
+            }
+        }
+
         // Another Race Mode (installed or not) is open right now.
         public static bool RaceModeRunning()
         {
             System.Threading.Mutex m;
-            if (!System.Threading.Mutex.TryOpenExisting(TestRoot == null ? @"Local\RaceMode.Instance" : @"Local\RaceMode.Instance.Test", out m)) return false;
+            if (!System.Threading.Mutex.TryOpenExisting(@"Local\RaceMode.Instance" + NameSuffix, out m)) return false;
             m.Dispose(); return true;
         }
 

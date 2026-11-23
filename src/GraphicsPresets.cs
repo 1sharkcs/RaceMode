@@ -188,6 +188,13 @@ namespace RaceMode
                     r.Ok = true;
                     r.Message = r.Mode + " graphics are set" + (r.Changed == 0 ? "" : " (" + r.Changed + " setting" + (r.Changed == 1 ? "" : "s") + " changed)") + ", and all " + r.Total + " checked in iRacing's file";
                 }
+                else if (r.Total == 0)
+                {
+                    // none of the preset's settings are in the file (a fresh install, or a file iRacing hasn't filled in
+                    // yet): "only 0 of 0 settings match" said nothing useful
+                    r.Failed = true;
+                    r.Message = "iRacing's graphics file has none of the " + r.Mode + " settings yet. Start iRacing once so it writes them, then turn Race Mode on again";
+                }
                 else
                 {
                     r.Failed = true;

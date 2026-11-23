@@ -38,9 +38,11 @@ set "WORK=%TEMP%\RaceMode-setup-%RANDOM%%RANDOM%"
 if exist "%WORK%" set "WORK=%WORK%-%RANDOM%"
 mkdir "%WORK%" || (echo Couldn't create a temporary folder. & goto :fail)
 
+rem If Windows can't reach the certificate-revocation server (seen right after a PC starts), each download is
+rem tried once more without that check; the SHA-256 check below still guards the file.
 echo Downloading Race Mode...
-"%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 -o "%WORK%\RaceMode.zip" "%BASE%/RaceMode.zip" || goto :dlfail
-"%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 -o "%WORK%\RaceMode.zip.sha256" "%BASE%/RaceMode.zip.sha256" || goto :dlfail
+"%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 -o "%WORK%\RaceMode.zip" "%BASE%/RaceMode.zip" || "%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 --ssl-revoke-best-effort -o "%WORK%\RaceMode.zip" "%BASE%/RaceMode.zip" || goto :dlfail
+"%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 -o "%WORK%\RaceMode.zip.sha256" "%BASE%/RaceMode.zip.sha256" || "%SYS%\curl.exe" -fsSL --proto =https --tlsv1.2 --ssl-revoke-best-effort -o "%WORK%\RaceMode.zip.sha256" "%BASE%/RaceMode.zip.sha256" || goto :dlfail
 
 rem ---- 3. check the download ----
 echo Checking the download...

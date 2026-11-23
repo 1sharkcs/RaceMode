@@ -195,6 +195,9 @@ namespace RaceMode
             double w = Window.ActualWidth, h = Window.ActualHeight;
             var tabs = Get<TabControl>("Tabs"); var rail = Get<FrameworkElement>("NavRail");
             if (!_layoutReady || tabs == null || rail == null || w <= 0 || h <= 0) return;
+            // A fresh install opens on first-run setup, which hides the sections before the TabControl ever picks
+            // one; when setup ends nothing was selected and the page stayed blank (found on a clean test PC).
+            if (tabs.SelectedIndex < 0 && tabs.Items.Count > 0) tabs.SelectedIndex = 0;
             var bodyEl = Get<UIElement>("Body");
             bool hadFocus = bodyEl != null && bodyEl.IsKeyboardFocusWithin;
 

@@ -95,10 +95,11 @@ namespace RaceMode
             var sc = new StepView { Key = "Screen", Name = "Screen check", Section = 5 };
             bool guard = _cfg.DisplayGuard != null && _cfg.DisplayGuard.Enabled;
             string dl = pv ? "screen OK" : _displayLine;
+            bool three = guard && _cfg.DisplayGuard.IsTriple;
             if (!guard) sc.Set(StOff, "Off");
             else if (dl == "screen needs a look") sc.Set(StLook, "Needs a look, see Settings");
-            else if (!on) sc.Set(StTodo, "Checks iRacing opens on your racing monitor");
-            else if (dl == "screen OK") sc.Set(StDone, "Racing monitor OK");
+            else if (!on) sc.Set(StTodo, three ? "Checks iRacing spans your three screens" : "Checks iRacing opens on your racing monitor");
+            else if (dl == "screen OK") sc.Set(StDone, three ? "Three screens OK" : "Racing monitor OK");
             else if (dl == "screen not checked") sc.Set(StBusy, "Not checked this time");
             else sc.Set(StBusy, "Checking…");
             list.Add(sc);

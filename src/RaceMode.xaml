@@ -1382,7 +1382,7 @@
                   <Border Style="{StaticResource Group}">
                     <Border Style="{StaticResource LastRow}">
                       <StackPanel>
-                        <TextBlock Text="Keep iRacing on this screen" Foreground="{DynamicResource Ink}"/>
+                        <TextBlock x:Name="MonitorKeepTitle" Text="Keep iRacing on this screen" Foreground="{DynamicResource Ink}"/>
                         <TextBlock x:Name="MonitorSub" Style="{StaticResource Sub}" Text="Before each race, Race Mode checks that iRacing will open on this screen, or across your three screens, and fill it as a borderless window. Any fix is made while iRacing is closed. Your FPS cap is left alone."/>
                         <!-- the picture of your screens (ScreenPick.cs); the list underneath holds the choice and stays hidden -->
                         <ContentControl x:Name="MonitorMapHost" Focusable="False" IsTabStop="False"/>
