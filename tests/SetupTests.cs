@@ -96,6 +96,19 @@ class SetupTests
             Registry.CurrentUser.DeleteSubKeyTree(@"Software\RaceModeTest", false);
         }
 
+        // 25a-26 test copies get their own lock names per test folder, so a soak test copy can't be mistaken for this run's
+        {
+            bool created;
+            var lockName = @"Local\RaceMode.Instance" + Installer.NameSuffix;
+            Check("25a the test lock is this test folder's own (never the real app's, nor another test run's)",
+                Installer.NameSuffix.StartsWith(".Test.") && Installer.NameSuffix.Length == 14 && Installer.TestSuffix(null) == ""
+                && Installer.TestSuffix(@"C:\a") != Installer.TestSuffix(@"C:\b") && Installer.TestSuffix(@"C:\A\") == Installer.TestSuffix(@"c:\a"), Installer.NameSuffix);
+            using (var open = new System.Threading.Mutex(true, lockName, out created))
+            {
+                Check("26 an open Race Mode is seen", created && Installer.RaceModeRunning(), created ? null : "the test lock already existed");
+                if (created) open.ReleaseMutex();
+            }
+        }
         Console.WriteLine(pass + " passed, " + fail + " failed");
         Environment.Exit(fail == 0 ? 0 : 1);
     }

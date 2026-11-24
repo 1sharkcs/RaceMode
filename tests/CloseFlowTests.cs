@@ -37,6 +37,31 @@ static class CloseFlowTests
         k = Shell.PidsToKill(pids, st);
         Check("05 one admin pid holds the rest of its app", !k.Contains(2) && !k.Contains(7), L(k));
 
+        // Never force-closed (GentleClose.cs): OBS recording from the tray was killed 5 s in (found live 2026-11-23)
+        Check("11 OBS, its browser sources and the other streaming apps are never force-closed",
+            GentleClose.NeverForce("obs64") && GentleClose.NeverForce("OBS64") && GentleClose.NeverForce("obs-browser-page") && GentleClose.NeverForce("obs") &&
+            GentleClose.NeverForce("Streamlabs Desktop") && GentleClose.NeverForce("XSplit.Core") && GentleClose.NeverForce("PRISMLiveStudio"));
+        // Browsers, mail and editors are force-closed again as in 1.1.0 when no window is left (Edge's startup boost,
+        // Chrome in the background); one still showing a window is left open by the save-prompt rule instead.
+        Check("12 tray apps and windowless browsers, mail and editors are force-closed as before", !GentleClose.NeverForce("Discord") && !GentleClose.NeverForce("steam") &&
+            !GentleClose.NeverForce("SimHubWPF") && !GentleClose.NeverForce("msedge") && !GentleClose.NeverForce("chrome") && !GentleClose.NeverForce("OUTLOOK") &&
+            !GentleClose.NeverForce("WINWORD") && !GentleClose.NeverForce("Premiere Pro") && !GentleClose.NeverForce("") && !GentleClose.NeverForce(null));
+        Check("20 a helper's main app is known only for real helper pairs", GentleClose.MainOf("obs-browser-page") == "obs64" && GentleClose.MainOf("STEAMWEBHELPER") == "steam"
+            && GentleClose.MainOf("WINWORD") == null && GentleClose.MainOf("NVIDIA Overlay") == null && GentleClose.MainOf(null) == null);
+        var w = GentleClose.WithoutHelpers(new[] { "obs64", "obs-browser-page", "steam", "steamwebhelper", "Discord" });
+        Check("13 helpers are left to their main app when it's on the list too", string.Join(",", w.ToArray()) == "obs64,steam,Discord", string.Join(",", w.ToArray()));
+        w = GentleClose.WithoutHelpers(new[] { "obs-browser-page", "steamwebhelper", "Discord" });
+        Check("14 a helper alone on the list is still asked", string.Join(",", w.ToArray()) == "obs-browser-page,steamwebhelper,Discord", string.Join(",", w.ToArray()));
+        w = GentleClose.WithoutHelpers(new[] { "OBS64", "OBS-Browser-Page" });
+        Check("15 helper matching ignores case", string.Join(",", w.ToArray()) == "OBS64", string.Join(",", w.ToArray()));
+        Check("16 asking a process with no windows asks nothing and doesn't throw", GentleClose.AskHidden(-1, "OBS ") == 0 && GentleClose.AskHidden(0, "OBS ") == 0 && GentleClose.AskHidden(-1, "") == 0);
+        Check("17 only OBS's real main window title counts", GentleClose.MainTitle("OBS 33.0.1 - Profile: Untitled - Scenes: Untitled", "OBS ")
+            && GentleClose.MainTitle("OBS 27.2.4 (64-bit, windows) - Profile: A", "OBS ") && !GentleClose.MainTitle("Settings", "OBS ")
+            && !GentleClose.MainTitle("OBS Studio Docks", "OBS ") && !GentleClose.MainTitle("", "OBS ") && !GentleClose.MainTitle(null, "OBS ") && !GentleClose.MainTitle("OBS ", "OBS "));
+        Check("18 every part of OBS is never force-closed", GentleClose.NeverForce("obs-ffmpeg-mux") && GentleClose.NeverForce("obs-nvenc-test") && GentleClose.NeverForce("obs32"));
+        w = GentleClose.WithoutHelpers(new[] { "obs64", "obs-ffmpeg-mux", "obs-browser-page" });
+        Check("19 OBS's muxer and browser sources end with OBS, never on their own", string.Join(",", w.ToArray()) == "obs64", string.Join(",", w.ToArray()));
+
         Check("06 test version -> normal release is announced",
             Installer.GoingBackNote("1.0.2-rc.1", "1.0.1") == "Race Mode 1.0.2-rc.1 (a test version) is installed. Installing goes back to 1.0.1, the latest normal release; your settings are kept.",
             Installer.GoingBackNote("1.0.2-rc.1", "1.0.1"));
