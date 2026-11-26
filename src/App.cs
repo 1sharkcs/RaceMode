@@ -266,12 +266,18 @@ namespace RaceMode
                 // or another test copy.
                 var sfx = Installer.NameSuffix;
                 // A lock this user can't open (a Race Mode started as administrator) means one is running too.
+                bool refused = false;
                 try { _instance = new System.Threading.Mutex(true, Installer.InstanceLockName + sfx, out created); }
-                catch (UnauthorizedAccessException) { created = false; }
+                catch (UnauthorizedAccessException) { created = false; refused = true; }
                 if (!created)
                 {
                     // Already running: ask it to come to the front, then quit quietly.
-                    try { System.Threading.EventWaitHandle wh; if (System.Threading.EventWaitHandle.TryOpenExisting(@"Local\RaceMode.Show" + sfx, out wh)) { wh.Set(); wh.Dispose(); } } catch { }
+                    bool asked = false;
+                    try { System.Threading.EventWaitHandle wh; if (System.Threading.EventWaitHandle.TryOpenExisting(@"Local\RaceMode.Show" + sfx, out wh)) { wh.Set(); wh.Dispose(); asked = true; } } catch { }
+                    // The running copy can't be reached from here, so it can't be brought forward: say so instead of
+                    // doing nothing at all. Not at sign-in (--minimized), where nobody asked for a window.
+                    if (refused && !asked && mode != "--minimized")
+                        MessageBox.Show(Installer.RunningOutOfReachText, "Race Mode", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
                 _showSignal = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, @"Local\RaceMode.Show" + sfx);

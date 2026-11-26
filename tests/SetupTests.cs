@@ -139,6 +139,8 @@ class SetupTests
             Check("32 no lock by that name: not running; odd names never throw", !Installer.LockHeld(deniedName + ".gone") && odd, null);
         }
 
+        Check("32a the second-launch message names the tray icon and what to do", Installer.RunningOutOfReachText.Contains("already running") && Installer.RunningOutOfReachText.Contains("system tray"), null);
+
         // 27-28: the installer's last page says why Race Mode didn't open
         {
             var words = Installer.OpenFailedText("Access is denied.");

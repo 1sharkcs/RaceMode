@@ -1,7 +1,8 @@
 // Race Mode - putting the iRacing sim at High priority, without fighting iRacing's anti-cheat.
 // iRacing's anti-cheat (EOS) can refuse OpenProcess on the sim ("Access is denied"). Race Mode then tries once,
-// accepts the refusal and never opens that PID again: no retry loop against the anti-cheat. A sim already at High
-// (iRacing raises itself) is seen from the process snapshot's base priority, with no handle opened at all.
+// accepts the refusal and never tries to change that PID's priority again. A sim already at High (iRacing raises
+// itself) is seen from the process snapshot's base priority, with no handle opened at all. (The session log still
+// reads the sim's CPU time and priority while it samples; that is reading only, and not part of this rule.)
 // Pure over delegates, so tests play refusals, successes and new PIDs without touching a real process.
 using System;
 using System.Collections.Generic;

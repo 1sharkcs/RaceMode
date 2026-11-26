@@ -69,6 +69,9 @@ namespace RaceMode
         // Another Race Mode (installed or not) is open right now.
         public static bool RaceModeRunning() { return LockHeld(InstanceLockName + NameSuffix); }
 
+        // A second launch that finds a running copy it may not signal.
+        public const string RunningOutOfReachText = "Race Mode is already running, but it was started as administrator or by another account, so this copy can't bring it to the front. Use its icon in the system tray (next to the clock), or quit it there and start Race Mode again.";
+
         // The running Race Mode's lock.
         public const string InstanceLockName = @"Local\RaceMode.Instance";
 
