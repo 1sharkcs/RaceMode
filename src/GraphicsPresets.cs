@@ -2,7 +2,9 @@
 //
 // A preset is a plain ini file in RaceMode\graphics\ (race.ini, photo.ini) holding every key from iRacing's
 // [Graphics Options] and [Replay Graphics] except the two the display guard owns (LimitFrameRate and
-// DesiredFPSLimit, so the FPS cap is never touched by a preset). Applying writes only the values that differ,
+// DesiredFPSLimit, so the FPS cap is never touched by a preset) and the catalog's PC-specific "machine" keys
+// (VidMemToUseMB, SysMemToUseMB, VRMode...), but not V-Sync, NVIDIA Reflex and pre-rendered frames: those are choices
+// about how the car feels, so a preset keeps them. Applying writes only the values that differ,
 // through IniFile (layout kept, backup, atomic write), never while the sim is running (iRacing rewrites the file
 // from memory when it closes), and then re-reads the file to confirm every value.
 using System;
@@ -33,12 +35,21 @@ namespace RaceMode
         public static string PresetPath(string mode) { return Path.Combine(Folder, Normalize(mode).ToLowerInvariant() + ".ini"); }
         public static bool Exists(string mode) { return File.Exists(PresetPath(mode)); }
 
+        // The catalog files these three under "machine" too, but they are choices about how the car feels, not facts about
+        // the PC. A preset keeps saving, comparing and writing them, so V-Sync switched on behind your back is put back.
+        static readonly string[] FeelKeys = { "VerticalSync", "NvReflexMode", "MaxPreRenderedFrames" };
+
         static bool Owned(string section, string key)
         {
-            return GuardOwned.Contains(section + "/" + key, StringComparer.OrdinalIgnoreCase);
+            if (GuardOwned.Contains(section + "/" + key, StringComparer.OrdinalIgnoreCase)) return true;
+            if (FeelKeys.Contains(key, StringComparer.OrdinalIgnoreCase)) return false;
+            // PC-specific keys (graphics card memory, VR mode...): the catalog promises Race Mode never writes them, so
+            // a preset never saves, compares or writes them. No catalog (it failed to load): Find is null, nothing changes.
+            var k = GraphicsCatalog.Find(key);
+            return k != null && k.scope == "machine";
         }
 
-        // Only the preset sections, minus the guard-owned keys.
+        // Only the preset sections, minus the guard-owned and PC-specific ("machine") keys (the three feel keys stay).
         static Dictionary<string, Dictionary<string, string>> Filter(Dictionary<string, Dictionary<string, string>> map)
         {
             var o = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
@@ -83,10 +94,18 @@ namespace RaceMode
                 preset["Graphics Options"] = g;
             }
             if (replay.Count > 0) preset["Replay Graphics"] = replay;
-            return Write(mode, preset, Path.GetFileName(iniPath));
+            // The racer's own save: the preset it replaces is kept as a backup first (the same namer and pruner as iRacing's files).
+            return Write(mode, preset, Path.GetFileName(iniPath), true);
         }
 
         public static int Write(string mode, Dictionary<string, Dictionary<string, string>> map, string fromName)
+        {
+            return Write(mode, map, fromName, false);
+        }
+
+        // keepCopy: back the existing preset up before it is replaced. If the backup can't be made the preset is left as it
+        // was and the error goes to the caller: the only copy is never overwritten on a failed backup.
+        public static int Write(string mode, Dictionary<string, Dictionary<string, string>> map, string fromName, bool keepCopy)
         {
             var sb = new StringBuilder();
             sb.Append("; RaceMode ").Append(Normalize(mode)).Append(" graphics preset, saved ").Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm")).Append(" from ").Append(fromName).Append("\r\n");
@@ -102,6 +121,7 @@ namespace RaceMode
             Directory.CreateDirectory(Folder);
             var path = PresetPath(mode);
             var tmp = path + ".tmp";
+            if (keepCopy && File.Exists(path)) IniFile.Backup(path);
             File.WriteAllText(tmp, sb.ToString(), Encoding.ASCII);
             if (File.Exists(path)) File.Replace(tmp, path, null); else File.Move(tmp, path);
             return n;
@@ -128,6 +148,16 @@ namespace RaceMode
             try { if (!Exists("Race") && File.Exists(iniPath)) SaveFromIni("Race", iniPath); }
             catch (Exception ex) { Shell.LogCrash(ex); }
         }
+
+        // Before a Race quality level is saved: true when there is a Race preset to build it on, made now from iRacing's
+        // current settings if there was none. False when that can't be done (iRacing has never written its graphics file).
+        public static bool RaceReady(string iniPath)
+        {
+            if (!Exists("Race")) EnsureRaceSeeded(iniPath);
+            return Exists("Race");
+        }
+
+        public const string NoRaceYetText = "Race quality can't be saved yet: start the iRacing sim once and close it, so iRacing writes its graphics file";
 
         // Settings in iRacing that differ from the preset ("Graphics changed in iRacing").
         public static List<string> Differences(string mode, string iniPath)

@@ -109,6 +109,46 @@ class SetupTests
                 if (created) open.ReleaseMutex();
             }
         }
+        // 30-32: a lock this user may not open (Race Mode run as administrator) counts as running and never throws
+        {
+            Check("30 the lock's name is unchanged (an installer must still see a running older copy)", Installer.InstanceLockName == @"Local\RaceMode.Instance", Installer.InstanceLockName);
+            // Played with a lock whose rules deny this user everything (the creator's own handle still works).
+            var deniedName = Installer.InstanceLockName + Installer.NameSuffix + ".Denied";
+            var sec = new System.Security.AccessControl.MutexSecurity();
+            sec.AddAccessRule(new System.Security.AccessControl.MutexAccessRule(System.Security.Principal.WindowsIdentity.GetCurrent().User,
+                System.Security.AccessControl.MutexRights.FullControl, System.Security.AccessControl.AccessControlType.Deny));
+            bool createdDenied;
+            using (var denied = new System.Threading.Mutex(false, deniedName, out createdDenied, sec))
+            {
+                string how = "opened";
+                try { System.Threading.Mutex m; if (System.Threading.Mutex.TryOpenExisting(deniedName, out m)) m.Dispose(); else how = "not found"; }
+                catch (UnauthorizedAccessException) { how = "access denied"; }
+                catch (Exception ex) { how = ex.GetType().Name; }
+                bool held = false; string err = null;
+                try { held = Installer.LockHeld(deniedName); } catch (Exception ex) { err = ex.GetType().Name + ": " + ex.Message; }
+                Check("31 a lock this user can't open counts as running, no throw", createdDenied && how == "access denied" && held && err == null, how + " / " + (err ?? held.ToString()));
+                // what a second launch does: taking the lock is refused, not a crash
+                string second = "taken";
+                try { bool c; using (var again = new System.Threading.Mutex(true, deniedName, out c)) { } }
+                catch (UnauthorizedAccessException) { second = "access denied"; }
+                catch (Exception ex) { second = ex.GetType().Name; }
+                Check("31a ...and a second launch taking that lock gets the refusal the app now catches", second == "access denied", second);
+            }
+            bool odd = true;
+            foreach (var n in new[] { "", null, "Local\\a\\b \"x\"" }) { try { Installer.LockHeld(n); } catch { odd = false; } }
+            Check("32 no lock by that name: not running; odd names never throw", !Installer.LockHeld(deniedName + ".gone") && odd, null);
+        }
+
+        Check("32a the second-launch message names the tray icon and what to do", Installer.RunningOutOfReachText.Contains("already running") && Installer.RunningOutOfReachText.Contains("system tray"), null);
+
+        // 27-28: the installer's last page says why Race Mode didn't open
+        {
+            var words = Installer.OpenFailedText("Access is denied.");
+            Check("27 the reason and what to do instead", words == "Windows said: Access is denied. Close this window and open Race Mode from the Start menu.", words);
+            Check("28 no reason given is said, not left blank", Installer.OpenFailedText("  ").StartsWith("Windows said: no reason given. ") && Installer.OpenFailedText(null).StartsWith("Windows said: no reason given. "), Installer.OpenFailedText(null));
+            var noStop = Installer.OpenFailedText("The system cannot find the file specified");
+            Check("28a a reason without a full stop gets one, so the two sentences don't run together", noStop == "Windows said: The system cannot find the file specified. Close this window and open Race Mode from the Start menu.", noStop);
+        }
         Console.WriteLine(pass + " passed, " + fail + " failed");
         Environment.Exit(fail == 0 ? 0 : 1);
     }

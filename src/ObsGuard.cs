@@ -175,7 +175,10 @@ namespace RaceMode
 
         // Every running OBS: live if any is live; unknown if any can't be read; idle only when all are known idle.
         // statsStreaming: Race Mode's own stream stats say OBS is streaming (obs-websocket), if connected.
-        public static ObsStatus Now(bool statsStreaming)
+        public static ObsStatus Now(bool statsStreaming) { return Now(statsStreaming, false); }
+
+        // statsRecording: the same connection says OBS is recording.
+        public static ObsStatus Now(bool statsStreaming, bool statsRecording)
         {
             var all = new ObsStatus { State = ObsState.Idle };
             Process[] ps;
@@ -212,7 +215,7 @@ namespace RaceMode
                 }
             }
             finally { foreach (var p in ps) p.Dispose(); }
-            return WithStats(all, statsStreaming);
+            return WithStats(all, statsStreaming, statsRecording);
         }
 
         // Whether a process has an established TCP connection to another machine (IPv4 or IPv6; loopback doesn't
@@ -338,10 +341,14 @@ namespace RaceMode
             return allZero && (a[15] == 1 || a[15] == 0);
         }
 
-        // Adds what Race Mode's own stream stats say: "streaming" there makes OBS live whatever its log says.
-        public static ObsStatus WithStats(ObsStatus s, bool statsStreaming)
+        // Adds what Race Mode's own stream stats say: "streaming" or "recording" there makes OBS live whatever its log says.
+        // The stats only ever add: they never make a live or unknown OBS idle.
+        public static ObsStatus WithStats(ObsStatus s, bool statsStreaming) { return WithStats(s, statsStreaming, false); }
+
+        public static ObsStatus WithStats(ObsStatus s, bool statsStreaming, bool statsRecording)
         {
             if (statsStreaming && !s.Active.Contains("streaming")) s.Active.Insert(0, "streaming");
+            if (statsRecording && !s.Active.Contains("recording")) s.Active.Insert(s.Active.Contains("streaming") ? 1 : 0, "recording");
             if (s.Active.Count > 0) s.State = ObsState.Live;
             return s;
         }

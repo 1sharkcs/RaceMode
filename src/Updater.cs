@@ -205,8 +205,33 @@ namespace RaceMode
         {
             if (!_fresh) return false;
             _fresh = false;
-            try { File.Delete(ExePath + ".old"); } catch { }
+            // Only the installed copy keeps one version back (uninstall removes it). A copy run from any other folder
+            // would leave an exe-sized file there for good, so its old exe is removed as before.
+            if (Installer.IsInstalledCopy) KeepPrevious(ExePath);
+            else { try { File.Delete(ExePath + ".old"); } catch { } }
             return true;
+        }
+
+        // The exe the update replaced is kept as RaceMode.exe.previous (one version back, replaced at the next update), so
+        // going back a version by hand is possible. It leaves the ".old" name, which means "an update not yet confirmed".
+        public static string PreviousExe(string exe) { return exe + ".previous"; }
+
+        public static bool KeepPrevious(string exe)
+        {
+            var old = exe + ".old"; var prev = PreviousExe(exe);
+            try
+            {
+                if (!File.Exists(old)) return false;
+                if (File.Exists(prev)) { File.SetAttributes(prev, FileAttributes.Normal); File.Delete(prev); }
+                File.Move(old, prev);
+                return true;
+            }
+            catch
+            {
+                // Couldn't keep it: the ".old" name must still go, or every later start would look like a fresh update.
+                try { File.Delete(old); } catch { }
+                return false;
+            }
         }
 
         // New copy failed to start: put the previous exe back and start it. True if it did.
