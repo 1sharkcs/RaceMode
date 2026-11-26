@@ -22,6 +22,7 @@ class ObsTests
     {
         public TcpListener L; public int Port; public string Password = "supersecretpassword"; public string Mode = "good";
         public volatile int Requests; public volatile bool SawGoodAuth; public long Bytes;
+        public volatile bool Recording, RecordFails; public volatile int RecordAsked;
         public FakeObs() { L = new TcpListener(IPAddress.Loopback, 0); L.Start(); Port = ((IPEndPoint)L.LocalEndpoint).Port; new Thread(Run) { IsBackground = true }.Start(); }
         void Run()
         {
@@ -60,9 +61,12 @@ class ObsTests
                 Requests++;
                 // an unrelated event first, which the client must skip
                 SendText(s, "{\"op\":5,\"d\":{\"eventType\":\"Whatever\"}}");
-                string data = type == "GetStats"
+                if (type == "GetRecordStatus") RecordAsked++;
+                string data = type == "GetRecordStatus" ? (RecordFails ? null : "{\"outputActive\":" + (Recording ? "true" : "false") + ",\"outputPaused\":false}")
+                    : type == "GetStats"
                     ? "{\"cpuUsage\":3.5,\"memoryUsage\":420.0,\"activeFps\":60.0,\"renderSkippedFrames\":2,\"renderTotalFrames\":1000,\"outputSkippedFrames\":1,\"outputTotalFrames\":1000}"
                     : "{\"outputActive\":true,\"outputReconnecting\":false,\"outputCongestion\":0.01,\"outputBytes\":" + Interlocked.Add(ref Bytes, 250000) + ",\"outputSkippedFrames\":5,\"outputTotalFrames\":2000}";
+                if (data == null) { SendText(s, "{\"op\":7,\"d\":{\"requestType\":\"" + type + "\",\"requestId\":\"" + id + "\",\"requestStatus\":{\"result\":false,\"code\":204}}}"); continue; }
                 SendText(s, "{\"op\":7,\"d\":{\"requestType\":\"" + type + "\",\"requestId\":\"" + id + "\",\"requestStatus\":{\"result\":true,\"code\":100},\"responseData\":" + data + "}}");
             }
         }
@@ -121,6 +125,12 @@ class ObsTests
         Check("04 skips unrelated events between replies", fake.Requests >= 2 && o.Connected, null);
         bool kb = WaitFor(() => !double.IsNaN(Obs.Latest.Kbps), 8000);
         Check("05 bitrate from bytes sent (~1000 kbps)", kb && Obs.Latest.Kbps > 700 && Obs.Latest.Kbps < 1400, Obs.Latest.Kbps.ToString());
+        // 05a-05c OBS's own recording state (GetRecordStatus), asked on every poll
+        Check("05a not recording: asked, and read as not recording", fake.RecordAsked >= 1 && !Obs.Latest.Recording, fake.RecordAsked.ToString());
+        fake.Recording = true;
+        Check("05b OBS starts recording: the next poll says so", WaitFor(() => Obs.Latest.Recording, 8000) && Obs.Latest.Connected && Obs.Latest.Streaming, null);
+        fake.RecordFails = true;
+        Check("05c OBS refuses the question: read as not known to be recording, the other stats carry on", WaitFor(() => !Obs.Latest.Recording, 8000) && Obs.Latest.Connected && Obs.Latest.Cpu == 3.5, Obs.Latest.Status);
         Obs.Stop();
         Thread.Sleep(1500);
         Check("06 stopping switches stats off", !Obs.Latest.Connected && !Obs.Active, Obs.Latest.Status);

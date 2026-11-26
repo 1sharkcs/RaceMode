@@ -265,11 +265,19 @@ namespace RaceMode
                 // matching Installer.RaceModeRunning, so a test copy never talks to (or is mistaken for) the real Race Mode
                 // or another test copy.
                 var sfx = Installer.NameSuffix;
-                _instance = new System.Threading.Mutex(true, @"Local\RaceMode.Instance" + sfx, out created);
+                // A lock this user can't open (a Race Mode started as administrator) means one is running too.
+                bool refused = false;
+                try { _instance = new System.Threading.Mutex(true, Installer.InstanceLockName + sfx, out created); }
+                catch (UnauthorizedAccessException) { created = false; refused = true; }
                 if (!created)
                 {
                     // Already running: ask it to come to the front, then quit quietly.
-                    try { System.Threading.EventWaitHandle wh; if (System.Threading.EventWaitHandle.TryOpenExisting(@"Local\RaceMode.Show" + sfx, out wh)) { wh.Set(); wh.Dispose(); } } catch { }
+                    bool asked = false;
+                    try { System.Threading.EventWaitHandle wh; if (System.Threading.EventWaitHandle.TryOpenExisting(@"Local\RaceMode.Show" + sfx, out wh)) { wh.Set(); wh.Dispose(); asked = true; } } catch { }
+                    // The running copy can't be reached from here, so it can't be brought forward: say so instead of
+                    // doing nothing at all. Not at sign-in (--minimized), where nobody asked for a window.
+                    if (refused && !asked && mode != "--minimized")
+                        MessageBox.Show(Installer.RunningOutOfReachText, "Race Mode", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
                 _showSignal = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, @"Local\RaceMode.Show" + sfx);
@@ -1336,7 +1344,7 @@ namespace RaceMode
             if (_cfg.GpuWarning && !GpuCheckOk()) { SetSwitch(false); Tick("Didn't turn on: the graphics card was busy"); return; }
 
             _on = true; _simSeen = false; _uiSeen = false; _simBoosted = false; _goneTicks = 0; _lowered.Clear(); _boosted.Clear();
-            _simLoggedPid = -1; _prioNoted.Clear();
+            _simLoggedPid = -1; _prioNoted.Clear(); _prioRefused.Clear();
             _onAt = DateTime.Now; _issues.Clear(); _started.Clear(); _alreadyOpen.Clear(); _closed.Clear(); _notInstalled.Clear(); _leftOpen.Clear(); _reopened.Clear(); _runId++;
             _forced = 0; _confirmedRunning.Clear(); _vramWarned = false; _activation = "Turning on…";
             SetPhase("turning");
@@ -1503,7 +1511,7 @@ namespace RaceMode
             if (names.Any(ObsGuard.IsObs))
             {
                 var o = Obs.Latest;
-                var obs = ObsGuard.Now(o.Connected && o.Streaming);
+                var obs = ObsGuard.Now(o.Connected && o.Streaming, o.Connected && o.Recording);
                 if (obs.State != ObsState.Idle)
                 {
                     names.RemoveAll(ObsGuard.IsObs);
@@ -2496,6 +2504,14 @@ namespace RaceMode
             bool apply = false; string why = null;
             try
             {
+                // No Race preset yet (iRacing's graphics file didn't exist when Race Mode started): seed it from iRacing's
+                // current settings like Photo does, or say why the level can't be saved instead of keeping it silently.
+                if (_raceDirty && !GraphicsPresets.RaceReady(IniPath()))
+                {
+                    _raceDirty = false;
+                    _cfg.GraphicsRace.Level = _committedRace;
+                    Tick(GraphicsPresets.NoRaceYetText);
+                }
                 if (_raceDirty && GraphicsPresets.Exists("Race"))
                 {
                     var g = _cfg.GraphicsRace;
@@ -2814,7 +2830,8 @@ namespace RaceMode
         }
 
         int _simLoggedPid = -1;                                   // last sim PID written to events.log
-        readonly HashSet<int> _prioNoted = new HashSet<int>();    // sim PIDs whose priority outcome was already logged
+        readonly HashSet<int> _prioNoted = new HashSet<int>();    // sim PIDs already logged as at High (set by iRacing or another tool)
+        readonly HashSet<int> _prioRefused = new HashSet<int>();  // sim PIDs whose priority the anti-cheat refused: never touched again
 
         void WatchTick()
         {
@@ -2831,24 +2848,20 @@ namespace RaceMode
                     {
                         foreach (var p in sims)
                         {
-                            try
+                            // Try once per sim, accept a refusal from iRacing's anti-cheat and never retry it (SimPriority.cs).
+                            var proc = p; int bp = 0; bool noteHigh; ProcessPriorityClass was;
+                            try { bp = proc.BasePriority; } catch { }
+                            var r = SimPriority.Next(proc.Id, bp, _boosted.ContainsKey(proc.Id), _prioRefused, _prioNoted,
+                                                     () => proc.PriorityClass, c => proc.PriorityClass = c, out noteHigh, out was);
+                            if (noteHigh) _mon.Event(SimPriority.HighEvent(proc.Id));
+                            if (r == SimPrioOutcome.Raised)
                             {
-                                if (p.PriorityClass != ProcessPriorityClass.High)
-                                {
-                                    p.PriorityClass = ProcessPriorityClass.High;
-                                    _boosted[p.Id] = p.ProcessName;
-                                    _simBoosted = true;
-                                    _mon.Event("iRacing sim set to High priority (PID " + p.Id + ")");
-                                    Tick("iRacing put first");
-                                }
-                                else if (_prioNoted.Add(p.Id) && !_boosted.ContainsKey(p.Id))
-                                    _mon.Event("iRacing sim already at High priority (PID " + p.Id + "), set by something other than Race Mode");
+                                _boosted[proc.Id] = proc.ProcessName;
+                                _simBoosted = true;
+                                _mon.Event("iRacing sim set to High priority (PID " + proc.Id + ")");
+                                Tick("iRacing put first");
                             }
-                            catch (Exception ex)
-                            {
-                                // Logged once per sim process (this runs every 3 s), so a refusal shows up in events.log.
-                                if (_prioNoted.Add(p.Id)) { _mon.Event("Couldn't raise iRacing priority (PID " + p.Id + "): " + ex.Message); Tick("Couldn't put iRacing first: Windows said no (" + ex.Message + ")"); }
-                            }
+                            else if (r == SimPrioOutcome.Refused) { _mon.Event(SimPriority.RefusedEvent(proc.Id)); Tick(SimPriority.RefusedTick); }
                         }
                     }
                 }

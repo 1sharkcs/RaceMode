@@ -8,8 +8,9 @@
 //  Race  level 1..10: [Graphics Options] from the levels; [Replay Graphics] mirrors racing (replays look like racing).
 //  Photo level 1..3:  [Replay Graphics] only ("Race look", "Better", "Max").
 //  Overrides (the Advanced editor) pin single keys and win over the slider.
-//  Keys the slider doesn't own (user/machine scope, or unknown to the catalog) keep the base preset's value;
-//  the display guard's keys (LimitFrameRate, DesiredFPSLimit) never appear in a preset at all.
+//  Keys the slider doesn't own (user scope, the three feel keys V-Sync / Reflex / pre-rendered frames, or unknown to
+//  the catalog) keep the base preset's value; the other PC-specific "machine" keys and the display guard's keys
+//  (LimitFrameRate, DesiredFPSLimit) never appear in a preset at all.
 using System;
 using System.Collections.Generic;
 using System.Globalization;

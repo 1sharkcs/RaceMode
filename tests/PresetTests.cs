@@ -72,6 +72,77 @@ class PresetTests
         var missing = GraphicsPresets.Apply("Race", Path.Combine(root, "nope.ini"), false);
         Check("13 missing ini -> clean failure", missing.Failed, missing.Message);
 
+        // 20-24: presets leave this PC's own keys alone (graphics card memory, system memory, VR mode), but keep the
+        // three feel keys (V-Sync, Reflex, pre-rendered frames)
+        {
+            var pc = Path.Combine(root, "pc.ini");
+            var text = File.ReadAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"fixtures\live-before-race-preset.ini"));
+            // this PC differs from the one the preset was made on: half the video memory, no VR
+            File.WriteAllText(pc, text.Replace("VidMemToUseMB=8192 ", "VidMemToUseMB=4096 ").Replace("SysMemToUseMB=16384 ", "SysMemToUseMB=8192  ").Replace("VRMode=1 ", "VRMode=0 "));
+            Check("20 the test file really differs from the preset in its PC keys", V(pc, "Graphics Options", "VidMemToUseMB") == "4096" && V(pc, "Graphics Options", "SysMemToUseMB") == "8192" && V(pc, "Graphics Options", "VRMode") == "0", null);
+            var d = GraphicsPresets.Differences("Race", pc);
+            Check("21 PC keys are not differences; Reflex (a feel key) still is", d.Count == 51 && !d.Any(x => x.Contains("VidMemToUseMB") || x.Contains("SysMemToUseMB") || x.Contains("VRMode")) && d.Any(x => x.Contains("NvReflexMode")), d.Count + ": " + string.Join(" | ", d.Where(x => x.Contains("Mem") || x.Contains("VR") || x.Contains("Reflex")).ToArray()));
+            var ap = GraphicsPresets.Apply("Race", pc, false);
+            Check("22 applying Race leaves the PC keys as iRacing has them; Reflex follows the preset", ap.Ok && V(pc, "Graphics Options", "VidMemToUseMB") == "4096" && V(pc, "Graphics Options", "SysMemToUseMB") == "8192"
+                && V(pc, "Graphics Options", "VRMode") == "0" && V(pc, "Graphics Options", "NvReflexMode") == "1", ap.Message);
+            var loaded = GraphicsPresets.Load("Race");
+            Check("23 a preset file that still holds PC keys (saved by an older version) is read without them",
+                !loaded["Graphics Options"].ContainsKey("VidMemToUseMB") && !loaded["Graphics Options"].ContainsKey("VRMode") && loaded["Graphics Options"].ContainsKey("NvReflexMode")
+                && loaded["Graphics Options"].ContainsKey("VerticalSync") && loaded["Graphics Options"].ContainsKey("MaxPreRenderedFrames"), null);
+            var gfx3 = Path.Combine(root, "graphics-pc"); Directory.CreateDirectory(gfx3);
+            GraphicsPresets.Folder = gfx3;
+            GraphicsPresets.SaveFromIni("Race", pc);
+            var saved = File.ReadAllText(GraphicsPresets.PresetPath("Race"));
+            Check("24 a newly saved preset holds no PC keys, and keeps the feel keys", !saved.Contains("VidMemToUseMB") && !saved.Contains("SysMemToUseMB") && !saved.Contains("VRMode") && !saved.Contains("NumMultiGPUs")
+                && saved.Contains("NvReflexMode=") && saved.Contains("VerticalSync=") && saved.Contains("MaxPreRenderedFrames="), null);
+            GraphicsPresets.Folder = gfx;
+        }
+
+        // 25-27: the Race quality slider with no Race preset yet
+        {
+            var gfx4 = Path.Combine(root, "graphics-none"); Directory.CreateDirectory(gfx4);
+            GraphicsPresets.Folder = gfx4;
+            Check("25 no Race preset and no iRacing graphics file: not ready, nothing made, and the words say what to do",
+                !GraphicsPresets.RaceReady(Path.Combine(root, "nope.ini")) && !GraphicsPresets.Exists("Race") && GraphicsPresets.NoRaceYetText.Contains("start the iRacing sim once"), null);
+            var live2 = Path.Combine(root, "live2.ini"); File.Copy(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fixtures", "live-before-race-preset.ini"), live2);
+            var live2Before = File.ReadAllBytes(live2);
+            Check("26 iRacing's file is there now: the Race preset is made from it, iRacing's file untouched", GraphicsPresets.RaceReady(live2) && GraphicsPresets.Exists("Race")
+                && GraphicsPresets.Load("Race")["Graphics Options"]["MSAASamples"] == V(live2, "Graphics Options", "MSAASamples") && File.ReadAllBytes(live2).SequenceEqual(live2Before), null);
+            var made = File.ReadAllText(GraphicsPresets.PresetPath("Race"));
+            Check("27 a Race preset that is already there is left as it is", GraphicsPresets.RaceReady(Path.Combine(root, "nope.ini")) && File.ReadAllText(GraphicsPresets.PresetPath("Race")) == made, null);
+            GraphicsPresets.Folder = gfx;
+        }
+
+        // 15-19: "Save Current as Race" keeps a copy of the preset it replaces
+        {
+            var gfx2 = Path.Combine(root, "graphics-save"); Directory.CreateDirectory(gfx2);
+            GraphicsPresets.Folder = gfx2;
+            var race = GraphicsPresets.PresetPath("Race");
+            var src = Path.Combine(root, "renderer.ini");
+            File.WriteAllText(src, "[Graphics Options]\r\nShadowMaps=1\r\n\r\n[Replay Graphics]\r\nShadowMaps=1\r\n");
+            GraphicsPresets.SaveFromIni("Race", src);
+            Check("15 first save: the preset is written and there is nothing to back up", File.Exists(race) && IniFile.Backups(race).Count == 0, IniFile.Backups(race).Count.ToString());
+            string firstSave = File.ReadAllText(race);
+            File.WriteAllText(src, "[Graphics Options]\r\nShadowMaps=0\r\n\r\n[Replay Graphics]\r\nShadowMaps=0\r\n");
+            GraphicsPresets.SaveFromIni("Race", src);
+            var backs = IniFile.Backups(race);
+            Check("16 second save: the old preset is kept as a backup", backs.Count == 1 && File.ReadAllText(backs[0]) == firstSave, backs.Count + " backup(s)");
+            Check("17 the new preset holds the new values, no temp file left", File.ReadAllText(race).Contains("ShadowMaps=0") && !File.Exists(race + ".tmp"), null);
+            var map = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+            map["Graphics Options"] = new Dictionary<string, string> { { "ShadowMaps", "2" } };
+            GraphicsPresets.Write("Race", map, "a quality level");
+            Check("18 a quality-level write (not the racer's save) makes no backup", IniFile.Backups(race).Count == 1 && File.ReadAllText(race).Contains("ShadowMaps=2"), null);
+            // a backup that can't be made leaves the preset as it was
+            string held = File.ReadAllText(race);
+            bool threw = false;
+            using (var lockIt = new FileStream(race, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                try { GraphicsPresets.SaveFromIni("Race", src); } catch { threw = true; }
+            }
+            Check("19 the preset is locked (no copy possible): the save fails and the preset is unchanged", threw && File.ReadAllText(race) == held, "threw " + threw);
+            GraphicsPresets.Folder = gfx;
+        }
+
         Check("14 real ini untouched", before == null || File.ReadAllBytes(realIni).SequenceEqual(before), null);
         Console.WriteLine(pass + " passed, " + fail + " failed");
         Environment.Exit(fail == 0 ? 0 : 1);

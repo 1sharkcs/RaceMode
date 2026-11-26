@@ -2,6 +2,7 @@
 // Build next to RaceMode.exe: csc -r:RaceMode.exe -r:System.Web.Extensions.dll UpdaterTests.cs
 using System;
 using System.Collections.Generic;
+using System.IO;
 using RaceMode;
 
 class UpdaterTests
@@ -38,6 +39,28 @@ class UpdaterTests
         u = Updater.FromRelease(Rel("nightly", false, Asset("RaceMode.zip", ok + "RaceMode.zip"), Asset("RaceMode.zip.sha256", ok + "RaceMode.zip.sha256")));
         Check("14 bad tag -> not offered", u == null, null);
         Check("15 no rollback without a fresh update", !Updater.RollBackIfFreshUpdate() && !Updater.ConfirmSwap(), null);
+
+        // 16-20: the exe an update replaced is kept one version back (temp folder only)
+        string root = Path.Combine(Path.GetTempPath(), "racemode-updater-" + Guid.NewGuid().ToString("N").Substring(0, 8));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var exe = Path.Combine(root, "RaceMode.exe");
+            File.WriteAllText(exe, "new"); File.WriteAllText(exe + ".old", "one back");
+            Check("16 the confirmed update keeps the old exe as .previous", Updater.KeepPrevious(exe) && !File.Exists(exe + ".old") && File.ReadAllText(Updater.PreviousExe(exe)) == "one back" && File.ReadAllText(exe) == "new", null);
+            File.WriteAllText(exe + ".old", "newer one back");
+            Check("17 the next update replaces .previous (one version back, never a pile)", Updater.KeepPrevious(exe) && File.ReadAllText(Updater.PreviousExe(exe)) == "newer one back" && Directory.GetFiles(root, "RaceMode.exe*").Length == 2, null);
+            Check("18 no .old: nothing to keep, .previous untouched", !Updater.KeepPrevious(exe) && File.ReadAllText(Updater.PreviousExe(exe)) == "newer one back", null);
+            File.WriteAllText(exe + ".old", "third");
+            File.SetAttributes(Updater.PreviousExe(exe), FileAttributes.ReadOnly);
+            Check("19 a read-only .previous is still replaced", Updater.KeepPrevious(exe) && File.ReadAllText(Updater.PreviousExe(exe)) == "third", null);
+            File.WriteAllText(exe + ".old", "fourth");
+            using (var lockIt = new FileStream(Updater.PreviousExe(exe), FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                Check("20 .previous can't be replaced: .old still goes, so the next start isn't taken for a fresh update", !Updater.KeepPrevious(exe) && !File.Exists(exe + ".old"), null);
+            }
+        }
+        finally { try { Directory.Delete(root, true); } catch { } }
 
         Console.WriteLine(pass + " passed, " + fail + " failed");
         Environment.Exit(fail == 0 ? 0 : 1);

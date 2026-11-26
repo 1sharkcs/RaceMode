@@ -57,11 +57,32 @@ namespace RaceMode
             }
         }
 
+        // The last page's words when the installed copy can't be started from the installer.
+        public static string OpenFailedText(string reason)
+        {
+            var why = string.IsNullOrWhiteSpace(reason) ? "no reason given" : reason.Trim();
+            // Windows' own messages come with or without a full stop ("Access is denied." / "The system cannot find the file specified").
+            if (!why.EndsWith(".") && !why.EndsWith("!") && !why.EndsWith("?")) why += ".";
+            return "Windows said: " + why + " Close this window and open Race Mode from the Start menu.";
+        }
+
         // Another Race Mode (installed or not) is open right now.
-        public static bool RaceModeRunning()
+        public static bool RaceModeRunning() { return LockHeld(InstanceLockName + NameSuffix); }
+
+        // A second launch that finds a running copy it may not signal.
+        public const string RunningOutOfReachText = "Race Mode is already running, but it was started as administrator or by another account, so this copy can't bring it to the front. Use its icon in the system tray (next to the clock), or quit it there and start Race Mode again.";
+
+        // The running Race Mode's lock.
+        public const string InstanceLockName = @"Local\RaceMode.Instance";
+
+        // Whether this lock exists. One this user can't open counts as held: a Race Mode started "as administrator"
+        // makes a lock a normal installer gets "access denied" for, and that still means it is running. Any other
+        // failure counts as held too: installing over a running copy would fail halfway.
+        public static bool LockHeld(string name)
         {
             System.Threading.Mutex m;
-            if (!System.Threading.Mutex.TryOpenExisting(@"Local\RaceMode.Instance" + NameSuffix, out m)) return false;
+            try { if (!System.Threading.Mutex.TryOpenExisting(name, out m)) return false; }
+            catch { return true; }
             m.Dispose(); return true;
         }
 
@@ -228,7 +249,7 @@ namespace RaceMode
             string renamedFrom = null;
             try { var gone = exe + ".uninstall-" + Process.GetCurrentProcess().Id; File.Move(exe, gone); renamedFrom = exe; exe = gone; } catch { }
             var script = "(for /l %i in (1,1,600) do if exist \"" + exe + "\" (del /f /q \"" + exe + "\" >nul 2>&1 & if exist \"" + exe + "\" ping -n 2 127.0.0.1 >nul))" +
-                         " & del /f /q \"" + dir + "\\RaceMode.exe.old\" \"" + dir + "\\RaceMode.exe.failed\" >nul 2>&1";
+                         " & del /f /q \"" + dir + "\\RaceMode.exe.old\" \"" + dir + "\\RaceMode.exe.failed\" \"" + dir + "\\RaceMode.exe.previous\" >nul 2>&1";
             if (!keepData) script += " & if not exist \"" + dir + "\\RaceMode.exe\" rmdir /s /q \"" + dir + "\\data\"";
             script += " & rmdir \"" + dir + "\" >nul 2>&1";
             try { Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"), "/d /s /c \"" + script + "\"") { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetTempPath() }); }
@@ -669,12 +690,16 @@ namespace RaceMode
                 Title = goingBack != null ? "Went back to Race Mode " + Updater.Current : reinstall ? "Race Mode is updated" : "Race Mode is installed",
                 Intro = reinstall ? "Your settings were kept. Open it to carry on where you left off." : "The next screens help you set it up. It takes about a minute.",
                 NextText = "Open Race Mode", CanSkip = false, CanGoBack = false,
-                Build = () => SetupFlow.Group((result ?? new List<string>()).Select(l => SetupFlow.Status(l, null, true)).ToArray()),
+                Build = () =>
+                {
+                    var done = SetupFlow.Group((result ?? new List<string>()).Select(l => SetupFlow.Status(l, null, true)).ToArray());
+                    // Race Mode didn't open: say so here instead of closing the window on an error nobody saw.
+                    return error == null ? (UIElement)done : SetupFlow.Stack(SetupFlow.Group(SetupFlow.Status("Race Mode is installed, but it didn't open", error, false)), done);
+                },
                 OnNext = () =>
                 {
-                    try { Process.Start(new ProcessStartInfo(Installer.InstalledExe) { UseShellExecute = false, WorkingDirectory = Installer.InstallDir }); }
-                    catch (Exception ex) { error = "Couldn't open Race Mode: " + ex.Message; }
-                    return true;
+                    try { Process.Start(new ProcessStartInfo(Installer.InstalledExe) { UseShellExecute = false, WorkingDirectory = Installer.InstallDir }); error = null; return true; }
+                    catch (Exception ex) { error = Installer.OpenFailedText(ex.Message); Shell.LogCrash(ex); return false; }
                 }
             });
             flow = new SetupFlow(w, pages, () => w.Close());

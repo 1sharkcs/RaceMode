@@ -14,6 +14,7 @@ namespace RaceMode
     public class ObsStats
     {
         public bool Connected, Streaming, Reconnecting;
+        public bool Recording;                             // OBS's own recording output is running (GetRecordStatus)
         public string Status = "OBS stats are off";       // plain line for the UI
         public double Cpu = double.NaN, MemoryMB = double.NaN, ActiveFps = double.NaN, Congestion = double.NaN, Kbps = double.NaN;
         public long RenderSkipped, RenderTotal, EncodeSkipped, EncodeTotal, NetDropped, NetTotal;
@@ -138,6 +139,9 @@ namespace RaceMode
                             s.Kbps = (bytes - lastBytes) * 8.0 / 1000.0 / (now - lastAt).TotalSeconds;
                         lastBytes = s.Streaming ? bytes : -1; lastAt = now;
                     }
+                    // after the stream's numbers, so the bitrate's timing is as before
+                    var rec = Request(ws, "GetRecordStatus", ++id);
+                    if (rec != null) s.Recording = Bool(rec, "outputActive");
                     s.Status = !s.Streaming ? "OBS is connected, not streaming" : s.Reconnecting ? "OBS is reconnecting to the stream" : "Streaming";
                     Set(s);
                     for (int i = 0; i < 8 && Live; i++) Thread.Sleep(250);
