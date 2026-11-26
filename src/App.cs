@@ -1338,7 +1338,7 @@ namespace RaceMode
             if (_cfg.GpuWarning && !GpuCheckOk()) { SetSwitch(false); Tick("Didn't turn on: the graphics card was busy"); return; }
 
             _on = true; _simSeen = false; _uiSeen = false; _simBoosted = false; _goneTicks = 0; _lowered.Clear(); _boosted.Clear();
-            _simLoggedPid = -1; _prioNoted.Clear();
+            _simLoggedPid = -1; _prioNoted.Clear(); _prioRefused.Clear();
             _onAt = DateTime.Now; _issues.Clear(); _started.Clear(); _alreadyOpen.Clear(); _closed.Clear(); _notInstalled.Clear(); _leftOpen.Clear(); _reopened.Clear(); _runId++;
             _forced = 0; _confirmedRunning.Clear(); _vramWarned = false; _activation = "Turning on…";
             SetPhase("turning");
@@ -2816,7 +2816,8 @@ namespace RaceMode
         }
 
         int _simLoggedPid = -1;                                   // last sim PID written to events.log
-        readonly HashSet<int> _prioNoted = new HashSet<int>();    // sim PIDs whose priority outcome was already logged
+        readonly HashSet<int> _prioNoted = new HashSet<int>();    // sim PIDs already logged as at High (set by iRacing or another tool)
+        readonly HashSet<int> _prioRefused = new HashSet<int>();  // sim PIDs whose priority the anti-cheat refused: never touched again
 
         void WatchTick()
         {
@@ -2833,24 +2834,20 @@ namespace RaceMode
                     {
                         foreach (var p in sims)
                         {
-                            try
+                            // Try once per sim, accept a refusal from iRacing's anti-cheat and never retry it (SimPriority.cs).
+                            var proc = p; int bp = 0; bool noteHigh; ProcessPriorityClass was;
+                            try { bp = proc.BasePriority; } catch { }
+                            var r = SimPriority.Next(proc.Id, bp, _boosted.ContainsKey(proc.Id), _prioRefused, _prioNoted,
+                                                     () => proc.PriorityClass, c => proc.PriorityClass = c, out noteHigh, out was);
+                            if (noteHigh) _mon.Event(SimPriority.HighEvent(proc.Id));
+                            if (r == SimPrioOutcome.Raised)
                             {
-                                if (p.PriorityClass != ProcessPriorityClass.High)
-                                {
-                                    p.PriorityClass = ProcessPriorityClass.High;
-                                    _boosted[p.Id] = p.ProcessName;
-                                    _simBoosted = true;
-                                    _mon.Event("iRacing sim set to High priority (PID " + p.Id + ")");
-                                    Tick("iRacing put first");
-                                }
-                                else if (_prioNoted.Add(p.Id) && !_boosted.ContainsKey(p.Id))
-                                    _mon.Event("iRacing sim already at High priority (PID " + p.Id + "), set by something other than Race Mode");
+                                _boosted[proc.Id] = proc.ProcessName;
+                                _simBoosted = true;
+                                _mon.Event("iRacing sim set to High priority (PID " + proc.Id + ")");
+                                Tick("iRacing put first");
                             }
-                            catch (Exception ex)
-                            {
-                                // Logged once per sim process (this runs every 3 s), so a refusal shows up in events.log.
-                                if (_prioNoted.Add(p.Id)) { _mon.Event("Couldn't raise iRacing priority (PID " + p.Id + "): " + ex.Message); Tick("Couldn't put iRacing first: Windows said no (" + ex.Message + ")"); }
-                            }
+                            else if (r == SimPrioOutcome.Refused) { _mon.Event(SimPriority.RefusedEvent(proc.Id)); Tick(SimPriority.RefusedTick); }
                         }
                     }
                 }
