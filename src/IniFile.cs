@@ -96,19 +96,7 @@ namespace RaceMode
             string tmp = null;
             try
             {
-                // Unique per write: two writes in the same second (screen check, then graphics) must not overwrite each other's backup.
-                // Two writes can land in the same millisecond: then the backup gets a number instead of failing the write.
-                var stamp = path + ".racemode-" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture);
-                r.Backup = stamp + ".bak";
-                for (int n = 2; File.Exists(r.Backup); n++) r.Backup = stamp + "-" + n + ".bak";
-                File.Copy(path, r.Backup, false);
-                File.SetAttributes(r.Backup, FileAttributes.Normal); // a backup must never be undeletable
-                // The very first file Race Mode ever changed is kept for good: a few Photo/Race flips would
-                // otherwise rotate the user's original settings out of the newest-5 backups.
-                // (".racemode.first" doesn't match the ".racemode-*.bak" pattern, so pruning never removes it.)
-                var first = path + ".racemode.first.bak";
-                if (!File.Exists(first)) { File.Copy(path, first, false); File.SetAttributes(first, FileAttributes.Normal); }
-                PruneBackups(path, 5);
+                r.Backup = Backup(path);
                 tmp = path + ".racemode.tmp";
                 var body = enc.GetBytes(string.Join(nl, lines));
                 bool hadBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
@@ -122,6 +110,88 @@ namespace RaceMode
             {
                 if (tmp != null) { try { File.Delete(tmp); } catch { } }
             }
+        }
+
+        // Copies the file to a timed backup next to it before a write, and returns the backup's path. The newest 5
+        // timed backups are kept; the one just made is never pruned, whatever the other names say. Throws if the copy
+        // can't be made: callers must not write without it.
+        public static string Backup(string path)
+        {
+            // Unique per write: two writes in the same second (screen check, then graphics) must not overwrite each other's backup.
+            // Two writes can land in the same millisecond: then the backup gets a number instead of failing the write.
+            var stamp = path + ".racemode-" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture);
+            var backup = stamp + ".bak";
+            for (int n = 2; File.Exists(backup); n++) backup = stamp + "-" + n + ".bak";
+            File.Copy(path, backup, false);
+            File.SetAttributes(backup, FileAttributes.Normal); // a backup must never be undeletable
+            // The very first file Race Mode ever changed is kept for good: a few Photo/Race flips would
+            // otherwise rotate the user's original settings out of the newest-5 backups.
+            // (".racemode.first" isn't a timed backup name, so pruning never removes it.)
+            var first = path + ".racemode.first.bak";
+            if (!File.Exists(first)) { File.Copy(path, first, false); File.SetAttributes(first, FileAttributes.Normal); }
+            PruneBackups(path, 5, backup);
+            return backup;
+        }
+
+        // Race Mode's timed backups of this file, newest first (full paths). Only names that are exactly one of its
+        // backups: the folder search also finds lookalikes ("...racemode-notes.bak", and "...bak1" through Windows'
+        // 3-letter-extension match), which are never listed or pruned.
+        public static List<string> Backups(string path)
+        {
+            try
+            {
+                var full = Path.GetFullPath(path);
+                var file = Path.GetFileName(full);
+                var found = new DirectoryInfo(Path.GetDirectoryName(full)).GetFiles(file + ".racemode-*.bak")
+                    .Where(f => IsTimedBackupName(file, f.Name)).Select(f => f.FullName);
+                return NewestFirst(found, DateTime.Now);
+            }
+            catch { return new List<string>(); }
+        }
+
+        // Timed backup names, newest first: by the time in the name, then its -n. Not by the name as text ("...-123.bak"
+        // is after "...-123-2.bak" as text). A name more than a minute later than now was made while the clock was wrong
+        // (a flat CMOS battery, a wrong time zone, the hour after the clocks go back): it sorts after every other one, so
+        // a backup made now is never pruned for a "newer" one from then. Names that aren't timed backups are left out.
+        public static List<string> NewestFirst(IEnumerable<string> backups, DateTime now)
+        {
+            var limit = now.AddMinutes(1);
+            return (backups ?? new string[0]).Where(b => b != null && BackupTime(b).HasValue)
+                .OrderBy(b => BackupTime(b).Value > limit ? 1 : 0)
+                .ThenByDescending(b => BackupTime(b).Value)
+                .ThenByDescending(b => BackupNumber(b))
+                .ThenByDescending(b => SafeName(b), StringComparer.Ordinal).ToList();
+        }
+
+        const string BackupName = @"\.racemode-(\d{8}-\d{6}-\d{3})(?:-(\d+))?\.bak$";
+
+        // name is exactly <file>.racemode-yyyyMMdd-HHmmss-fff[-n].bak, with a real date (any letter case).
+        static bool IsTimedBackupName(string file, string name)
+        {
+            if (string.IsNullOrEmpty(file) || string.IsNullOrEmpty(name) || !name.StartsWith(file + ".racemode-", StringComparison.OrdinalIgnoreCase)) return false;
+            return Regex.IsMatch(name.Substring(file.Length), "^" + BackupName, RegexOptions.IgnoreCase) && BackupTime(name).HasValue;
+        }
+
+        // The file name part of a path, or "" for a path Windows can't read (invalid characters): never throws.
+        static string SafeName(string path)
+        {
+            try { return Path.GetFileName(path ?? ""); } catch { return ""; }
+        }
+
+        static int BackupNumber(string backup)
+        {
+            var m = Regex.Match(SafeName(backup), BackupName, RegexOptions.IgnoreCase);
+            int n;
+            return m.Success && m.Groups[2].Success && int.TryParse(m.Groups[2].Value, out n) ? n : 1;
+        }
+
+        // When a timed backup was made, from its name; null if it isn't one.
+        public static DateTime? BackupTime(string backup)
+        {
+            var m = Regex.Match(SafeName(backup), BackupName, RegexOptions.IgnoreCase);
+            DateTime t;
+            if (m.Success && DateTime.TryParseExact(m.Groups[1].Value, "yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture, DateTimeStyles.None, out t)) return t;
+            return null;
         }
 
         public static bool SameValue(string a, string b)
@@ -152,14 +222,16 @@ namespace RaceMode
 
         static byte[] Concat(byte[] a, byte[] b) { var c = new byte[a.Length + b.Length]; Buffer.BlockCopy(a, 0, c, 0, a.Length); Buffer.BlockCopy(b, 0, c, a.Length, b.Length); return c; }
 
-        static void PruneBackups(string path, int keep)
+        // made: the backup this write has just made, never removed.
+        static void PruneBackups(string path, int keep, string made)
         {
             try
             {
-                var dir = Path.GetDirectoryName(path);
-                var old = new DirectoryInfo(dir).GetFiles(Path.GetFileName(path) + ".racemode-*.bak")
-                    .OrderByDescending(f => f.Name, StringComparer.Ordinal).Skip(keep).ToList();
-                foreach (var f in old) { try { f.Delete(); } catch { } }
+                var keepMade = made == null ? null : Path.GetFullPath(made);
+                foreach (var f in Backups(path).Skip(keep).Where(f => !string.Equals(f, keepMade, StringComparison.OrdinalIgnoreCase)))
+                {
+                    try { File.Delete(f); } catch { }
+                }
             }
             catch { }
         }
