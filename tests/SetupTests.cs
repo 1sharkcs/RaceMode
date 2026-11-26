@@ -143,7 +143,9 @@ class SetupTests
         {
             var words = Installer.OpenFailedText("Access is denied.");
             Check("27 the reason and what to do instead", words == "Windows said: Access is denied. Close this window and open Race Mode from the Start menu.", words);
-            Check("28 no reason given is said, not left blank", Installer.OpenFailedText("  ").StartsWith("Windows said: no reason given ") && Installer.OpenFailedText(null).StartsWith("Windows said: no reason given "), Installer.OpenFailedText(null));
+            Check("28 no reason given is said, not left blank", Installer.OpenFailedText("  ").StartsWith("Windows said: no reason given. ") && Installer.OpenFailedText(null).StartsWith("Windows said: no reason given. "), Installer.OpenFailedText(null));
+            var noStop = Installer.OpenFailedText("The system cannot find the file specified");
+            Check("28a a reason without a full stop gets one, so the two sentences don't run together", noStop == "Windows said: The system cannot find the file specified. Close this window and open Race Mode from the Start menu.", noStop);
         }
         Console.WriteLine(pass + " passed, " + fail + " failed");
         Environment.Exit(fail == 0 ? 0 : 1);

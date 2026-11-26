@@ -60,7 +60,10 @@ namespace RaceMode
         // The last page's words when the installed copy can't be started from the installer.
         public static string OpenFailedText(string reason)
         {
-            return "Windows said: " + (string.IsNullOrWhiteSpace(reason) ? "no reason given" : reason.Trim()) + " Close this window and open Race Mode from the Start menu.";
+            var why = string.IsNullOrWhiteSpace(reason) ? "no reason given" : reason.Trim();
+            // Windows' own messages come with or without a full stop ("Access is denied." / "The system cannot find the file specified").
+            if (!why.EndsWith(".") && !why.EndsWith("!") && !why.EndsWith("?")) why += ".";
+            return "Windows said: " + why + " Close this window and open Race Mode from the Start menu.";
         }
 
         // Another Race Mode (installed or not) is open right now.
