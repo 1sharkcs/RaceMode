@@ -228,7 +228,7 @@ namespace RaceMode
             string renamedFrom = null;
             try { var gone = exe + ".uninstall-" + Process.GetCurrentProcess().Id; File.Move(exe, gone); renamedFrom = exe; exe = gone; } catch { }
             var script = "(for /l %i in (1,1,600) do if exist \"" + exe + "\" (del /f /q \"" + exe + "\" >nul 2>&1 & if exist \"" + exe + "\" ping -n 2 127.0.0.1 >nul))" +
-                         " & del /f /q \"" + dir + "\\RaceMode.exe.old\" \"" + dir + "\\RaceMode.exe.failed\" >nul 2>&1";
+                         " & del /f /q \"" + dir + "\\RaceMode.exe.old\" \"" + dir + "\\RaceMode.exe.failed\" \"" + dir + "\\RaceMode.exe.previous\" >nul 2>&1";
             if (!keepData) script += " & if not exist \"" + dir + "\\RaceMode.exe\" rmdir /s /q \"" + dir + "\\data\"";
             script += " & rmdir \"" + dir + "\" >nul 2>&1";
             try { Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"), "/d /s /c \"" + script + "\"") { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetTempPath() }); }
