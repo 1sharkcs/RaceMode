@@ -72,6 +72,32 @@ class PresetTests
         var missing = GraphicsPresets.Apply("Race", Path.Combine(root, "nope.ini"), false);
         Check("13 missing ini -> clean failure", missing.Failed, missing.Message);
 
+        // 20-24: presets leave this PC's own keys alone (graphics card memory, system memory, VR mode), but keep the
+        // three feel keys (V-Sync, Reflex, pre-rendered frames)
+        {
+            var pc = Path.Combine(root, "pc.ini");
+            var text = File.ReadAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"fixtures\live-before-race-preset.ini"));
+            // this PC differs from the one the preset was made on: half the video memory, no VR
+            File.WriteAllText(pc, text.Replace("VidMemToUseMB=8192 ", "VidMemToUseMB=4096 ").Replace("SysMemToUseMB=16384 ", "SysMemToUseMB=8192  ").Replace("VRMode=1 ", "VRMode=0 "));
+            Check("20 the test file really differs from the preset in its PC keys", V(pc, "Graphics Options", "VidMemToUseMB") == "4096" && V(pc, "Graphics Options", "SysMemToUseMB") == "8192" && V(pc, "Graphics Options", "VRMode") == "0", null);
+            var d = GraphicsPresets.Differences("Race", pc);
+            Check("21 PC keys are not differences; Reflex (a feel key) still is", d.Count == 51 && !d.Any(x => x.Contains("VidMemToUseMB") || x.Contains("SysMemToUseMB") || x.Contains("VRMode")) && d.Any(x => x.Contains("NvReflexMode")), d.Count + ": " + string.Join(" | ", d.Where(x => x.Contains("Mem") || x.Contains("VR") || x.Contains("Reflex")).ToArray()));
+            var ap = GraphicsPresets.Apply("Race", pc, false);
+            Check("22 applying Race leaves the PC keys as iRacing has them; Reflex follows the preset", ap.Ok && V(pc, "Graphics Options", "VidMemToUseMB") == "4096" && V(pc, "Graphics Options", "SysMemToUseMB") == "8192"
+                && V(pc, "Graphics Options", "VRMode") == "0" && V(pc, "Graphics Options", "NvReflexMode") == "1", ap.Message);
+            var loaded = GraphicsPresets.Load("Race");
+            Check("23 a preset file that still holds PC keys (saved by an older version) is read without them",
+                !loaded["Graphics Options"].ContainsKey("VidMemToUseMB") && !loaded["Graphics Options"].ContainsKey("VRMode") && loaded["Graphics Options"].ContainsKey("NvReflexMode")
+                && loaded["Graphics Options"].ContainsKey("VerticalSync") && loaded["Graphics Options"].ContainsKey("MaxPreRenderedFrames"), null);
+            var gfx3 = Path.Combine(root, "graphics-pc"); Directory.CreateDirectory(gfx3);
+            GraphicsPresets.Folder = gfx3;
+            GraphicsPresets.SaveFromIni("Race", pc);
+            var saved = File.ReadAllText(GraphicsPresets.PresetPath("Race"));
+            Check("24 a newly saved preset holds no PC keys, and keeps the feel keys", !saved.Contains("VidMemToUseMB") && !saved.Contains("SysMemToUseMB") && !saved.Contains("VRMode") && !saved.Contains("NumMultiGPUs")
+                && saved.Contains("NvReflexMode=") && saved.Contains("VerticalSync=") && saved.Contains("MaxPreRenderedFrames="), null);
+            GraphicsPresets.Folder = gfx;
+        }
+
         // 15-19: "Save Current as Race" keeps a copy of the preset it replaces
         {
             var gfx2 = Path.Combine(root, "graphics-save"); Directory.CreateDirectory(gfx2);

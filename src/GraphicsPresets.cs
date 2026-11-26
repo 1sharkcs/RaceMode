@@ -2,7 +2,9 @@
 //
 // A preset is a plain ini file in RaceMode\graphics\ (race.ini, photo.ini) holding every key from iRacing's
 // [Graphics Options] and [Replay Graphics] except the two the display guard owns (LimitFrameRate and
-// DesiredFPSLimit, so the FPS cap is never touched by a preset). Applying writes only the values that differ,
+// DesiredFPSLimit, so the FPS cap is never touched by a preset) and the catalog's PC-specific "machine" keys
+// (VidMemToUseMB, SysMemToUseMB, VRMode...), but not V-Sync, NVIDIA Reflex and pre-rendered frames: those are choices
+// about how the car feels, so a preset keeps them. Applying writes only the values that differ,
 // through IniFile (layout kept, backup, atomic write), never while the sim is running (iRacing rewrites the file
 // from memory when it closes), and then re-reads the file to confirm every value.
 using System;
@@ -33,12 +35,21 @@ namespace RaceMode
         public static string PresetPath(string mode) { return Path.Combine(Folder, Normalize(mode).ToLowerInvariant() + ".ini"); }
         public static bool Exists(string mode) { return File.Exists(PresetPath(mode)); }
 
+        // The catalog files these three under "machine" too, but they are choices about how the car feels, not facts about
+        // the PC. A preset keeps saving, comparing and writing them, so V-Sync switched on behind your back is put back.
+        static readonly string[] FeelKeys = { "VerticalSync", "NvReflexMode", "MaxPreRenderedFrames" };
+
         static bool Owned(string section, string key)
         {
-            return GuardOwned.Contains(section + "/" + key, StringComparer.OrdinalIgnoreCase);
+            if (GuardOwned.Contains(section + "/" + key, StringComparer.OrdinalIgnoreCase)) return true;
+            if (FeelKeys.Contains(key, StringComparer.OrdinalIgnoreCase)) return false;
+            // PC-specific keys (graphics card memory, VR mode...): the catalog promises Race Mode never writes them, so
+            // a preset never saves, compares or writes them. No catalog (it failed to load): Find is null, nothing changes.
+            var k = GraphicsCatalog.Find(key);
+            return k != null && k.scope == "machine";
         }
 
-        // Only the preset sections, minus the guard-owned keys.
+        // Only the preset sections, minus the guard-owned and PC-specific ("machine") keys (the three feel keys stay).
         static Dictionary<string, Dictionary<string, string>> Filter(Dictionary<string, Dictionary<string, string>> map)
         {
             var o = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
