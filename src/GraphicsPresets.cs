@@ -83,10 +83,18 @@ namespace RaceMode
                 preset["Graphics Options"] = g;
             }
             if (replay.Count > 0) preset["Replay Graphics"] = replay;
-            return Write(mode, preset, Path.GetFileName(iniPath));
+            // The racer's own save: the preset it replaces is kept as a backup first (the same namer and pruner as iRacing's files).
+            return Write(mode, preset, Path.GetFileName(iniPath), true);
         }
 
         public static int Write(string mode, Dictionary<string, Dictionary<string, string>> map, string fromName)
+        {
+            return Write(mode, map, fromName, false);
+        }
+
+        // keepCopy: back the existing preset up before it is replaced. If the backup can't be made the preset is left as it
+        // was and the error goes to the caller: the only copy is never overwritten on a failed backup.
+        public static int Write(string mode, Dictionary<string, Dictionary<string, string>> map, string fromName, bool keepCopy)
         {
             var sb = new StringBuilder();
             sb.Append("; RaceMode ").Append(Normalize(mode)).Append(" graphics preset, saved ").Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm")).Append(" from ").Append(fromName).Append("\r\n");
@@ -102,6 +110,7 @@ namespace RaceMode
             Directory.CreateDirectory(Folder);
             var path = PresetPath(mode);
             var tmp = path + ".tmp";
+            if (keepCopy && File.Exists(path)) IniFile.Backup(path);
             File.WriteAllText(tmp, sb.ToString(), Encoding.ASCII);
             if (File.Exists(path)) File.Replace(tmp, path, null); else File.Move(tmp, path);
             return n;

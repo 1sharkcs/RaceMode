@@ -72,6 +72,36 @@ class PresetTests
         var missing = GraphicsPresets.Apply("Race", Path.Combine(root, "nope.ini"), false);
         Check("13 missing ini -> clean failure", missing.Failed, missing.Message);
 
+        // 15-19: "Save Current as Race" keeps a copy of the preset it replaces
+        {
+            var gfx2 = Path.Combine(root, "graphics-save"); Directory.CreateDirectory(gfx2);
+            GraphicsPresets.Folder = gfx2;
+            var race = GraphicsPresets.PresetPath("Race");
+            var src = Path.Combine(root, "renderer.ini");
+            File.WriteAllText(src, "[Graphics Options]\r\nShadowMaps=1\r\n\r\n[Replay Graphics]\r\nShadowMaps=1\r\n");
+            GraphicsPresets.SaveFromIni("Race", src);
+            Check("15 first save: the preset is written and there is nothing to back up", File.Exists(race) && IniFile.Backups(race).Count == 0, IniFile.Backups(race).Count.ToString());
+            string firstSave = File.ReadAllText(race);
+            File.WriteAllText(src, "[Graphics Options]\r\nShadowMaps=0\r\n\r\n[Replay Graphics]\r\nShadowMaps=0\r\n");
+            GraphicsPresets.SaveFromIni("Race", src);
+            var backs = IniFile.Backups(race);
+            Check("16 second save: the old preset is kept as a backup", backs.Count == 1 && File.ReadAllText(backs[0]) == firstSave, backs.Count + " backup(s)");
+            Check("17 the new preset holds the new values, no temp file left", File.ReadAllText(race).Contains("ShadowMaps=0") && !File.Exists(race + ".tmp"), null);
+            var map = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+            map["Graphics Options"] = new Dictionary<string, string> { { "ShadowMaps", "2" } };
+            GraphicsPresets.Write("Race", map, "a quality level");
+            Check("18 a quality-level write (not the racer's save) makes no backup", IniFile.Backups(race).Count == 1 && File.ReadAllText(race).Contains("ShadowMaps=2"), null);
+            // a backup that can't be made leaves the preset as it was
+            string held = File.ReadAllText(race);
+            bool threw = false;
+            using (var lockIt = new FileStream(race, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                try { GraphicsPresets.SaveFromIni("Race", src); } catch { threw = true; }
+            }
+            Check("19 the preset is locked (no copy possible): the save fails and the preset is unchanged", threw && File.ReadAllText(race) == held, "threw " + threw);
+            GraphicsPresets.Folder = gfx;
+        }
+
         Check("14 real ini untouched", before == null || File.ReadAllBytes(realIni).SequenceEqual(before), null);
         Console.WriteLine(pass + " passed, " + fail + " failed");
         Environment.Exit(fail == 0 ? 0 : 1);
