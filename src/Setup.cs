@@ -64,10 +64,19 @@ namespace RaceMode
         }
 
         // Another Race Mode (installed or not) is open right now.
-        public static bool RaceModeRunning()
+        public static bool RaceModeRunning() { return LockHeld(InstanceLockName + NameSuffix); }
+
+        // The running Race Mode's lock.
+        public const string InstanceLockName = @"Local\RaceMode.Instance";
+
+        // Whether this lock exists. One this user can't open counts as held: a Race Mode started "as administrator"
+        // makes a lock a normal installer gets "access denied" for, and that still means it is running. Any other
+        // failure counts as held too: installing over a running copy would fail halfway.
+        public static bool LockHeld(string name)
         {
             System.Threading.Mutex m;
-            if (!System.Threading.Mutex.TryOpenExisting(@"Local\RaceMode.Instance" + NameSuffix, out m)) return false;
+            try { if (!System.Threading.Mutex.TryOpenExisting(name, out m)) return false; }
+            catch { return true; }
             m.Dispose(); return true;
         }
 

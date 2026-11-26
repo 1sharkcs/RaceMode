@@ -265,7 +265,9 @@ namespace RaceMode
                 // matching Installer.RaceModeRunning, so a test copy never talks to (or is mistaken for) the real Race Mode
                 // or another test copy.
                 var sfx = Installer.NameSuffix;
-                _instance = new System.Threading.Mutex(true, @"Local\RaceMode.Instance" + sfx, out created);
+                // A lock this user can't open (a Race Mode started as administrator) means one is running too.
+                try { _instance = new System.Threading.Mutex(true, Installer.InstanceLockName + sfx, out created); }
+                catch (UnauthorizedAccessException) { created = false; }
                 if (!created)
                 {
                     // Already running: ask it to come to the front, then quit quietly.
