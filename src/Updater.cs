@@ -205,7 +205,10 @@ namespace RaceMode
         {
             if (!_fresh) return false;
             _fresh = false;
-            KeepPrevious(ExePath);
+            // Only the installed copy keeps one version back (uninstall removes it). A copy run from any other folder
+            // would leave an exe-sized file there for good, so its old exe is removed as before.
+            if (Installer.IsInstalledCopy) KeepPrevious(ExePath);
+            else { try { File.Delete(ExePath + ".old"); } catch { } }
             return true;
         }
 
