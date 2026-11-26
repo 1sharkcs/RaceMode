@@ -2498,6 +2498,14 @@ namespace RaceMode
             bool apply = false; string why = null;
             try
             {
+                // No Race preset yet (iRacing's graphics file didn't exist when Race Mode started): seed it from iRacing's
+                // current settings like Photo does, or say why the level can't be saved instead of keeping it silently.
+                if (_raceDirty && !GraphicsPresets.RaceReady(IniPath()))
+                {
+                    _raceDirty = false;
+                    _cfg.GraphicsRace.Level = _committedRace;
+                    Tick(GraphicsPresets.NoRaceYetText);
+                }
                 if (_raceDirty && GraphicsPresets.Exists("Race"))
                 {
                     var g = _cfg.GraphicsRace;

@@ -149,6 +149,16 @@ namespace RaceMode
             catch (Exception ex) { Shell.LogCrash(ex); }
         }
 
+        // Before a Race quality level is saved: true when there is a Race preset to build it on, made now from iRacing's
+        // current settings if there was none. False when that can't be done (iRacing has never written its graphics file).
+        public static bool RaceReady(string iniPath)
+        {
+            if (!Exists("Race")) EnsureRaceSeeded(iniPath);
+            return Exists("Race");
+        }
+
+        public const string NoRaceYetText = "Race quality can't be saved yet: start the iRacing sim once and close it, so iRacing writes its graphics file";
+
         // Settings in iRacing that differ from the preset ("Graphics changed in iRacing").
         public static List<string> Differences(string mode, string iniPath)
         {

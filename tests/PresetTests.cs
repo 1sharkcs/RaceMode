@@ -98,6 +98,21 @@ class PresetTests
             GraphicsPresets.Folder = gfx;
         }
 
+        // 25-27: the Race quality slider with no Race preset yet
+        {
+            var gfx4 = Path.Combine(root, "graphics-none"); Directory.CreateDirectory(gfx4);
+            GraphicsPresets.Folder = gfx4;
+            Check("25 no Race preset and no iRacing graphics file: not ready, nothing made, and the words say what to do",
+                !GraphicsPresets.RaceReady(Path.Combine(root, "nope.ini")) && !GraphicsPresets.Exists("Race") && GraphicsPresets.NoRaceYetText.Contains("start the iRacing sim once"), null);
+            var live2 = Path.Combine(root, "live2.ini"); File.Copy(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fixtures", "live-before-race-preset.ini"), live2);
+            var live2Before = File.ReadAllBytes(live2);
+            Check("26 iRacing's file is there now: the Race preset is made from it, iRacing's file untouched", GraphicsPresets.RaceReady(live2) && GraphicsPresets.Exists("Race")
+                && GraphicsPresets.Load("Race")["Graphics Options"]["MSAASamples"] == V(live2, "Graphics Options", "MSAASamples") && File.ReadAllBytes(live2).SequenceEqual(live2Before), null);
+            var made = File.ReadAllText(GraphicsPresets.PresetPath("Race"));
+            Check("27 a Race preset that is already there is left as it is", GraphicsPresets.RaceReady(Path.Combine(root, "nope.ini")) && File.ReadAllText(GraphicsPresets.PresetPath("Race")) == made, null);
+            GraphicsPresets.Folder = gfx;
+        }
+
         // 15-19: "Save Current as Race" keeps a copy of the preset it replaces
         {
             var gfx2 = Path.Combine(root, "graphics-save"); Directory.CreateDirectory(gfx2);
