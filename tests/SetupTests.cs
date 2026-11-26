@@ -109,6 +109,12 @@ class SetupTests
                 if (created) open.ReleaseMutex();
             }
         }
+        // 27-28: the installer's last page says why Race Mode didn't open
+        {
+            var words = Installer.OpenFailedText("Access is denied.");
+            Check("27 the reason and what to do instead", words == "Windows said: Access is denied. Close this window and open Race Mode from the Start menu.", words);
+            Check("28 no reason given is said, not left blank", Installer.OpenFailedText("  ").StartsWith("Windows said: no reason given ") && Installer.OpenFailedText(null).StartsWith("Windows said: no reason given "), Installer.OpenFailedText(null));
+        }
         Console.WriteLine(pass + " passed, " + fail + " failed");
         Environment.Exit(fail == 0 ? 0 : 1);
     }

@@ -57,6 +57,12 @@ namespace RaceMode
             }
         }
 
+        // The last page's words when the installed copy can't be started from the installer.
+        public static string OpenFailedText(string reason)
+        {
+            return "Windows said: " + (string.IsNullOrWhiteSpace(reason) ? "no reason given" : reason.Trim()) + " Close this window and open Race Mode from the Start menu.";
+        }
+
         // Another Race Mode (installed or not) is open right now.
         public static bool RaceModeRunning()
         {
@@ -669,12 +675,16 @@ namespace RaceMode
                 Title = goingBack != null ? "Went back to Race Mode " + Updater.Current : reinstall ? "Race Mode is updated" : "Race Mode is installed",
                 Intro = reinstall ? "Your settings were kept. Open it to carry on where you left off." : "The next screens help you set it up. It takes about a minute.",
                 NextText = "Open Race Mode", CanSkip = false, CanGoBack = false,
-                Build = () => SetupFlow.Group((result ?? new List<string>()).Select(l => SetupFlow.Status(l, null, true)).ToArray()),
+                Build = () =>
+                {
+                    var done = SetupFlow.Group((result ?? new List<string>()).Select(l => SetupFlow.Status(l, null, true)).ToArray());
+                    // Race Mode didn't open: say so here instead of closing the window on an error nobody saw.
+                    return error == null ? (UIElement)done : SetupFlow.Stack(SetupFlow.Group(SetupFlow.Status("Race Mode is installed, but it didn't open", error, false)), done);
+                },
                 OnNext = () =>
                 {
-                    try { Process.Start(new ProcessStartInfo(Installer.InstalledExe) { UseShellExecute = false, WorkingDirectory = Installer.InstallDir }); }
-                    catch (Exception ex) { error = "Couldn't open Race Mode: " + ex.Message; }
-                    return true;
+                    try { Process.Start(new ProcessStartInfo(Installer.InstalledExe) { UseShellExecute = false, WorkingDirectory = Installer.InstallDir }); error = null; return true; }
+                    catch (Exception ex) { error = Installer.OpenFailedText(ex.Message); Shell.LogCrash(ex); return false; }
                 }
             });
             flow = new SetupFlow(w, pages, () => w.Close());
