@@ -1505,7 +1505,7 @@ namespace RaceMode
             if (names.Any(ObsGuard.IsObs))
             {
                 var o = Obs.Latest;
-                var obs = ObsGuard.Now(o.Connected && o.Streaming);
+                var obs = ObsGuard.Now(o.Connected && o.Streaming, o.Connected && o.Recording);
                 if (obs.State != ObsState.Idle)
                 {
                     names.RemoveAll(ObsGuard.IsObs);

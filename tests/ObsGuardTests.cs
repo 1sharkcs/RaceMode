@@ -88,6 +88,19 @@ static class ObsGuardTests
             st.State == ObsState.Live && st.ActiveText == "streaming" && idle.State == ObsState.Idle && unk.State == ObsState.Unknown, st.State + " " + st.ActiveText + " / " + idle.State + " / " + unk.State);
         var both = ObsGuard.WithStats(ObsGuard.FromLog(Log("==== Streaming Start ====", "==== Recording Start ====")), true);
         Check("22 stats and log both saying streaming list it once", both.ActiveText == "streaming and recording", both.ActiveText);
+        // OBS itself saying "recording" (GetRecordStatus) makes it live when its log gives no hint
+        var rec = ObsGuard.WithStats(ObsGuard.FromLog(Log()), false, true);
+        Check("22a the stats saying 'recording' make an idle OBS live", rec.State == ObsState.Live && rec.ActiveText == "recording", rec.State + " " + rec.ActiveText);
+        var recBoth = ObsGuard.WithStats(ObsGuard.FromLog(Log()), true, true);
+        var recOnce = ObsGuard.WithStats(ObsGuard.FromLog(Log("==== Recording Start ====")), false, true);
+        Check("22b streaming and recording from the stats: both, streaming first; log and stats both recording list it once",
+            recBoth.ActiveText == "streaming and recording" && recOnce.ActiveText == "recording", recBoth.ActiveText + " / " + recOnce.ActiveText);
+        var recUnk = ObsGuard.WithStats(ObsGuard.FromLog(null), false, true);
+        var notRec = ObsGuard.WithStats(ObsGuard.FromLog(null), false, false);
+        var logLive = ObsGuard.WithStats(ObsGuard.FromLog(Log("==== Recording Start ====")), false, false);
+        Check("22c the stats only ever add: no log but recording is live; 'not recording' never makes an unknown or a live OBS idle",
+            recUnk.State == ObsState.Live && notRec.State == ObsState.Unknown && logLive.State == ObsState.Live, recUnk.State + " / " + notRec.State + " / " + logLive.State);
+        Check("22d the one-argument forms still mean 'no recording known'", ObsGuard.WithStats(ObsGuard.FromLog(Log()), false).State == ObsState.Idle && ObsGuard.Now(false, false) != null, null);
 
         // An OBS that is still getting going reads idle in its log, but may be about to go live: unknown (never closed)
         s = ObsGuard.FromLog(Log("08:40:20.511: [rtmp stream: 'simple_stream'] Connecting to RTMP URL rtmp://live.example.invalid/app..."));
